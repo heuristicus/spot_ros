@@ -1,0 +1,8 @@
+rates:
+  robot_state: 20.0
+  metrics: 1.0
+  robot_command: 1.0
+  power: 1.0
+  lease: 1.0
+  image: 1.0
+  estop: 1.0
