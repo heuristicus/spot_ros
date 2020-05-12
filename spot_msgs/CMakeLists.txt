@@ -11,16 +11,29 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   FILES
+  BatteryStateArray.msg
+  BehaviorFault.msg
+  EStopStateArray.msg
+  FootStateArray.msg
   LeaseArray.msg
-  Lease.msg
   LeaseOwner.msg
-  LeaseResource.msg
   Metrics.msg
+  SystemFault.msg
+  WiFiState.msg
+  BatteryState.msg
+  BehaviorFaultState.msg
+  EStopState.msg
+  FootState.msg
+  Lease.msg
+  LeaseResource.msg
+  PowerState.msg
+  SystemFaultState.msg
 )
 
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 catkin_package(
