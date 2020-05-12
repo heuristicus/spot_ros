@@ -6,6 +6,9 @@ from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import JointState
 
+from spot_msgs.msg import Metrics
+from spot_msgs.msg import LeaseArray, LeaseResource
+
 from spot_wrapper import SpotWrapper
 import logging
 
@@ -31,6 +34,7 @@ class SpotROS():
         self.friendly_joint_names["hr.kn"] = "rear_right_knee"
 
         self.callbacks = {}
+        """Dictionary listing what callback to use for what data task"""
         self.callbacks["robot_state"] = self.RobotStateCB
         self.callbacks["metrics"] = self.MetricsCB
         self.callbacks["robot_command"] = self.RobotCommandCB
@@ -45,7 +49,6 @@ class SpotROS():
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
         """
-
         state = self.spot_wrapper.robot_state
 
         if state:
@@ -84,9 +87,22 @@ class SpotROS():
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
         """
-        # TODO: All of this
-        rospy.logdebug("##### METRICS #####")
-        #rospy.loginfo(str(self.spot_wrapper.metrics))
+        metrics = self.spot_wrapper.metrics
+        if metrics:
+            metrics_msg = Metrics()
+            metrics_msg.header.stamp = rospy.Time(metrics.timestamp.seconds, metrics.timestamp.nanos)
+
+            for metric in metrics.metrics:
+                if metric.label == "distance":
+                    metrics_msg.distance = metric.float_value
+                if metric.label == "gait cycles":
+                    metrics_msg.gait_cycles = metric.int_value
+                if metric.label == "time moving":
+                    metrics_msg.time_moving = rospy.Time(metric.duration.seconds, metric.duration.nanos)
+                if metric.label == "electric power":
+                    metrics_msg.electric_power = rospy.Time(metric.duration.seconds, metric.duration.nanos)
+
+            self.metrics_pub.publish(metrics_msg)
 
     def RobotCommandCB(self, results):
         """Callback for when the Spot Wrapper gets new robot command data.
@@ -106,7 +122,7 @@ class SpotROS():
         """
         # TODO: All of this
         rospy.logdebug("##### POWER #####")
-        #rospy.loginfo(str(self.spot_wrapper.power))
+        #rospy.logwarn(str(self.spot_wrapper.power))
 
     def LeaseCB(self, results):
         """Callback for when the Spot Wrapper gets new lease data.
@@ -114,9 +130,25 @@ class SpotROS():
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
         """
-        # TODO: All of this
-        rospy.logdebug("##### LEASE #####")
-        #rospy.loginfo(str(self.spot_wrapper.lease))
+        lease_array_msg = LeaseArray()
+        lease_list = self.spot_wrapper.lease
+        if lease_list:
+            rospy.logwarn(lease_list)
+            for resource in lease_list:
+                new_resource = LeaseResource()
+                new_resource.resource = resource.resource
+                new_resource.lease.resource = resource.lease.resource
+                new_resource.lease.epoch = resource.lease.epoch
+
+                for seq in resource.lease.sequence:
+                    new_resource.lease.sequence.append(seq)
+
+                new_resource.lease_owner.client_name = resource.lease_owner.client_name
+                new_resource.lease_owner.user_name = resource.lease_owner.user_name
+
+                lease_array_msg.resources.append(new_resource)
+
+            self.lease_pub.publish(lease_array_msg)
 
     def getImageMsg(data):
         """Maps image data from image proto to ROS image message
@@ -183,6 +215,8 @@ class SpotROS():
             self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=10)
             """Defining a TF publisher manually because of conflicts between Python3 and tf"""
             self.tf_pub = rospy.Publisher('tf', TFMessage, queue_size=10)
+            self.metrics_pub = rospy.Publisher('metrics', Metrics, queue_size=10)
+            self.lease_pub = rospy.Publisher('leases', LeaseArray, queue_size=10)
 
             rospy.loginfo("Connecting")
             self.spot_wrapper.connect()
