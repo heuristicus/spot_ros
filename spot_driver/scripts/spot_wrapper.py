@@ -3,7 +3,6 @@ import time
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
 
-from bosdyn.client.spot_check import SpotCheckClient
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder
 from bosdyn.client.power import PowerClient
@@ -16,6 +15,14 @@ import bosdyn.api.robot_state_pb2 as robot_state_proto
 image_sources = ['back_fisheye_image', 'frontleft_fisheye_image', 'frontright_fisheye_image', 'left_fisheye_image', 'right_fisheye_image']
 
 class AsyncRobotState(AsyncPeriodicQuery):
+    """Class to get robot state at regular intervals.  get_robot_state_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            callback: Callback function to call when the results of the query are available
+    """
     def __init__(self, client, logger, rate, callback):
         super(AsyncRobotState, self).__init__("robot-state", client, logger,
                                            period_sec=1.0/rate)
@@ -27,6 +34,14 @@ class AsyncRobotState(AsyncPeriodicQuery):
         return callback_future
 
 class AsyncMetrics(AsyncPeriodicQuery):
+    """Class to get robot metrics at regular intervals.  get_robot_metrics_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            callback: Callback function to call when the results of the query are available
+    """
     def __init__(self, client, logger, rate, callback):
         super(AsyncMetrics, self).__init__("robot-metrics", client, logger,
                                            period_sec=1.0/rate)
@@ -38,6 +53,14 @@ class AsyncMetrics(AsyncPeriodicQuery):
         return callback_future
 
 class AsyncRobotCommand(AsyncPeriodicQuery):
+    """Class to get robot command status at regular intervals.  robot_command_feedback_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            callback: Callback function to call when the results of the query are available
+    """
     def __init__(self, client, logger, rate, callback):
         super(AsyncRobotCommand, self).__init__("robot-command", client, logger,
                                            period_sec=1.0/rate)
@@ -49,6 +72,14 @@ class AsyncRobotCommand(AsyncPeriodicQuery):
         return callback_future
 
 class AsyncPower(AsyncPeriodicQuery):
+    """Class to get power status at regular intervals.  power_command_feedback_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            callback: Callback function to call when the results of the query are available
+    """
     def __init__(self, client, logger, rate, callback):
         super(AsyncPower, self).__init__("power", client, logger,
                                            period_sec=1.0/rate)
@@ -60,6 +91,14 @@ class AsyncPower(AsyncPeriodicQuery):
         return callback_future
 
 class AsyncLease(AsyncPeriodicQuery):
+    """Class to get lease state at regular intervals.  list_leases_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            callback: Callback function to call when the results of the query are available
+    """
     def __init__(self, client, logger, rate, callback):
         super(AsyncLease, self).__init__("lease", client, logger,
                                            period_sec=1.0/rate)
@@ -71,6 +110,14 @@ class AsyncLease(AsyncPeriodicQuery):
         return callback_future
 
 class AsyncImageService(AsyncPeriodicQuery):
+    """Class to get images at regular intervals.  get_image_from_sources_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            callback: Callback function to call when the results of the query are available
+    """
     def __init__(self, client, logger, rate, callback):
         super(AsyncImageService, self).__init__("robot_image_service", client, logger,
                                            period_sec=1.0/rate)
@@ -82,6 +129,14 @@ class AsyncImageService(AsyncPeriodicQuery):
         return callback_future
 
 class AsyncEStop(AsyncPeriodicQuery):
+    """Class to get estop state at regular intervals.  get_status_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            callback: Callback function to call when the results of the query are available
+    """
     def __init__(self, client, logger, rate, callback):
         super(AsyncEStop, self).__init__("estop", client, logger,
                                            period_sec=1.0/rate)
@@ -142,35 +197,38 @@ class SpotWrapper():
             self._lease = None
 
     @property
-    def spot_check(self):
-        return self._spot_check_task.proto
-
-    @property
     def robot_state(self):
+        """Return latest proto from the _robot_state_task"""
         return self._robot_state_task.proto
 
     @property
     def metrics(self):
+        """Return latest proto from the _robot_metrics_task"""
         return self._robot_metrics_task.proto
 
     @property
     def robot_command(self):
+        """Return latest proto from the _robot_command_task"""
         return self._robot_command_task.proto
 
     @property
     def power(self):
+        """Return latest proto from the _power_task"""
         return self._power_task.proto
 
     @property
     def lease(self):
+        """Return latest proto from the _lease_task"""
         return self._lease_task.proto
 
     @property
     def image(self):
+        """Return latest proto from the _image_task"""
         return self._image_task.proto
 
     @property
     def estop(self):
+        """Return latest proto from the _estop_task"""
         return self._estop_task.proto
 
     def connect(self):
