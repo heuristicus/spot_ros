@@ -4,5 +4,5 @@ rates:
   robot_command: 1.0
   power: 1.0
   lease: 1.0
-  image: 1.0
+  image: 10.0
   estop: 1.0

@@ -12,7 +12,7 @@ from bosdyn.client.estop import EstopClient, EstopEndpoint, EstopKeepAlive
 
 import bosdyn.api.robot_state_pb2 as robot_state_proto
 
-image_sources = ['back_fisheye_image', 'frontleft_fisheye_image', 'frontright_fisheye_image', 'left_fisheye_image', 'right_fisheye_image']
+image_sources = ['back_fisheye_image', 'frontleft_fisheye_image', 'frontright_fisheye_image', 'left_fisheye_image', 'right_fisheye_image', 'back_depth_in_visual_frame', 'frontleft_depth_in_visual_frame', 'frontright_depth_in_visual_frame', 'left_depth_in_visual_frame', 'right_depth_in_visual_frame']
 
 class AsyncRobotState(AsyncPeriodicQuery):
     """Class to get robot state at regular intervals.  get_robot_state_async query sent to the robot at every tick.  Callback registered to defined callback function.

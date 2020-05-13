@@ -5,9 +5,17 @@ from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import TwistWithCovarianceStamped
 
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
+from spot_msgs.msg import FootState, FootStateArray
+from spot_msgs.msg import EStopState, EStopStateArray
+from spot_msgs.msg import WiFiState
+from spot_msgs.msg import PowerState
+from spot_msgs.msg import BehaviorFault, BehaviorFaultState
+from spot_msgs.msg import SystemFault, SystemFaultState
+from spot_msgs.msg import BatteryState, BatteryStateArray
 
 from spot_wrapper import SpotWrapper
 import logging
@@ -52,8 +60,9 @@ class SpotROS():
         state = self.spot_wrapper.robot_state
 
         if state:
+            ## joint states ##
             joint_state = JointState()
-            joint_state.header.stamp = rospy.Time.now()
+            joint_state.header.stamp = rospy.Time(state.kinematic_state.acquisition_timestamp.seconds, state.kinematic_state.acquisition_timestamp.nanos)
             for joint in state.kinematic_state.joint_states:
                 joint_state.name.append(self.friendly_joint_names.get(joint.name, "ERROR"))
                 joint_state.position.append(joint.position.value)
@@ -62,12 +71,13 @@ class SpotROS():
 
             self.joint_state_pub.publish(joint_state)
 
+            ## TF ##
             tf_msg = TFMessage()
             for frame_name in state.kinematic_state.transforms_snapshot.child_to_parent_edge_map:
                 if state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name:
                     transform = state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
                     new_tf = TransformStamped()
-                    new_tf.header.stamp = rospy.Time.now()
+                    new_tf.header.stamp = rospy.Time(state.kinematic_state.acquisition_timestamp.seconds, state.kinematic_state.acquisition_timestamp.nanos)
                     new_tf.header.frame_id = transform.parent_frame_name
                     new_tf.child_frame_id = frame_name
                     new_tf.transform.translation.x = transform.parent_tform_child.position.x
@@ -80,6 +90,90 @@ class SpotROS():
                     tf_msg.transforms.append(new_tf)
             if len(tf_msg.transforms) > 0:
                 self.tf_pub.publish(tf_msg)
+
+            # Odom Twist #
+            twist_odom_msg = TwistWithCovarianceStamped()
+            twist_odom_msg.header.stamp = rospy.Time(state.kinematic_state.acquisition_timestamp.seconds, state.kinematic_state.acquisition_timestamp.nanos)
+            twist_odom_msg.twist.linear.x = state.kinematic_state.velocity_of_body_in_odom.linear.x
+            twist_odom_msg.twist.linear.y = state.kinematic_state.velocity_of_body_in_odom.linear.y
+            twist_odom_msg.twist.linear.z = state.kinematic_state.velocity_of_body_in_odom.linear.z
+            twist_odom_msg.twist.angular.x = state.kinematic_state.velocity_of_body_in_odom.angular.x
+            twist_odom_msg.twist.angular.y = state.kinematic_state.velocity_of_body_in_odom.angular.y
+            twist_odom_msg.twist.angular.z = state.kinematic_state.velocity_of_body_in_odom.angular.z
+
+            self.odom_twist_pub.publish(twist_odom_msg)
+
+            # Feet #
+            foot_array_msg = FootStateArray()
+            for foot in state.foot_state:
+                foot_msg = FootState()
+                foot_msg.foot_position_rt_body.x = foot.foot_position_rt_body.x
+                foot_msg.foot_position_rt_body.y = foot.foot_position_rt_body.y
+                foot_msg.foot_position_rt_body.z = foot.foot_position_rt_body.z
+                foot_msg.contact = foot.contact
+                foot_array_msg.states.append(foot_msg)
+
+            self.feet_pub(foot_array_msg)
+
+            # EStop #
+            estop_array_msg = EStopStateArray()
+            for estop in state.estop_states:
+                estop_msg = EStopState()
+                estop_msg.header.stamp = rospy.Time(estop.timestamp.seconds, estop.timestamp.nanos)
+                estop_msg.name = estop.name
+                estop_msg.type = estop.type
+                estop_msg.state = estop.state
+                estop_array_msg.estop_states.append(estop_msg)
+
+            self.estop_pub.publish(estop_array_msg)
+
+            # WIFI #
+            wifi_msg = WiFiState()
+            for comm_state in comms_states:
+                if comm_state.HasField('wifi_state'):
+                    wifi_msg.current_mode = comm_state.current_mode
+                    if comm_state.current_mode.HasField('essid'):
+                        wifi_msg.essid = comm_state.essid
+            wifi_pub.publish(wifi_msg)
+
+            # Battery States #
+            battery_states_array_msg = BatteryStateArray()
+            for battery in state.battery_states:
+                battery_msg = BatteryState()
+                battery_msg.header.stamp = rospy.Time(battery.timestamp.seconds, battery.timestamp.nanos)
+
+                battery_msg.identifier = battery.identifier
+                battery_msg.charge_percentage = battery.charge_percentage.value
+                battery_msg.estimated_runtime = rospy.Time(battery.estimated_runtime.seconds, battery.estimated_runtime.nanos)
+                battery_msg.current = battery.current.value
+                battery_msg.voltage = battery.voltage.value
+                for temp in battery.temperatures:
+                    battery_msg.temperatures.append(temp)
+                battery_msg.status = battery.status
+                battery_states_array_msg.battery_states.append(battery_msg)
+
+            battery_pub.publish(battery_states_array_msg)
+
+            # Power State #
+            power_state_msg = PowerState()
+            power_state_msg.header.stamp = rospy.Time(state.power_state.timestamp.seconds, state.power_state.timestamp.nanos)
+            power_state_msg.motor_power_state = state.power_state.motor_power_state
+            power_state_msg.shore_power_state = state.power_state.shore_power_state
+            power_state_msg.locomotion_charge_percentage = state.power_state.locomotion_charge_percentage.value
+            power_state_msg.locomotion_estimated_runtime = rospy.Time(power_state.locomotion_estimated_runtime.seconds, power_state.locomotion_estimated_runtime.nanos)
+            power_pub.publish(power_state_msg)
+
+            # System Faults #
+            system_fault_state_msg = SystemFaultState()
+            system_fault_state_msg.faults = getSystemFaults(tate.system_fault_state.faults)
+            system_fault_state_msg.historical_faults = getSystemFaults(tate.system_fault_state.historical_faults)
+            system_faults_pub.publish(system_fault_state_msg)
+
+            # Behavior Faults #
+            behavior_fault_state_msg = BehaviorFaultState()
+            behavior_fault_state_msg.faults = getBehaviorFaults(tate.behavior_fault_state.faults)
+            behavior_faults_pub.publish(behavior_fault_state_msg)
+
 
     def MetricsCB(self, results):
         """Callback for when the Spot Wrapper gets new metrics data.
@@ -133,7 +227,6 @@ class SpotROS():
         lease_array_msg = LeaseArray()
         lease_list = self.spot_wrapper.lease
         if lease_list:
-            rospy.logwarn(lease_list)
             for resource in lease_list:
                 new_resource = LeaseResource()
                 new_resource.resource = resource.resource
@@ -189,6 +282,49 @@ class SpotROS():
         """
         rospy.logdebug("##### ESTOP #####")
 
+    def getBehaviorFaults(self, behavior_faults):
+        """Helper function to strip out behavior faults into a list
+
+        Args:
+            behavior_faults: List of BehaviorFaults
+        """
+        faults = []
+
+        for fault in behavior_faults:
+            new_fault = BehaviorFault()
+            new_fault.behavior_fault_id = fault.behavior_fault_id
+            new_fault.header.stamp = rospy.Time(fault.onset_timestamp.seconds, fault.onset_timestamp.nanos)
+            new_fault.cause = fault.cause
+            new_fault.status = fault.status
+            faults.append(new_fault)
+
+        return faults
+
+    def getSystemFaults(self, system_faults):
+        """Helper function to strip out system faults into a list
+
+        Args:
+            systen_faults: List of SystemFaults
+        """
+        faults = []
+
+        for fault in system_faults:
+            new_fault = SystemFault()
+            new_fault.name = fault.name
+            new_fault.header.stamp = rospy.Time(fault.onset_timestamp.seconds, fault.onset_timestamp.nanos)
+            new_fault.duration =  = rospy.Time(fault.duration.seconds, fault.duration.nanos)
+            new_fault.code = fault.code
+            new_fault.uid = fault.uid
+            new_fault.error_message = fault.error_message
+
+            for att in fault.attributes:
+                new_fault.attributes.append(att)
+
+            new_fault.severity = fault.severity
+            fault.append(new_fault)
+
+        return faults
+
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
         rospy.init_node('spot_ros', anonymous=True)
@@ -206,17 +342,32 @@ class SpotROS():
         self.spot_wrapper = SpotWrapper(self.username, self.password, self.app_token, self.hostname, self.logger, self.rates, self.callbacks)
 
         if self.spot_wrapper._robot:
-            self.back_fisheye_image_pub = rospy.Publisher('back_fisheye_image', Image, queue_size=10)
-            self.frontleft_fisheye_image_pub = rospy.Publisher('frontleft_fisheye_image', Image, queue_size=10)
-            self.frontright_fisheye_image_pub = rospy.Publisher('frontright_fisheye_image', Image, queue_size=10)
-            self.left_fisheye_image_pub = rospy.Publisher('left_fisheye_image', Image, queue_size=10)
-            self.right_fisheye_image_pub = rospy.Publisher('right_fisheye_image', Image, queue_size=10)
+            # Images #
+            self.back_fisheye_image_pub = rospy.Publisher('camera/back_fisheye_image', Image, queue_size=10)
+            self.frontleft_fisheye_image_pub = rospy.Publisher('camera/frontleft_fisheye_image', Image, queue_size=10)
+            self.frontright_fisheye_image_pub = rospy.Publisher('camera/frontright_fisheye_image', Image, queue_size=10)
+            self.left_fisheye_image_pub = rospy.Publisher('camera/left_fisheye_image', Image, queue_size=10)
+            self.right_fisheye_image_pub = rospy.Publisher('camera/right_fisheye_image', Image, queue_size=10)
+            # Depth #
+            self.back_fisheye_image_pub = rospy.Publisher('camera/back_fisheye_image', Image, queue_size=10)
+            self.frontleft_fisheye_image_pub = rospy.Publisher('camera/frontleft_fisheye_image', Image, queue_size=10)
+            self.frontright_fisheye_image_pub = rospy.Publisher('camera/frontright_fisheye_image', Image, queue_size=10)
+            self.left_fisheye_image_pub = rospy.Publisher('camera/left_fisheye_image', Image, queue_size=10)
+            self.right_fisheye_image_pub = rospy.Publisher('camera/right_fisheye_image', Image, queue_size=10)
 
             self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=10)
             """Defining a TF publisher manually because of conflicts between Python3 and tf"""
             self.tf_pub = rospy.Publisher('tf', TFMessage, queue_size=10)
-            self.metrics_pub = rospy.Publisher('metrics', Metrics, queue_size=10)
-            self.lease_pub = rospy.Publisher('leases', LeaseArray, queue_size=10)
+            self.metrics_pub = rospy.Publisher('status/metrics', Metrics, queue_size=10)
+            self.lease_pub = rospy.Publisher('status/leases', LeaseArray, queue_size=10)
+            self.odom_twist_pub = rospy.Publisher('odometry/twist', TwistWithCovarianceStamped, queue_size=10)
+            self.feet_pub = rospy.Publisher('status/feet', FootStateArray, queue_size=10)
+            self.estop_pub = rospy.Publisher('status/estop', EStopStateArray, queue_size=10)
+            self.wifi_pub = rospy.Publisher('status/wifi', WiFiState, queue_size=10)
+            self.power_pub = rospy.Publisher('status/power_state', PowerState, queue_size=10)
+            self.battery_pub = rospy.Publisher('status/battery_states', BatteryStateArray, queue_size=10)
+            self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
+            self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
 
             rospy.loginfo("Connecting")
             self.spot_wrapper.connect()
