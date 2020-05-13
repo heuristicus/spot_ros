@@ -48,7 +48,9 @@ class SpotROS():
         self.callbacks["robot_command"] = self.RobotCommandCB
         self.callbacks["power"] = self.PowerCB
         self.callbacks["lease"] = self.LeaseCB
-        self.callbacks["image"] = self.ImageCB
+        self.callbacks["front_image"] = self.FrontImageCB
+        self.callbacks["side_image"] = self.SideImageCB
+        self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["estop"] = self.EstopCB
 
     def RobotStateCB(self, results):
@@ -241,36 +243,89 @@ class SpotROS():
 
             self.lease_pub.publish(lease_array_msg)
 
-    def getImageMsg(data):
+    def getImageMsg(self, data):
         """Maps image data from image proto to ROS image message
 
         Args:
             data: Image proto
         """
         msg = Image()
-        #Header header
+        msg.header.stamp = rospy.Time(data.shot.acquisition_time.seconds, data.shot.acquisition_time.nanos)
         msg.height = data.shot.image.rows
         msg.width = data.shot.image.cols
-        #string encoding
-        #uint8 is_bigendian
-        #uint32 step
         msg.data = data.shot.image.data
 
-    def ImageCB(self, results):
-        """Callback for when the Spot Wrapper gets new image data.
+        # Color/greyscale formats.
+        # JPEG format
+        if data.shot.image.format == 1:
+            msg.encoding = "rgb8"
+            msg.is_bigendian = True
+            msg.step = 3 * data.shot.image.cols
+
+        # Uncompressed.  Requires pixel_format.
+        if data.shot.image.format == 2:
+            # One byte per pixel.
+            if data.shot.image.pixel_format == 1:
+                msg.encoding = "mono8"
+                msg.is_bigendian = True
+                msg.step = data.shot.image.cols
+
+            # Three bytes per pixel.
+            if data.shot.image.pixel_format == 3:
+                msg.encoding = "rgb8"
+                msg.is_bigendian = True
+                msg.step = 3 * data.shot.image.cols
+
+            # Four bytes per pixel.
+            if data.shot.image.pixel_format == 4:
+                msg.encoding = "rgba8"
+                msg.is_bigendian = True
+                msg.step = 4 * data.shot.image.cols
+
+            # Little-endian uint16 z-distance from camera (mm).
+            if data.shot.image.pixel_format == 5:
+                msg.encoding = "mono16"
+                msg.is_bigendian = False
+                msg.step = 2 * data.shot.image.cols
+
+        return msg
+
+    def FrontImageCB(self, results):
+        """Callback for when the Spot Wrapper gets new front image data.
 
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
         """
-        # TODO: All of this
-        pass
-        #data = self.spot_wrapper.image
-        #if data:
-        #    back_fisheye_image_pub.publish(getImageMsg(data[0]))
-        #    frontleft_fisheye_image.publish(getImageMsg(data[1]))
-        #    frontright_fisheye_image.publish(getImageMsg(data[2]))
-        #    left_fisheye_image.publish(getImageMsg(data[3]))
-        #    right_fisheye_image.publish(getImageMsg(data[4]))
+        data = self.spot_wrapper.front_images
+        if data:
+            self.frontleft_fisheye_image_pub.publish(self.getImageMsg(data[0]))
+            self.frontright_fisheye_image_pub.publish(self.getImageMsg(data[1]))
+            self.frontleft_fisheye_depth_pub.publish(self.getImageMsg(data[2]))
+            self.frontright_fisheye_depth_pub.publish(self.getImageMsg(data[3]))
+
+    def SideImageCB(self, results):
+        """Callback for when the Spot Wrapper gets new side image data.
+
+        Args:
+            results: FutureWrapper object of AsyncPeriodicQuery callback
+        """
+        data = self.spot_wrapper.side_images
+        if data:
+            self.left_fisheye_image_pub.publish(self.getImageMsg(data[0]))
+            self.right_fisheye_image_pub.publish(self.getImageMsg(data[1]))
+            self.left_fisheye_depth_pub.publish(self.getImageMsg(data[2]))
+            self.right_fisheye_depth_pub.publish(self.getImageMsg(data[3]))
+
+    def RearImageCB(self, results):
+        """Callback for when the Spot Wrapper gets new rear image data.
+
+        Args:
+            results: FutureWrapper object of AsyncPeriodicQuery callback
+        """
+        data = self.spot_wrapper.rear_images
+        if data:
+            self.back_fisheye_image_pub.publish(self.getImageMsg(data[0]))
+            self.back_fisheye_depth_pub.publish(self.getImageMsg(data[1]))
 
     def EstopCB(self, results):
         """Callback for when the Spot Wrapper gets new estop data.
@@ -347,11 +402,11 @@ class SpotROS():
             self.left_fisheye_image_pub = rospy.Publisher('camera/left_fisheye_image', Image, queue_size=10)
             self.right_fisheye_image_pub = rospy.Publisher('camera/right_fisheye_image', Image, queue_size=10)
             # Depth #
-            self.back_fisheye_image_pub = rospy.Publisher('camera/back_fisheye_image', Image, queue_size=10)
-            self.frontleft_fisheye_image_pub = rospy.Publisher('camera/frontleft_fisheye_image', Image, queue_size=10)
-            self.frontright_fisheye_image_pub = rospy.Publisher('camera/frontright_fisheye_image', Image, queue_size=10)
-            self.left_fisheye_image_pub = rospy.Publisher('camera/left_fisheye_image', Image, queue_size=10)
-            self.right_fisheye_image_pub = rospy.Publisher('camera/right_fisheye_image', Image, queue_size=10)
+            self.back_fisheye_depth_pub = rospy.Publisher('depth/back_depth_in_visual_frame', Image, queue_size=10)
+            self.frontleft_fisheye_depth_pub = rospy.Publisher('depth/frontleft_depth_in_visual_frame', Image, queue_size=10)
+            self.frontright_fisheye_depth_pub = rospy.Publisher('depth/frontright_depth_in_visual_frame', Image, queue_size=10)
+            self.left_fisheye_depth_pub = rospy.Publisher('depth/left_depth_in_visual_frame', Image, queue_size=10)
+            self.right_fisheye_depth_pub = rospy.Publisher('depth/right_depth_in_visual_frame', Image, queue_size=10)
 
             self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=10)
             """Defining a TF publisher manually because of conflicts between Python3 and tf"""
