@@ -15,4 +15,4 @@ Header header
 uint8 motor_power_state
 uint8 shore_power_state
 float64 locomotion_charge_percentage
-float64 locomotion_estimated_runtime
+duration locomotion_estimated_runtime

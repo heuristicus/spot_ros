@@ -94,12 +94,12 @@ class SpotROS():
             # Odom Twist #
             twist_odom_msg = TwistWithCovarianceStamped()
             twist_odom_msg.header.stamp = rospy.Time(state.kinematic_state.acquisition_timestamp.seconds, state.kinematic_state.acquisition_timestamp.nanos)
-            twist_odom_msg.twist.linear.x = state.kinematic_state.velocity_of_body_in_odom.linear.x
-            twist_odom_msg.twist.linear.y = state.kinematic_state.velocity_of_body_in_odom.linear.y
-            twist_odom_msg.twist.linear.z = state.kinematic_state.velocity_of_body_in_odom.linear.z
-            twist_odom_msg.twist.angular.x = state.kinematic_state.velocity_of_body_in_odom.angular.x
-            twist_odom_msg.twist.angular.y = state.kinematic_state.velocity_of_body_in_odom.angular.y
-            twist_odom_msg.twist.angular.z = state.kinematic_state.velocity_of_body_in_odom.angular.z
+            twist_odom_msg.twist.twist.linear.x = state.kinematic_state.velocity_of_body_in_odom.linear.x
+            twist_odom_msg.twist.twist.linear.y = state.kinematic_state.velocity_of_body_in_odom.linear.y
+            twist_odom_msg.twist.twist.linear.z = state.kinematic_state.velocity_of_body_in_odom.linear.z
+            twist_odom_msg.twist.twist.angular.x = state.kinematic_state.velocity_of_body_in_odom.angular.x
+            twist_odom_msg.twist.twist.angular.y = state.kinematic_state.velocity_of_body_in_odom.angular.y
+            twist_odom_msg.twist.twist.angular.z = state.kinematic_state.velocity_of_body_in_odom.angular.z
 
             self.odom_twist_pub.publish(twist_odom_msg)
 
@@ -113,7 +113,7 @@ class SpotROS():
                 foot_msg.contact = foot.contact
                 foot_array_msg.states.append(foot_msg)
 
-            self.feet_pub(foot_array_msg)
+            self.feet_pub.publish(foot_array_msg)
 
             # EStop #
             estop_array_msg = EStopStateArray()
@@ -129,12 +129,11 @@ class SpotROS():
 
             # WIFI #
             wifi_msg = WiFiState()
-            for comm_state in comms_states:
+            for comm_state in state.comms_states:
                 if comm_state.HasField('wifi_state'):
-                    wifi_msg.current_mode = comm_state.current_mode
-                    if comm_state.current_mode.HasField('essid'):
-                        wifi_msg.essid = comm_state.essid
-            wifi_pub.publish(wifi_msg)
+                    wifi_msg.current_mode = comm_state.wifi_state.current_mode
+                    wifi_msg.essid = comm_state.wifi_state.essid
+            self.wifi_pub.publish(wifi_msg)
 
             # Battery States #
             battery_states_array_msg = BatteryStateArray()
@@ -152,7 +151,7 @@ class SpotROS():
                 battery_msg.status = battery.status
                 battery_states_array_msg.battery_states.append(battery_msg)
 
-            battery_pub.publish(battery_states_array_msg)
+            self.battery_pub.publish(battery_states_array_msg)
 
             # Power State #
             power_state_msg = PowerState()
@@ -160,20 +159,19 @@ class SpotROS():
             power_state_msg.motor_power_state = state.power_state.motor_power_state
             power_state_msg.shore_power_state = state.power_state.shore_power_state
             power_state_msg.locomotion_charge_percentage = state.power_state.locomotion_charge_percentage.value
-            power_state_msg.locomotion_estimated_runtime = rospy.Time(power_state.locomotion_estimated_runtime.seconds, power_state.locomotion_estimated_runtime.nanos)
-            power_pub.publish(power_state_msg)
+            power_state_msg.locomotion_estimated_runtime = rospy.Time(state.power_state.locomotion_estimated_runtime.seconds, state.power_state.locomotion_estimated_runtime.nanos)
+            self.power_pub.publish(power_state_msg)
 
             # System Faults #
             system_fault_state_msg = SystemFaultState()
-            system_fault_state_msg.faults = getSystemFaults(tate.system_fault_state.faults)
-            system_fault_state_msg.historical_faults = getSystemFaults(tate.system_fault_state.historical_faults)
-            system_faults_pub.publish(system_fault_state_msg)
+            system_fault_state_msg.faults = self.getSystemFaults(state.system_fault_state.faults)
+            system_fault_state_msg.historical_faults = self.getSystemFaults(state.system_fault_state.historical_faults)
+            self.system_faults_pub.publish(system_fault_state_msg)
 
             # Behavior Faults #
             behavior_fault_state_msg = BehaviorFaultState()
-            behavior_fault_state_msg.faults = getBehaviorFaults(tate.behavior_fault_state.faults)
-            behavior_faults_pub.publish(behavior_fault_state_msg)
-
+            behavior_fault_state_msg.faults = self.getBehaviorFaults(state.behavior_fault_state.faults)
+            self.behavior_faults_pub.publish(behavior_fault_state_msg)
 
     def MetricsCB(self, results):
         """Callback for when the Spot Wrapper gets new metrics data.
@@ -312,7 +310,7 @@ class SpotROS():
             new_fault = SystemFault()
             new_fault.name = fault.name
             new_fault.header.stamp = rospy.Time(fault.onset_timestamp.seconds, fault.onset_timestamp.nanos)
-            new_fault.duration =  = rospy.Time(fault.duration.seconds, fault.duration.nanos)
+            new_fault.duration = rospy.Time(fault.duration.seconds, fault.duration.nanos)
             new_fault.code = fault.code
             new_fault.uid = fault.uid
             new_fault.error_message = fault.error_message
