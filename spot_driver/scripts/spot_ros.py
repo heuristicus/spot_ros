@@ -251,6 +251,7 @@ class SpotROS():
         """
         msg = Image()
         msg.header.stamp = rospy.Time(data.shot.acquisition_time.seconds, data.shot.acquisition_time.nanos)
+        msg.header.frame_id = data.shot.frame_name_image_sensor
         msg.height = data.shot.image.rows
         msg.width = data.shot.image.cols
         msg.data = data.shot.image.data
@@ -374,7 +375,7 @@ class SpotROS():
                 new_fault.attributes.append(att)
 
             new_fault.severity = fault.severity
-            fault.append(new_fault)
+            faults.append(new_fault)
 
         return faults
 

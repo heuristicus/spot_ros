@@ -12,4 +12,7 @@
   <exec_depend>spot_msgs</exec_depend>
   <exec_depend>rospy</exec_depend>
 
+  <export>
+    <rosdoc config="rosdoc.yaml" />
+  </export>
 </package>
