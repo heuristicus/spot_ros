@@ -5,6 +5,6 @@ rates:
   power: 1.0
   lease: 1.0
   front_image: 10.0
-  side_image: 5.0
-  rear_image: 5.0
+  side_image: 10.0
+  rear_image: 10.0
   estop: 1.0

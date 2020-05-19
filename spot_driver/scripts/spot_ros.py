@@ -3,7 +3,7 @@ import rospy
 
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped
 
@@ -18,7 +18,45 @@ from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 
 from spot_wrapper import SpotWrapper
+
 import logging
+import numpy as np
+
+class DefaultCameraInfo(CameraInfo):
+    def __init__(self):
+        super().__init__()
+        self.distortion_model = "plumb_bob"
+
+        self.D.append(0)
+        self.D.append(0)
+        self.D.append(0)
+        self.D.append(0)
+        self.D.append(0)
+
+        self.K[1] = 0
+        self.K[3] = 0
+        self.K[6] = 0
+        self.K[7] = 0
+        self.K[8] = 1
+
+        self.R[0] = 1
+        self.R[1] = 0
+        self.R[2] = 0
+        self.R[3] = 0
+        self.R[4] = 1
+        self.R[5] = 0
+        self.R[6] = 0
+        self.R[7] = 0
+        self.R[8] = 1
+
+        self.P[1] = 0
+        self.P[3] = 0
+        self.P[4] = 0
+        self.P[7] = 0
+        self.P[8] = 0
+        self.P[9] = 0
+        self.P[10] = 1
+        self.P[11] = 0
 
 class SpotROS():
     """Parent class for using the wrapper.  Defines all callbacks and keeps the wrapper alive"""
@@ -243,53 +281,94 @@ class SpotROS():
 
             self.lease_pub.publish(lease_array_msg)
 
-    def getImageMsg(self, data):
+    def getImageMsg(self, data, publish_tf=True):
         """Maps image data from image proto to ROS image message
 
         Args:
             data: Image proto
+            publish_tf: Whether to publish the TF frames
         """
-        msg = Image()
-        msg.header.stamp = rospy.Time(data.shot.acquisition_time.seconds, data.shot.acquisition_time.nanos)
-        msg.header.frame_id = data.shot.frame_name_image_sensor
-        msg.height = data.shot.image.rows
-        msg.width = data.shot.image.cols
-        msg.data = data.shot.image.data
+        if publish_tf:
+            tf_msg = TFMessage()
+            for frame_name in data.shot.transforms_snapshot.child_to_parent_edge_map:
+                if data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name:
+                    transform = data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
+                    new_tf = TransformStamped()
+                    new_tf.header.stamp = rospy.Time(data.shot.acquisition_time.seconds, data.shot.acquisition_time.nanos)
+                    new_tf.header.frame_id = transform.parent_frame_name
+                    new_tf.child_frame_id = frame_name
+                    new_tf.transform.translation.x = transform.parent_tform_child.position.x
+                    new_tf.transform.translation.y = transform.parent_tform_child.position.y
+                    new_tf.transform.translation.z = transform.parent_tform_child.position.z
+                    new_tf.transform.rotation.x = transform.parent_tform_child.rotation.x
+                    new_tf.transform.rotation.y = transform.parent_tform_child.rotation.y
+                    new_tf.transform.rotation.z = transform.parent_tform_child.rotation.z
+                    new_tf.transform.rotation.w = transform.parent_tform_child.rotation.w
+                    tf_msg.transforms.append(new_tf)
+            if len(tf_msg.transforms) > 0:
+                self.tf_pub.publish(tf_msg)
+
+        image_msg = Image()
+        image_msg.header.stamp = rospy.Time(data.shot.acquisition_time.seconds, data.shot.acquisition_time.nanos)
+        image_msg.header.frame_id = data.shot.frame_name_image_sensor
+        image_msg.height = data.shot.image.rows
+        image_msg.width = data.shot.image.cols
 
         # Color/greyscale formats.
         # JPEG format
         if data.shot.image.format == 1:
-            msg.encoding = "rgb8"
-            msg.is_bigendian = True
-            msg.step = 3 * data.shot.image.cols
+            image_msg.encoding = "rgb8"
+            image_msg.is_bigendian = True
+            image_msg.step = 3 * data.shot.image.cols
+            image_msg.data = data.shot.image.data
 
         # Uncompressed.  Requires pixel_format.
         if data.shot.image.format == 2:
             # One byte per pixel.
             if data.shot.image.pixel_format == 1:
-                msg.encoding = "mono8"
-                msg.is_bigendian = True
-                msg.step = data.shot.image.cols
+                image_msg.encoding = "mono8"
+                image_msg.is_bigendian = True
+                image_msg.step = data.shot.image.cols
+                image_msg.data = data.shot.image.data
 
             # Three bytes per pixel.
             if data.shot.image.pixel_format == 3:
-                msg.encoding = "rgb8"
-                msg.is_bigendian = True
-                msg.step = 3 * data.shot.image.cols
+                image_msg.encoding = "rgb8"
+                image_msg.is_bigendian = True
+                image_msg.step = 3 * data.shot.image.cols
+                image_msg.data = data.shot.image.data
 
             # Four bytes per pixel.
             if data.shot.image.pixel_format == 4:
-                msg.encoding = "rgba8"
-                msg.is_bigendian = True
-                msg.step = 4 * data.shot.image.cols
+                image_msg.encoding = "rgba8"
+                image_msg.is_bigendian = True
+                image_msg.step = 4 * data.shot.image.cols
+                image_msg.data = data.shot.image.data
 
             # Little-endian uint16 z-distance from camera (mm).
             if data.shot.image.pixel_format == 5:
-                msg.encoding = "mono16"
-                msg.is_bigendian = False
-                msg.step = 2 * data.shot.image.cols
+                image_msg.encoding = "mono16"
+                image_msg.is_bigendian = False
+                image_msg.step = 2 * data.shot.image.cols
+                image_msg.data = data.shot.image.data
 
-        return msg
+        camera_info_msg = DefaultCameraInfo()
+        camera_info_msg.header.stamp = rospy.Time(data.shot.acquisition_time.seconds, data.shot.acquisition_time.nanos)
+        camera_info_msg.header.frame_id = data.shot.frame_name_image_sensor
+        camera_info_msg.height = data.shot.image.rows
+        camera_info_msg.width = data.shot.image.cols
+
+        camera_info_msg.K[0] = data.source.pinhole.intrinsics.focal_length.x
+        camera_info_msg.K[2] = data.source.pinhole.intrinsics.principal_point.x
+        camera_info_msg.K[4] = data.source.pinhole.intrinsics.focal_length.y
+        camera_info_msg.K[5] = data.source.pinhole.intrinsics.principal_point.y
+
+        camera_info_msg.P[0] = data.source.pinhole.intrinsics.focal_length.x
+        camera_info_msg.P[2] = data.source.pinhole.intrinsics.principal_point.x
+        camera_info_msg.P[5] = data.source.pinhole.intrinsics.focal_length.y
+        camera_info_msg.P[6] = data.source.pinhole.intrinsics.principal_point.y
+
+        return image_msg, camera_info_msg
 
     def FrontImageCB(self, results):
         """Callback for when the Spot Wrapper gets new front image data.
@@ -299,10 +378,18 @@ class SpotROS():
         """
         data = self.spot_wrapper.front_images
         if data:
-            self.frontleft_fisheye_image_pub.publish(self.getImageMsg(data[0]))
-            self.frontright_fisheye_image_pub.publish(self.getImageMsg(data[1]))
-            self.frontleft_fisheye_depth_pub.publish(self.getImageMsg(data[2]))
-            self.frontright_fisheye_depth_pub.publish(self.getImageMsg(data[3]))
+            image_msg0, camera_info_msg0 = self.getImageMsg(data[0])
+            self.frontleft_fisheye_image_pub.publish(image_msg0)
+            self.frontleft_fisheye_image_info_pub.publish(camera_info_msg0)
+            image_msg1, camera_info_msg1 = self.getImageMsg(data[1])
+            self.frontright_fisheye_image_pub.publish(image_msg1)
+            self.frontright_fisheye_image_info_pub.publish(camera_info_msg1)
+            image_msg2, camera_info_msg2 = self.getImageMsg(data[2])
+            self.frontleft_fisheye_depth_pub.publish(image_msg2)
+            self.frontleft_fisheye_depth_info_pub.publish(camera_info_msg2)
+            image_msg3, camera_info_msg3 = self.getImageMsg(data[3])
+            self.frontright_fisheye_depth_pub.publish(image_msg3)
+            self.frontright_fisheye_depth_info_pub.publish(camera_info_msg3)
 
     def SideImageCB(self, results):
         """Callback for when the Spot Wrapper gets new side image data.
@@ -312,10 +399,18 @@ class SpotROS():
         """
         data = self.spot_wrapper.side_images
         if data:
-            self.left_fisheye_image_pub.publish(self.getImageMsg(data[0]))
-            self.right_fisheye_image_pub.publish(self.getImageMsg(data[1]))
-            self.left_fisheye_depth_pub.publish(self.getImageMsg(data[2]))
-            self.right_fisheye_depth_pub.publish(self.getImageMsg(data[3]))
+            image_msg0, camera_info_msg0 = self.getImageMsg(data[0])
+            self.left_fisheye_image_pub.publish(image_msg0)
+            self.left_fisheye_image_info_pub.publish(camera_info_msg0)
+            image_msg1, camera_info_msg1 = self.getImageMsg(data[1])
+            self.right_fisheye_image_pub.publish(image_msg1)
+            self.right_fisheye_image_info_pub.publish(camera_info_msg1)
+            image_msg2, camera_info_msg2 = self.getImageMsg(data[2])
+            self.left_fisheye_depth_pub.publish(image_msg2)
+            self.left_fisheye_depth_info_pub.publish(camera_info_msg2)
+            image_msg3, camera_info_msg3 = self.getImageMsg(data[3])
+            self.right_fisheye_depth_pub.publish(image_msg3)
+            self.right_fisheye_depth_info_pub.publish(camera_info_msg3)
 
     def RearImageCB(self, results):
         """Callback for when the Spot Wrapper gets new rear image data.
@@ -325,8 +420,12 @@ class SpotROS():
         """
         data = self.spot_wrapper.rear_images
         if data:
-            self.back_fisheye_image_pub.publish(self.getImageMsg(data[0]))
-            self.back_fisheye_depth_pub.publish(self.getImageMsg(data[1]))
+            mage_msg0, camera_info_msg0 = self.getImageMsg(data[0])
+            self.back_fisheye_image_pub.publish(mage_msg0)
+            self.back_fisheye_image_info_pub.publish(camera_info_msg0)
+            mage_msg1, camera_info_msg1 = self.getImageMsg(data[1])
+            self.back_fisheye_depth_pub.publish(mage_msg1)
+            self.back_fisheye_depth_info_pub.publish(camera_info_msg1)
 
     def EstopCB(self, results):
         """Callback for when the Spot Wrapper gets new estop data.
@@ -397,17 +496,30 @@ class SpotROS():
 
         if self.spot_wrapper._robot:
             # Images #
-            self.back_fisheye_image_pub = rospy.Publisher('camera/back_fisheye_image', Image, queue_size=10)
-            self.frontleft_fisheye_image_pub = rospy.Publisher('camera/frontleft_fisheye_image', Image, queue_size=10)
-            self.frontright_fisheye_image_pub = rospy.Publisher('camera/frontright_fisheye_image', Image, queue_size=10)
-            self.left_fisheye_image_pub = rospy.Publisher('camera/left_fisheye_image', Image, queue_size=10)
-            self.right_fisheye_image_pub = rospy.Publisher('camera/right_fisheye_image', Image, queue_size=10)
+            self.back_fisheye_image_pub = rospy.Publisher('camera/back_fisheye/image', Image, queue_size=10)
+            self.frontleft_fisheye_image_pub = rospy.Publisher('camera/frontleft_fisheye/image', Image, queue_size=10)
+            self.frontright_fisheye_image_pub = rospy.Publisher('camera/frontright_fisheye/image', Image, queue_size=10)
+            self.left_fisheye_image_pub = rospy.Publisher('camera/left_fisheye/image', Image, queue_size=10)
+            self.right_fisheye_image_pub = rospy.Publisher('camera/right_fisheye/image', Image, queue_size=10)
             # Depth #
-            self.back_fisheye_depth_pub = rospy.Publisher('depth/back_depth_in_visual_frame', Image, queue_size=10)
-            self.frontleft_fisheye_depth_pub = rospy.Publisher('depth/frontleft_depth_in_visual_frame', Image, queue_size=10)
-            self.frontright_fisheye_depth_pub = rospy.Publisher('depth/frontright_depth_in_visual_frame', Image, queue_size=10)
-            self.left_fisheye_depth_pub = rospy.Publisher('depth/left_depth_in_visual_frame', Image, queue_size=10)
-            self.right_fisheye_depth_pub = rospy.Publisher('depth/right_depth_in_visual_frame', Image, queue_size=10)
+            self.back_fisheye_depth_pub = rospy.Publisher('depth/back_depth/image', Image, queue_size=10)
+            self.frontleft_fisheye_depth_pub = rospy.Publisher('depth/frontleft_depth/image', Image, queue_size=10)
+            self.frontright_fisheye_depth_pub = rospy.Publisher('depth/frontright_depth/image', Image, queue_size=10)
+            self.left_fisheye_depth_pub = rospy.Publisher('depth/left_depth/image', Image, queue_size=10)
+            self.right_fisheye_depth_pub = rospy.Publisher('depth/right_depth/image', Image, queue_size=10)
+
+            # Image Camera Info #
+            self.back_fisheye_image_info_pub = rospy.Publisher('camera/back_fisheye/camera_info', CameraInfo, queue_size=10)
+            self.frontleft_fisheye_image_info_pub = rospy.Publisher('camera/frontleft_fisheye/camera_info', CameraInfo, queue_size=10)
+            self.frontright_fisheye_image_info_pub = rospy.Publisher('camera/frontright_fisheye/camera_info', CameraInfo, queue_size=10)
+            self.left_fisheye_image_info_pub = rospy.Publisher('camera/left_fisheye/camera_info', CameraInfo, queue_size=10)
+            self.right_fisheye_image_info_pub = rospy.Publisher('camera/right_fisheye/camera_info', CameraInfo, queue_size=10)
+            # Depth Camera Info #
+            self.back_fisheye_depth_info_pub = rospy.Publisher('depth/back_depth/camera_info', CameraInfo, queue_size=10)
+            self.frontleft_fisheye_depth_info_pub = rospy.Publisher('depth/frontleft_depth/camera_info', CameraInfo, queue_size=10)
+            self.frontright_fisheye_depth_info_pub = rospy.Publisher('depth/frontright_depth/camera_info', CameraInfo, queue_size=10)
+            self.left_fisheye_depth_info_pub = rospy.Publisher('depth/left_depth/camera_info', CameraInfo, queue_size=10)
+            self.right_fisheye_depth_info_pub = rospy.Publisher('depth/right_depth/camera_info', CameraInfo, queue_size=10)
 
             self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=10)
             """Defining a TF publisher manually because of conflicts between Python3 and tf"""
