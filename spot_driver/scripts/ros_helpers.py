@@ -1,10 +1,21 @@
 import rospy
 
+from std_msgs.msg import Empty
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped
+
+from spot_msgs.msg import Metrics
+from spot_msgs.msg import LeaseArray, LeaseResource
+from spot_msgs.msg import FootState, FootStateArray
+from spot_msgs.msg import EStopState, EStopStateArray
+from spot_msgs.msg import WiFiState
+from spot_msgs.msg import PowerState
+from spot_msgs.msg import BehaviorFault, BehaviorFaultState
+from spot_msgs.msg import SystemFault, SystemFaultState
+from spot_msgs.msg import BatteryState, BatteryStateArray
 
 friendly_joint_names = {}
 """Dictionary for mapping BD joint names to more friendly names"""
@@ -244,48 +255,48 @@ def GetPowerStatesFromState(state):
     power_state_msg.locomotion_estimated_runtime = rospy.Time(state.power_state.locomotion_estimated_runtime.seconds, state.power_state.locomotion_estimated_runtime.nanos)
     return power_state_msg
 
-    def getBehaviorFaults(behavior_faults):
-        """Helper function to strip out behavior faults into a list
+def getBehaviorFaults(behavior_faults):
+    """Helper function to strip out behavior faults into a list
 
-        Args:
-            behavior_faults: List of BehaviorFaults
-        """
-        faults = []
+    Args:
+        behavior_faults: List of BehaviorFaults
+    """
+    faults = []
 
-        for fault in behavior_faults:
-            new_fault = BehaviorFault()
-            new_fault.behavior_fault_id = fault.behavior_fault_id
-            new_fault.header.stamp = rospy.Time(fault.onset_timestamp.seconds, fault.onset_timestamp.nanos)
-            new_fault.cause = fault.cause
-            new_fault.status = fault.status
-            faults.append(new_fault)
+    for fault in behavior_faults:
+        new_fault = BehaviorFault()
+        new_fault.behavior_fault_id = fault.behavior_fault_id
+        new_fault.header.stamp = rospy.Time(fault.onset_timestamp.seconds, fault.onset_timestamp.nanos)
+        new_fault.cause = fault.cause
+        new_fault.status = fault.status
+        faults.append(new_fault)
 
-        return faults
+    return faults
 
-    def getSystemFaults(system_faults):
-        """Helper function to strip out system faults into a list
+def getSystemFaults(system_faults):
+    """Helper function to strip out system faults into a list
 
-        Args:
-            systen_faults: List of SystemFaults
-        """
-        faults = []
+    Args:
+        systen_faults: List of SystemFaults
+    """
+    faults = []
 
-        for fault in system_faults:
-            new_fault = SystemFault()
-            new_fault.name = fault.name
-            new_fault.header.stamp = rospy.Time(fault.onset_timestamp.seconds, fault.onset_timestamp.nanos)
-            new_fault.duration = rospy.Time(fault.duration.seconds, fault.duration.nanos)
-            new_fault.code = fault.code
-            new_fault.uid = fault.uid
-            new_fault.error_message = fault.error_message
+    for fault in system_faults:
+        new_fault = SystemFault()
+        new_fault.name = fault.name
+        new_fault.header.stamp = rospy.Time(fault.onset_timestamp.seconds, fault.onset_timestamp.nanos)
+        new_fault.duration = rospy.Time(fault.duration.seconds, fault.duration.nanos)
+        new_fault.code = fault.code
+        new_fault.uid = fault.uid
+        new_fault.error_message = fault.error_message
 
-            for att in fault.attributes:
-                new_fault.attributes.append(att)
+        for att in fault.attributes:
+            new_fault.attributes.append(att)
 
-            new_fault.severity = fault.severity
-            faults.append(new_fault)
+        new_fault.severity = fault.severity
+        faults.append(new_fault)
 
-        return faults
+    return faults
 
 def GetSystemFaultsFromState(state):
     system_fault_state_msg = SystemFaultState()

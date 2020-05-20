@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 
+from std_srvs.srv import Trigger, TriggerResponse
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
@@ -32,13 +33,10 @@ class SpotROS():
         """Dictionary listing what callback to use for what data task"""
         self.callbacks["robot_state"] = self.RobotStateCB
         self.callbacks["metrics"] = self.MetricsCB
-        self.callbacks["robot_command"] = self.RobotCommandCB
-        self.callbacks["power"] = self.PowerCB
         self.callbacks["lease"] = self.LeaseCB
         self.callbacks["front_image"] = self.FrontImageCB
         self.callbacks["side_image"] = self.SideImageCB
         self.callbacks["rear_image"] = self.RearImageCB
-        self.callbacks["estop"] = self.EstopCB
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -113,26 +111,6 @@ class SpotROS():
 
             self.metrics_pub.publish(metrics_msg)
 
-    def RobotCommandCB(self, results):
-        """Callback for when the Spot Wrapper gets new robot command data.
-
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        # TODO: All of this
-        rospy.logdebug("##### COMMAND #####")
-        #rospy.loginfo(str(self.spot_wrapper.robot_command))
-
-    def PowerCB(self, results):
-        """Callback for when the Spot Wrapper gets new power data.
-
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        # TODO: All of this
-        rospy.logdebug("##### POWER #####")
-        #rospy.logwarn(str(self.spot_wrapper.power))
-
     def LeaseCB(self, results):
         """Callback for when the Spot Wrapper gets new lease data.
 
@@ -169,19 +147,19 @@ class SpotROS():
             image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0])
             self.frontleft_image_pub.publish(image_msg0)
             self.frontleft_image_info_pub.publish(camera_info_msg0)
-            self.tf_pub.publish(tf_msg0)
+            self.tf_pub.publish(camera_tf_msg0)
             image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1])
             self.frontright_image_pub.publish(image_msg1)
             self.frontright_image_info_pub.publish(camera_info_msg1)
-            self.tf_pub.publish(tf_msg1)
+            self.tf_pub.publish(camera_tf_msg1)
             image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2])
             self.frontleft_depth_pub.publish(image_msg2)
             self.frontleft_depth_info_pub.publish(camera_info_msg2)
-            self.tf_pub.publish(tf_msg2)
+            self.tf_pub.publish(camera_tf_msg2)
             image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3])
             self.frontright_depth_pub.publish(image_msg3)
             self.frontright_depth_info_pub.publish(camera_info_msg3)
-            self.tf_pub.publish(tf_msg3)
+            self.tf_pub.publish(camera_tf_msg3)
 
     def SideImageCB(self, results):
         """Callback for when the Spot Wrapper gets new side image data.
@@ -194,19 +172,19 @@ class SpotROS():
             image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0])
             self.left_image_pub.publish(image_msg0)
             self.left_image_info_pub.publish(camera_info_msg0)
-            self.tf_pub.publish(tf_msg0)
+            self.tf_pub.publish(camera_tf_msg0)
             image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1])
             self.right_image_pub.publish(image_msg1)
             self.right_image_info_pub.publish(camera_info_msg1)
-            self.tf_pub.publish(tf_msg1)
+            self.tf_pub.publish(camera_tf_msg1)
             image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2])
             self.left_depth_pub.publish(image_msg2)
             self.left_depth_info_pub.publish(camera_info_msg2)
-            self.tf_pub.publish(tf_msg2)
+            self.tf_pub.publish(camera_tf_msg2)
             image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3])
             self.right_depth_pub.publish(image_msg3)
             self.right_depth_info_pub.publish(camera_info_msg3)
-            self.tf_pub.publish(tf_msg3)
+            self.tf_pub.publish(camera_tf_msg3)
 
     def RearImageCB(self, results):
         """Callback for when the Spot Wrapper gets new rear image data.
@@ -219,19 +197,35 @@ class SpotROS():
             mage_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0])
             self.back_image_pub.publish(mage_msg0)
             self.back_image_info_pub.publish(camera_info_msg0)
-            self.tf_pub.publish(tf_msg0)
+            self.tf_pub.publish(camera_tf_msg0)
             mage_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1])
             self.back_depth_pub.publish(mage_msg1)
             self.back_depth_info_pub.publish(camera_info_msg1)
-            self.tf_pub.publish(tf_msg1)
+            self.tf_pub.publish(camera_tf_msg1)
 
-    def EstopCB(self, results):
-        """Callback for when the Spot Wrapper gets new estop data.
+    def handle_stop(self, req):
+        resp = self.spot_wrapper.stop()
+        return TriggerResponse(resp[0], resp[1])
 
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        rospy.logdebug("##### ESTOP #####")
+    def handle_self_right(self, req):
+        resp = self.spot_wrapper.self_right()
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_sit(self, req):
+        resp = self.spot_wrapper.sit()
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_stand(self, req):
+        resp = self.spot_wrapper.stand()
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_power_on(self, req):
+        resp = self.spot_wrapper.power_on()
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_safe_power_off(self, req):
+        resp = self.spot_wrapper.safe_power_off()
+        return TriggerResponse(resp[0], resp[1])
 
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
@@ -276,6 +270,7 @@ class SpotROS():
             self.left_depth_info_pub = rospy.Publisher('depth/left/camera_info', CameraInfo, queue_size=10)
             self.right_depth_info_pub = rospy.Publisher('depth/right/camera_info', CameraInfo, queue_size=10)
 
+            # Status Publishers #
             self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=10)
             """Defining a TF publisher manually because of conflicts between Python3 and tf"""
             self.tf_pub = rospy.Publisher('tf', TFMessage, queue_size=10)
@@ -289,6 +284,13 @@ class SpotROS():
             self.battery_pub = rospy.Publisher('status/battery_states', BatteryStateArray, queue_size=10)
             self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
             self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
+
+            rospy.Service("stop", Trigger, self.handle_stop)
+            rospy.Service("self_right", Trigger, self.handle_self_right)
+            rospy.Service("sit", Trigger, self.handle_sit)
+            rospy.Service("stand", Trigger, self.handle_stand)
+            rospy.Service("power_on", Trigger, self.handle_power_on)
+            rospy.Service("power_off", Trigger, self.handle_safe_power_off)
 
             rospy.loginfo("Connecting")
             self.spot_wrapper.connect()
