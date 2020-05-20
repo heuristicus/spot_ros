@@ -11,6 +11,7 @@ Welcome to spot_driver's documentation!
    :caption: ROS Driver
 
    spot_ros
+   ros_helpers
 
 .. toctree::
   :maxdepth: 2
