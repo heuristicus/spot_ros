@@ -15,8 +15,11 @@ from bosdyn.client import power
 import bosdyn.api.robot_state_pb2 as robot_state_proto
 
 front_image_sources = ['frontleft_fisheye_image', 'frontright_fisheye_image', 'frontleft_depth', 'frontright_depth']
+"""List of image sources for front image periodic query"""
 side_image_sources = ['left_fisheye_image', 'right_fisheye_image', 'left_depth', 'right_depth']
+"""List of image sources for side image periodic query"""
 rear_image_sources = ['back_fisheye_image', 'back_depth']
+"""List of image sources for rear image periodic query"""
 
 class AsyncRobotState(AsyncPeriodicQuery):
     """Class to get robot state at regular intervals.  get_robot_state_async query sent to the robot at every tick.  Callback registered to defined callback function.
@@ -153,6 +156,7 @@ class AsyncEStop(AsyncPeriodicQuery):
         return callback_future
 
 class SpotWrapper():
+    """Generic wrapper class to encompass all of of the V1 API features as well as maintaining leases automatically"""
     def __init__(self, username, password, token, hostname, logger, rates = {}, callbacks = {}):
         self._username = username
         self._password = password
@@ -273,6 +277,12 @@ class SpotWrapper():
             self._lease = None
 
     def _robot_command(self, desc, command_proto, end_time_secs=None):
+        """Generic blocking function for sending commands to robots.
+
+        Args:
+            command_proto: robot_command_pb2 object to send to the robot.  Usually made with RobotCommandBuilder
+            end_time_secs: (optional) Time-to-live for the command in seconds
+        """
         try:
             id = self._robot_command_client.robot_command(lease=None, command=command_proto, end_time_secs=end_time_secs)
             return True, "Success"
@@ -280,36 +290,66 @@ class SpotWrapper():
             return False, str(type(e))
 
     def _async_robot_command(self, desc, command_proto, end_time_secs=None):
+        """Generic non-blocking function for sending commands to robots.
+
+        Args:
+            command_proto: robot_command_pb2 object to send to the robot.  Usually made with RobotCommandBuilder
+            end_time_secs: (optional) Time-to-live for the command in seconds
+        """
         return self._robot_command_client.robot_command_async(lease=None, command=command_proto, end_time_secs=end_time_secs)
 
     def stop(self):
+        """Stop the robot's motion."""
         return self._robot_command('stop', RobotCommandBuilder.stop_command())
 
     def self_right(self):
+        """Have the robot self-right itself."""
         return self._robot_command('self-right', RobotCommandBuilder.selfright_command())
 
     def sit(self):
+        """Stop the robot's motion and sit down if able."""
         return self._robot_command('sit', RobotCommandBuilder.sit_command())
 
     def stand(self):
+        """If the e-stop is enabled, and the motor power is enabled, stand the robot up."""
         return self._robot_command('stand', RobotCommandBuilder.stand_command())
 
     def safe_power_off(self):
+        """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
         return self._robot_command('safe-power-off', RobotCommandBuilder.safe_power_off_command())
 
     def power_on(self):
+        """Enble the motor power if e-stop is enabled."""
         try:
             power.power_on(self._power_client)
             return True, "Success"
         except:
             return False, "Error"
 
-    def set_mobility_params(self, body_height, yaw, roll, pitch, locomotion_hint, stair_hint, external_force_params=None):
+    def set_mobility_params(self, body_height, body_yaw, body_roll, body_pitch, locomotion_hint, stair_hint, external_force_params=None):
+        """Define body, locomotion, and stair parameters.
+
+        Args:
+            body_height: Body height in meters
+            body_yaw: The yaw of the body frame with respect to the footprint frame in radians
+            body_roll: The roll of the body frame with respect to the footprint frame in radians
+            body_pitch: The pitch of the body frame with respect to the footprint frame in radians
+            locomotion_hint: Locomotion hint
+            stair_hint: Boolean to define stair motion
+        """
         pass
         #bosdyn.geometry.EulerZXY object
         #return self._start_robot_command('mobility-params', RobotCommandBuilder.mobility_params(body_heigh, footprint_R_body, locomotion_hint, stair_hint, external_force_params))
 
-    def velocity_cmd(self, v_x, v_y, v_rot, desc='', cmd_duration=0.125):
+    def velocity_cmd(self, v_x, v_y, v_rot, cmd_duration=0.125):
+        """Send a velocity motion command to the robot.
+
+        Args:
+            v_x: Velocity in the X direction in meters
+            v_y: Velocity in the Y direction in meters
+            v_rot: Angular velocity around the Z axis in radians
+            cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms.
+        """
         return self._start_robot_command(desc,
                                   RobotCommandBuilder.velocity_command(
                                       v_x=v_x, v_y=v_y, v_rot=v_rot),

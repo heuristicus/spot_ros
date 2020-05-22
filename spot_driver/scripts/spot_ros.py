@@ -204,26 +204,32 @@ class SpotROS():
             self.tf_pub.publish(camera_tf_msg1)
 
     def handle_stop(self, req):
+        """ROS service handler for the stop service"""
         resp = self.spot_wrapper.stop()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_self_right(self, req):
+        """ROS service handler for the self-right service"""
         resp = self.spot_wrapper.self_right()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_sit(self, req):
+        """ROS service handler for the sit service"""
         resp = self.spot_wrapper.sit()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_stand(self, req):
+        """ROS service handler for the stand service"""
         resp = self.spot_wrapper.stand()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_power_on(self, req):
+        """ROS service handler for the power-on service"""
         resp = self.spot_wrapper.power_on()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_safe_power_off(self, req):
+        """ROS service handler for the safe-power-off service"""
         resp = self.spot_wrapper.safe_power_off()
         return TriggerResponse(resp[0], resp[1])
 

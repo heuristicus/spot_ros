@@ -33,6 +33,7 @@ friendly_joint_names["hr.hy"] = "rear_right_hip_y"
 friendly_joint_names["hr.kn"] = "rear_right_knee"
 
 class DefaultCameraInfo(CameraInfo):
+    """Blank class extending CameraInfo ROS topic that defaults most parameters"""
     def __init__(self):
         super().__init__()
         self.distortion_model = "plumb_bob"
@@ -69,10 +70,15 @@ class DefaultCameraInfo(CameraInfo):
         self.P[11] = 0
 
 def getImageMsg(data):
-    """Maps image data from image proto to ROS image message
+    """Takes the image, camera, and TF data and populates the necessary ROS messages
 
     Args:
         data: Image proto
+    Returns:
+        (tuple):
+            * Image: message of the image captured
+            * CameraInfo: message to define the state and config of the camera that took the image
+            * TFMessage: with the transforms necessary to locate the image frames
     """
     tf_msg = TFMessage()
     for frame_name in data.shot.transforms_snapshot.child_to_parent_edge_map:
@@ -154,6 +160,13 @@ def getImageMsg(data):
     return image_msg, camera_info_msg, tf_msg
 
 def GetJointStatesFromState(state):
+    """Maps joint state data from robot state proto to ROS JointState message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        JointState message
+    """
     joint_state = JointState()
     joint_state.header.stamp = rospy.Time(state.kinematic_state.acquisition_timestamp.seconds, state.kinematic_state.acquisition_timestamp.nanos)
     for joint in state.kinematic_state.joint_states:
@@ -165,6 +178,13 @@ def GetJointStatesFromState(state):
     return joint_state
 
 def GetEStopStateFromState(state):
+    """Maps eStop state data from robot state proto to ROS EStopArray message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        EStopArray message
+    """
     estop_array_msg = EStopStateArray()
     for estop in state.estop_states:
         estop_msg = EStopState()
@@ -177,6 +197,13 @@ def GetEStopStateFromState(state):
     return estop_array_msg
 
 def GetFeetFromState(state):
+    """Maps foot position state data from robot state proto to ROS FootStateArray message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        FootStateArray message
+    """
     foot_array_msg = FootStateArray()
     for foot in state.foot_state:
         foot_msg = FootState()
@@ -189,6 +216,13 @@ def GetFeetFromState(state):
     return foot_array_msg
 
 def GetOdomTwistFromState(state):
+    """Maps odometry data from robot state proto to ROS TwistWithCovarianceStamped message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        TwistWithCovarianceStamped message
+    """
     twist_odom_msg = TwistWithCovarianceStamped()
     twist_odom_msg.header.stamp = rospy.Time(state.kinematic_state.acquisition_timestamp.seconds, state.kinematic_state.acquisition_timestamp.nanos)
     twist_odom_msg.twist.twist.linear.x = state.kinematic_state.velocity_of_body_in_odom.linear.x
@@ -200,6 +234,13 @@ def GetOdomTwistFromState(state):
     return twist_odom_msg
 
 def GetWifiFromState(state):
+    """Maps wireless state data from robot state proto to ROS WiFiState message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        WiFiState message
+    """
     wifi_msg = WiFiState()
     for comm_state in state.comms_states:
         if comm_state.HasField('wifi_state'):
@@ -209,6 +250,13 @@ def GetWifiFromState(state):
     return wifi_msg
 
 def GetTFFromState(state):
+    """Maps robot link state data from robot state proto to ROS TFMessage message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        TFMessage message
+    """
     tf_msg = TFMessage()
     for frame_name in state.kinematic_state.transforms_snapshot.child_to_parent_edge_map:
         if state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name:
@@ -229,6 +277,13 @@ def GetTFFromState(state):
     return tf_msg
 
 def GetBatteryStatesFromState(state):
+    """Maps battery state data from robot state proto to ROS BatteryStateArray message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        BatteryStateArray message
+    """
     battery_states_array_msg = BatteryStateArray()
     for battery in state.battery_states:
         battery_msg = BatteryState()
@@ -247,6 +302,13 @@ def GetBatteryStatesFromState(state):
     return battery_states_array_msg
 
 def GetPowerStatesFromState(state):
+    """Maps power state data from robot state proto to ROS PowerState message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        PowerState message
+    """
     power_state_msg = PowerState()
     power_state_msg.header.stamp = rospy.Time(state.power_state.timestamp.seconds, state.power_state.timestamp.nanos)
     power_state_msg.motor_power_state = state.power_state.motor_power_state
@@ -260,6 +322,8 @@ def getBehaviorFaults(behavior_faults):
 
     Args:
         behavior_faults: List of BehaviorFaults
+    Returns:
+        List of BehaviorFault messages
     """
     faults = []
 
@@ -278,6 +342,8 @@ def getSystemFaults(system_faults):
 
     Args:
         systen_faults: List of SystemFaults
+    Returns:
+        List of SystemFault messages
     """
     faults = []
 
@@ -299,12 +365,26 @@ def getSystemFaults(system_faults):
     return faults
 
 def GetSystemFaultsFromState(state):
+    """Maps system fault data from robot state proto to ROS SystemFaultState message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        SystemFaultState message
+    """
     system_fault_state_msg = SystemFaultState()
     system_fault_state_msg.faults = getSystemFaults(state.system_fault_state.faults)
     system_fault_state_msg.historical_faults = getSystemFaults(state.system_fault_state.historical_faults)
     return system_fault_state_msg
 
 def getBehaviorFaultsFromState(state):
+    """Maps behavior fault data from robot state proto to ROS BehaviorFaultState message
+
+    Args:
+        data: Robot State proto
+    Returns:
+        BehaviorFaultState message
+    """
     behavior_fault_state_msg = BehaviorFaultState()
     behavior_fault_state_msg.faults = getBehaviorFaults(state.behavior_fault_state.faults)
     return behavior_fault_state_msg
