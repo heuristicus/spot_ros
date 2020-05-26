@@ -1,3 +1,8 @@
 <launch>
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find spot_viz)/rviz/model.rviz" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find spot_viz)/rviz/robot.rviz" />
+
+  <node pkg="interactive_marker_twist_server" type="marker_server" name="twist_marker_server" >
+    <param name="link_name" value="body" />
+    <param name="robot_name" value="spot" />
+  </node>
 </launch>

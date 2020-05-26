@@ -258,6 +258,7 @@ def GetTFFromState(state):
         TFMessage message
     """
     tf_msg = TFMessage()
+
     for frame_name in state.kinematic_state.transforms_snapshot.child_to_parent_edge_map:
         if state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name:
             transform = state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name)

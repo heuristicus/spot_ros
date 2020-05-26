@@ -2,6 +2,7 @@ import time
 
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
+from bosdyn.geometry import EulerZXY
 
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder
@@ -326,31 +327,28 @@ class SpotWrapper():
         except:
             return False, "Error"
 
-    def set_mobility_params(self, body_height, body_yaw, body_roll, body_pitch, locomotion_hint, stair_hint, external_force_params=None):
+    def get_mobility_params(self, body_height=0, footprint_R_body=EulerZXY(), locomotion_hint=1, stair_hint=False, external_force_params=None):
         """Define body, locomotion, and stair parameters.
 
         Args:
             body_height: Body height in meters
-            body_yaw: The yaw of the body frame with respect to the footprint frame in radians
-            body_roll: The roll of the body frame with respect to the footprint frame in radians
-            body_pitch: The pitch of the body frame with respect to the footprint frame in radians
+            footprint_R_body: (EulerZXY) – The orientation of the body frame with respect to the footprint frame (gravity aligned framed with yaw computed from the stance feet)
             locomotion_hint: Locomotion hint
             stair_hint: Boolean to define stair motion
         """
-        pass
-        #bosdyn.geometry.EulerZXY object
-        #return self._start_robot_command('mobility-params', RobotCommandBuilder.mobility_params(body_heigh, footprint_R_body, locomotion_hint, stair_hint, external_force_params))
+        return RobotCommandBuilder.mobility_params(body_height, footprint_R_body, locomotion_hint, stair_hint, external_force_params)
 
-    def velocity_cmd(self, v_x, v_y, v_rot, cmd_duration=0.125):
+    def velocity_cmd(self, v_x, v_y, v_rot, mobility_params, cmd_duration=0.125):
         """Send a velocity motion command to the robot.
 
         Args:
             v_x: Velocity in the X direction in meters
             v_y: Velocity in the Y direction in meters
             v_rot: Angular velocity around the Z axis in radians
-            cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms.
+            mobility_params: mobility parameters
+            cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
         """
-        return self._start_robot_command(desc,
+        return self._async_robot_command("ros_cmd_vel",
                                   RobotCommandBuilder.velocity_command(
-                                      v_x=v_x, v_y=v_y, v_rot=v_rot),
+                                      v_x=v_x, v_y=v_y, v_rot=v_rot, params=mobility_params),
                                   end_time_secs=time.time() + cmd_duration)

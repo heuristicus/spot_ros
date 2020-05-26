@@ -6,7 +6,10 @@ from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import TwistWithCovarianceStamped
+from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose
+
+from bosdyn.api.geometry_pb2 import Quaternion
+import bosdyn.geometry
 
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
@@ -233,6 +236,21 @@ class SpotROS():
         resp = self.spot_wrapper.safe_power_off()
         return TriggerResponse(resp[0], resp[1])
 
+    def cmdVelCallback(self, data):
+        """Callback for cmd_vel command"""
+        self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z, self.mobility_params)
+
+    def bodyPoseCallback(self, data):
+        """Callback for cmd_vel command"""
+        q = Quaternion()
+        q.x = data.orientation.x
+        q.y = data.orientation.y
+        q.z = data.orientation.z
+        q.w = data.orientation.w
+
+        euler_zxy = q.to_euler_zxy()
+        self.mobility_params = self.spot_wrapper.get_mobility_params(data.position.z, euler_zxy)
+
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
         rospy.init_node('spot_ros', anonymous=True)
@@ -248,7 +266,7 @@ class SpotROS():
 
         rospy.loginfo("Starting")
         self.spot_wrapper = SpotWrapper(self.username, self.password, self.app_token, self.hostname, self.logger, self.rates, self.callbacks)
-
+        self.mobility_params = self.spot_wrapper.get_mobility_params()
         if self.spot_wrapper._robot:
             # Images #
             self.back_image_pub = rospy.Publisher('camera/back/image', Image, queue_size=10)
@@ -291,6 +309,9 @@ class SpotROS():
             self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
             self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
 
+            rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback)
+            rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback)
+
             rospy.Service("stop", Trigger, self.handle_stop)
             rospy.Service("self_right", Trigger, self.handle_self_right)
             rospy.Service("sit", Trigger, self.handle_sit)
@@ -301,7 +322,16 @@ class SpotROS():
             rospy.loginfo("Connecting")
             self.spot_wrapper.connect()
             rospy.loginfo("Running")
+
             with self.spot_wrapper.getLease():
+                self.auto_power_on = rospy.get_param('~auto_power_on', False)
+                self.auto_stand = rospy.get_param('~auto_stand', False)
+
+                if self.auto_power_on:
+                    self.spot_wrapper.power_on()
+                    if self.auto_stand:
+                        self.spot_wrapper.stand()
+
                 while not rospy.is_shutdown():
                     self.spot_wrapper.updateTasks()
                     rate.sleep()
