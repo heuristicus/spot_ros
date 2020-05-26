@@ -238,7 +238,7 @@ class SpotROS():
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
-        self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z, self.mobility_params)
+        self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
 
     def bodyPoseCallback(self, data):
         """Callback for cmd_vel command"""
@@ -249,7 +249,7 @@ class SpotROS():
         q.w = data.orientation.w
 
         euler_zxy = q.to_euler_zxy()
-        self.mobility_params = self.spot_wrapper.get_mobility_params(data.position.z, euler_zxy)
+        self.spot_wrapper.set_mobility_params(data.position.z, euler_zxy)
 
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
@@ -261,12 +261,13 @@ class SpotROS():
         self.password = rospy.get_param('~password', 'default_value')
         self.app_token = rospy.get_param('~app_token', 'default_value')
         self.hostname = rospy.get_param('~hostname', 'default_value')
+        self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
 
         self.logger = logging.getLogger('rosout')
 
         rospy.loginfo("Starting")
         self.spot_wrapper = SpotWrapper(self.username, self.password, self.app_token, self.hostname, self.logger, self.rates, self.callbacks)
-        self.mobility_params = self.spot_wrapper.get_mobility_params()
+
         if self.spot_wrapper._robot:
             # Images #
             self.back_image_pub = rospy.Publisher('camera/back/image', Image, queue_size=10)

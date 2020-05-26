@@ -60,44 +60,6 @@ class AsyncMetrics(AsyncPeriodicQuery):
         callback_future.add_done_callback(self._callback)
         return callback_future
 
-class AsyncRobotCommand(AsyncPeriodicQuery):
-    """Class to get robot command status at regular intervals.  robot_command_feedback_async query sent to the robot at every tick.  Callback registered to defined callback function.
-
-        Attributes:
-            client: The Client to a service on the robot
-            logger: Logger object
-            rate: Rate (Hz) to trigger the query
-            callback: Callback function to call when the results of the query are available
-    """
-    def __init__(self, client, logger, rate, callback):
-        super(AsyncRobotCommand, self).__init__("robot-command", client, logger,
-                                           period_sec=1.0/rate)
-        self._callback = callback
-
-    def _start_query(self):
-        callback_future = self._client.robot_command_feedback_async()
-        callback_future.add_done_callback(self._callback)
-        return callback_future
-
-class AsyncPower(AsyncPeriodicQuery):
-    """Class to get power status at regular intervals.  power_command_feedback_async query sent to the robot at every tick.  Callback registered to defined callback function.
-
-        Attributes:
-            client: The Client to a service on the robot
-            logger: Logger object
-            rate: Rate (Hz) to trigger the query
-            callback: Callback function to call when the results of the query are available
-    """
-    def __init__(self, client, logger, rate, callback):
-        super(AsyncPower, self).__init__("power", client, logger,
-                                           period_sec=1.0/rate)
-        self._callback = callback
-
-    def _start_query(self):
-        callback_future = self._client.power_command_feedback_async()
-        callback_future.add_done_callback(self._callback)
-        return callback_future
-
 class AsyncLease(AsyncPeriodicQuery):
     """Class to get lease state at regular intervals.  list_leases_async query sent to the robot at every tick.  Callback registered to defined callback function.
 
@@ -137,24 +99,23 @@ class AsyncImageService(AsyncPeriodicQuery):
         callback_future.add_done_callback(self._callback)
         return callback_future
 
-class AsyncEStop(AsyncPeriodicQuery):
-    """Class to get estop state at regular intervals.  get_status_async query sent to the robot at every tick.  Callback registered to defined callback function.
+class AsyncIdle(AsyncPeriodicQuery):
+    """Class to check if the robot is moving, and if not, command a stand with the set mobility parameters
 
         Attributes:
-            client: The Client to a service on the robot
             logger: Logger object
             rate: Rate (Hz) to trigger the query
-            callback: Callback function to call when the results of the query are available
+            spot_wrapper: A handle to the wrapper library
     """
-    def __init__(self, client, logger, rate, callback):
-        super(AsyncEStop, self).__init__("estop", client, logger,
+    def __init__(self, logger, rate, spot_wrapper):
+        super(AsyncIdle, self).__init__("lease", None, logger,
                                            period_sec=1.0/rate)
-        self._callback = callback
+
+        self._spot_wrapper = spot_wrapper
 
     def _start_query(self):
-        callback_future = self._client.get_status_async()
-        callback_future.add_done_callback(self._callback)
-        return callback_future
+        if time.time() - self._spot_wrapper.last_motion_command_time > 0.125 and self._spot_wrapper.is_standing:
+            self._spot_wrapper.asyncStand()
 
 class SpotWrapper():
     """Generic wrapper class to encompass all of of the V1 API features as well as maintaining leases automatically"""
@@ -167,6 +128,10 @@ class SpotWrapper():
         self._rates = rates
         self._callbacks = callbacks
         self._keep_alive = True
+
+        self._mobility_params = RobotCommandBuilder.mobility_params()
+        self._is_standing = False
+        self._last_motion_command_time = time.time()
 
         self._front_image_requests = []
         for source in front_image_sources:
@@ -207,11 +172,12 @@ class SpotWrapper():
             self._front_image_task = AsyncImageService(self._image_client, self._logger, self._rates.get("front_image", 1.0), self._callbacks.get("front_image", lambda:None), self._front_image_requests)
             self._side_image_task = AsyncImageService(self._image_client, self._logger, self._rates.get("side_image", 1.0), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
             self._rear_image_task = AsyncImageService(self._image_client, self._logger, self._rates.get("rear_image", 1.0), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
+            self._idle_task = AsyncIdle(self._logger, 10.0, self)
 
             self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
 
             self._async_tasks = AsyncTasks(
-                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task])
+                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
 
             self._robot_id = None
             self._lease = None
@@ -245,6 +211,16 @@ class SpotWrapper():
     def rear_images(self):
         """Return latest proto from the _rear_image_task"""
         return self._rear_image_task.proto
+
+    @property
+    def is_standing(self):
+        """Return boolean of standing state"""
+        return self._is_standing
+
+    @property
+    def last_motion_command_time(self):
+        """Return time of last motion request time"""
+        return self._last_motion_command_time
 
     def connect(self):
         """Get a lease for the robot, a handle on the estop endpoint, and the ID of the robot."""
@@ -309,11 +285,17 @@ class SpotWrapper():
 
     def sit(self):
         """Stop the robot's motion and sit down if able."""
+        self._is_standing = False
         return self._robot_command('sit', RobotCommandBuilder.sit_command())
+
+    def asyncStand(self):
+        """If the e-stop is enabled, and the motor power is enabled, stand the robot up.  Async version.  Doesn't set _is_standing"""
+        return self._async_robot_command('stand', RobotCommandBuilder.stand_command(params=self._mobility_params))
 
     def stand(self):
         """If the e-stop is enabled, and the motor power is enabled, stand the robot up."""
-        return self._robot_command('stand', RobotCommandBuilder.stand_command())
+        self._is_standing = True
+        return self._robot_command('stand', RobotCommandBuilder.stand_command(params=self._mobility_params))
 
     def safe_power_off(self):
         """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
@@ -327,7 +309,7 @@ class SpotWrapper():
         except:
             return False, "Error"
 
-    def get_mobility_params(self, body_height=0, footprint_R_body=EulerZXY(), locomotion_hint=1, stair_hint=False, external_force_params=None):
+    def set_mobility_params(self, body_height=0, footprint_R_body=EulerZXY(), locomotion_hint=1, stair_hint=False, external_force_params=None):
         """Define body, locomotion, and stair parameters.
 
         Args:
@@ -336,19 +318,19 @@ class SpotWrapper():
             locomotion_hint: Locomotion hint
             stair_hint: Boolean to define stair motion
         """
-        return RobotCommandBuilder.mobility_params(body_height, footprint_R_body, locomotion_hint, stair_hint, external_force_params)
+        self._mobility_params = RobotCommandBuilder.mobility_params(body_height, footprint_R_body, locomotion_hint, stair_hint, external_force_params)
 
-    def velocity_cmd(self, v_x, v_y, v_rot, mobility_params, cmd_duration=0.125):
+    def velocity_cmd(self, v_x, v_y, v_rot, cmd_duration=0.125):
         """Send a velocity motion command to the robot.
 
         Args:
             v_x: Velocity in the X direction in meters
             v_y: Velocity in the Y direction in meters
             v_rot: Angular velocity around the Z axis in radians
-            mobility_params: mobility parameters
             cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
         """
+        self.last_motion_command = time.time()
         return self._async_robot_command("ros_cmd_vel",
                                   RobotCommandBuilder.velocity_command(
-                                      v_x=v_x, v_y=v_y, v_rot=v_rot, params=mobility_params),
+                                      v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                   end_time_secs=time.time() + cmd_duration)
