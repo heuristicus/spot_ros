@@ -1,0 +1,13 @@
+max_platform_x_velocity: 1
+min_platform_x_velocity: 1
+max_platform_y_velocity: 1
+min_platform_y_velocity: 1
+max_platform_yay_rate: 1
+min_platform_yaw_rate: 1
+
+max_body_height: 0.5
+min_body_height: 0.5
+max_body_roll: 0.5
+min_body_roll: 0.5
+max_body_pitch: 0.5
+min_body_pitch: 0.5
