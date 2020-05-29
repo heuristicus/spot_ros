@@ -236,6 +236,16 @@ class SpotROS():
         resp = self.spot_wrapper.safe_power_off()
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_safe_power_hard(self, req):
+        """ROS service handler to hard-eStop the robot.  The robot will immediately cut power to the motors"""
+        resp = self.spot_wrapper.assertEStop(True)
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_estop_soft(self, req):
+        """ROS service handler to soft-eStop the robot.  The robot will try to settle on the ground before cutting power to the motors"""
+        resp = self.spot_wrapper.assertEStop(False)
+        return TriggerResponse(resp[0], resp[1])
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
@@ -320,9 +330,14 @@ class SpotROS():
             rospy.Service("power_on", Trigger, self.handle_power_on)
             rospy.Service("power_off", Trigger, self.handle_safe_power_off)
 
+            rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
+            rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
+
             rospy.loginfo("Connecting")
             self.spot_wrapper.connect()
             rospy.loginfo("Running")
+
+            self.spot_wrapper.resetEStop()
 
             with self.spot_wrapper.getLease():
                 self.auto_power_on = rospy.get_param('~auto_power_on', False)

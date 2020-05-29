@@ -227,8 +227,7 @@ class SpotWrapper():
         try:
             self._robot_id = self._robot.get_id()
             self._lease = self._lease_client.acquire()
-            self._estop_endpoint.force_simple_setup()  # Set this endpoint as the robot's sole estop.
-            self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
+            self.resetEStop()
         except (ResponseError, RpcError) as err:
             self._logger.error("Failed to initialize robot communication: %s", err)
             return False
@@ -236,6 +235,36 @@ class SpotWrapper():
     def updateTasks(self):
         """Loop through all periodic tasks and update their data if needed."""
         self._async_tasks.update()
+
+    def resetEStop(self):
+        """Get keepalive for eStop"""
+        self._estop_endpoint.force_simple_setup()  # Set this endpoint as the robot's sole estop.
+        if not self._estop_keepalive:
+            self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
+
+    def assertEStop(self, severe=True):
+        """Forces the robot into eStop state.
+
+        Args:
+            severe: Default True - If true, will cut motor power immediately.  If false, will try to settle the robot on the ground first
+        """
+        try:
+            if severe:
+                self._estop_endpoint.stop()
+            else:
+                self._estop_endpoint.settle_then_cut()
+
+            return True, "Success"
+        except:
+            return False, "Error"
+
+
+
+    def releaseEStop(self):
+        """Stop eStop keepalive"""
+        if self._estop_keepalive:
+            self._estop_keepalive.stop()
+            self._estop_keepalive = None
 
     def getLease(self):
         """Get a lease for the robot and keep the lease alive automatically."""
@@ -246,9 +275,7 @@ class SpotWrapper():
         self._logger.info("Shutting down ROS interface")
         if self._robot.time_sync:
             self._robot.time_sync.stop()
-        if self._estop_keepalive:
-            self._estop_keepalive.stop()
-            self._estop_keepalive = None
+        releaseEStop()
         if self._lease:
             self._lease_client.return_lease(self._lease)
             self._lease = None
