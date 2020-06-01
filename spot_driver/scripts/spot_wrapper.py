@@ -239,8 +239,7 @@ class SpotWrapper():
     def resetEStop(self):
         """Get keepalive for eStop"""
         self._estop_endpoint.force_simple_setup()  # Set this endpoint as the robot's sole estop.
-        if not self._estop_keepalive:
-            self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
+        self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
 
     def assertEStop(self, severe=True):
         """Forces the robot into eStop state.

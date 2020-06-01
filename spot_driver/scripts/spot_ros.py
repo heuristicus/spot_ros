@@ -236,7 +236,7 @@ class SpotROS():
         resp = self.spot_wrapper.safe_power_off()
         return TriggerResponse(resp[0], resp[1])
 
-    def handle_safe_power_hard(self, req):
+    def handle_estop_hard(self, req):
         """ROS service handler to hard-eStop the robot.  The robot will immediately cut power to the motors"""
         resp = self.spot_wrapper.assertEStop(True)
         return TriggerResponse(resp[0], resp[1])
