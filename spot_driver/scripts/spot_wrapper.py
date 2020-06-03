@@ -128,6 +128,7 @@ class SpotWrapper():
         self._rates = rates
         self._callbacks = callbacks
         self._keep_alive = True
+        self._valid = True
 
         self._mobility_params = RobotCommandBuilder.mobility_params()
         self._is_standing = False
@@ -145,8 +146,19 @@ class SpotWrapper():
         for source in rear_image_sources:
             self._rear_image_requests.append(build_image_request(source, image_format=image_pb2.Image.Format.FORMAT_RAW))
 
-        self._sdk = create_standard_sdk('ros_spot')
-        self._sdk.load_app_token(self._token)
+        try:
+            self._sdk = create_standard_sdk('ros_spot')
+        except Exception as e:
+            self._logger.error("Error creating SDK object: %s", e)
+            self._valid = False
+            return
+        try:
+            self._sdk.load_app_token(self._token)
+        `except Exception as e:
+            self._logger.error("Error loading developer token: %s", e)
+            self._valid = False
+            return
+
         self._robot = self._sdk.create_robot(self._hostname)
 
         try:
@@ -154,16 +166,22 @@ class SpotWrapper():
             self._robot.start_time_sync()
         except RpcError as err:
             self._logger.error("Failed to communicate with robot: %s", err)
-            self._robot = None
+            self._valid = False
+            return
 
         if self._robot:
             # Clients
-            self._robot_state_client = self._robot.ensure_client(RobotStateClient.default_service_name)
-            self._robot_command_client = self._robot.ensure_client(RobotCommandClient.default_service_name)
-            self._power_client = self._robot.ensure_client(PowerClient.default_service_name)
-            self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
-            self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
-            self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
+            try:
+                self._robot_state_client = self._robot.ensure_client(RobotStateClient.default_service_name)
+                self._robot_command_client = self._robot.ensure_client(RobotCommandClient.default_service_name)
+                self._power_client = self._robot.ensure_client(PowerClient.default_service_name)
+                self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
+                self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
+                self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
+            except Exception as e:
+                self._logger.error("Unable to create client service: %s", e)
+                self._valid = False
+                return
 
             # Async Tasks
             self._robot_state_task = AsyncRobotState(self._robot_state_client, self._logger, self._rates.get("robot_state", 1.0), self._callbacks.get("robot_state", lambda:None))
@@ -181,6 +199,11 @@ class SpotWrapper():
 
             self._robot_id = None
             self._lease = None
+
+    @property
+    def is_valid(self):
+        """Return boolean indicating if the wrapper initialized successfully"""
+        return self._valid
 
     @property
     def robot_state(self):
@@ -290,9 +313,9 @@ class SpotWrapper():
             id = self._robot_command_client.robot_command(lease=None, command=command_proto, end_time_secs=end_time_secs)
             return True, "Success"
         except Exception as e:
-            return False, str(type(e))
+            return False, str(e)
 
-    def _async_robot_command(self, desc, command_proto, end_time_secs=None):
+    def _async_robot_command(self, command_proto, end_time_secs=None):
         """Generic non-blocking function for sending commands to robots.
 
         Args:
@@ -303,29 +326,29 @@ class SpotWrapper():
 
     def stop(self):
         """Stop the robot's motion."""
-        return self._robot_command('stop', RobotCommandBuilder.stop_command())
+        return self._robot_command(RobotCommandBuilder.stop_command())
 
     def self_right(self):
         """Have the robot self-right itself."""
-        return self._robot_command('self-right', RobotCommandBuilder.selfright_command())
+        return self._robot_command(RobotCommandBuilder.selfright_command())
 
     def sit(self):
         """Stop the robot's motion and sit down if able."""
         self._is_standing = False
-        return self._robot_command('sit', RobotCommandBuilder.sit_command())
+        return self._robot_command(RobotCommandBuilder.sit_command())
 
     def asyncStand(self):
         """If the e-stop is enabled, and the motor power is enabled, stand the robot up.  Async version.  Doesn't set _is_standing"""
-        return self._async_robot_command('stand', RobotCommandBuilder.stand_command(params=self._mobility_params))
+        return self._async_robot_command(RobotCommandBuilder.stand_command(params=self._mobility_params))
 
     def stand(self):
         """If the e-stop is enabled, and the motor power is enabled, stand the robot up."""
         self._is_standing = True
-        return self._robot_command('stand', RobotCommandBuilder.stand_command(params=self._mobility_params))
+        return self._robot_command(RobotCommandBuilder.stand_command(params=self._mobility_params))
 
     def safe_power_off(self):
         """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
-        return self._robot_command('safe-power-off', RobotCommandBuilder.safe_power_off_command())
+        return self._robot_command(RobotCommandBuilder.safe_power_off_command())
 
     def power_on(self):
         """Enble the motor power if e-stop is enabled."""
@@ -356,7 +379,6 @@ class SpotWrapper():
             cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
         """
         self.last_motion_command = time.time()
-        return self._async_robot_command("ros_cmd_vel",
-                                  RobotCommandBuilder.velocity_command(
+        return self._async_robot_command(RobotCommandBuilder.velocity_command(
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                   end_time_secs=time.time() + cmd_duration)

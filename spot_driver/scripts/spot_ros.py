@@ -278,7 +278,7 @@ class SpotROS():
         rospy.loginfo("Starting")
         self.spot_wrapper = SpotWrapper(self.username, self.password, self.app_token, self.hostname, self.logger, self.rates, self.callbacks)
 
-        if self.spot_wrapper._robot:
+        if self.spot_wrapper.is_valid():
             # Images #
             self.back_image_pub = rospy.Publisher('camera/back/image', Image, queue_size=10)
             self.frontleft_image_pub = rospy.Publisher('camera/frontleft/image', Image, queue_size=10)
