@@ -108,14 +108,18 @@ class AsyncIdle(AsyncPeriodicQuery):
             spot_wrapper: A handle to the wrapper library
     """
     def __init__(self, logger, rate, spot_wrapper):
-        super(AsyncIdle, self).__init__("lease", None, logger,
+        super(AsyncIdle, self).__init__("idle", None, logger,
                                            period_sec=1.0/rate)
 
         self._spot_wrapper = spot_wrapper
 
     def _start_query(self):
-        if time.time() - self._spot_wrapper.last_motion_command_time > 0.125 and self._spot_wrapper.is_standing:
-            self._spot_wrapper.asyncStand()
+        if self._spot_wrapper._last_motion_command:
+            if self._spot_wrapper._last_motion_command.done() and self._spot_wrapper.is_standing:
+                self._spot_wrapper._last_motion_command = None
+        else:
+            if self._spot_wrapper.is_standing:
+                self._spot_wrapper.asyncStand()
 
 class SpotWrapper():
     """Generic wrapper class to encompass all of of the V1 API features as well as maintaining leases automatically"""
@@ -132,7 +136,7 @@ class SpotWrapper():
 
         self._mobility_params = RobotCommandBuilder.mobility_params()
         self._is_standing = False
-        self._last_motion_command_time = time.time()
+        self._last_motion_command = None
 
         self._front_image_requests = []
         for source in front_image_sources:
@@ -195,7 +199,7 @@ class SpotWrapper():
             self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
 
             self._async_tasks = AsyncTasks(
-                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task])
+                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
 
             self._robot_id = None
             self._lease = None
@@ -239,11 +243,6 @@ class SpotWrapper():
     def is_standing(self):
         """Return boolean of standing state"""
         return self._is_standing
-
-    @property
-    def last_motion_command_time(self):
-        """Return time of last motion request time"""
-        return self._last_motion_command_time
 
     def connect(self):
         """Get a lease for the robot, a handle on the estop endpoint, and the ID of the robot."""
@@ -378,7 +377,6 @@ class SpotWrapper():
             v_rot: Angular velocity around the Z axis in radians
             cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
         """
-        self.last_motion_command = time.time()
-        return self._async_robot_command(RobotCommandBuilder.velocity_command(
+        self._last_motion_command = self._async_robot_command(RobotCommandBuilder.velocity_command(
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                   end_time_secs=time.time() + cmd_duration)
