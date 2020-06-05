@@ -154,7 +154,7 @@ class SpotWrapper():
             return
         try:
             self._sdk.load_app_token(self._token)
-        `except Exception as e:
+        except Exception as e:
             self._logger.error("Error loading developer token: %s", e)
             self._valid = False
             return
@@ -195,7 +195,7 @@ class SpotWrapper():
             self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
 
             self._async_tasks = AsyncTasks(
-                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
+                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task])
 
             self._robot_id = None
             self._lease = None
@@ -302,7 +302,7 @@ class SpotWrapper():
             self._lease_client.return_lease(self._lease)
             self._lease = None
 
-    def _robot_command(self, desc, command_proto, end_time_secs=None):
+    def _robot_command(self, command_proto, end_time_secs=None):
         """Generic blocking function for sending commands to robots.
 
         Args:
