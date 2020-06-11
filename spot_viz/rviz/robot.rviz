@@ -26,7 +26,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: FrontLeftDepthCloud
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:
@@ -244,8 +244,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.06517649
-            Min Value: -0.535423696
+            Max Value: 2.45363283
+            Min Value: -0.155580759
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -255,7 +255,7 @@ Visualization Manager:
           Color Transformer: AxisColor
           Color Transport Hint: raw
           Decay Time: 0
-          Depth Map Topic: /spot/depth/left_depth/image
+          Depth Map Topic: /spot/depth/frontleft/image
           Depth Map Transport Hint: raw
           Enabled: true
           Invert Rainbow: false
@@ -263,7 +263,7 @@ Visualization Manager:
           Max Intensity: 4096
           Min Color: 0; 0; 0
           Min Intensity: 0
-          Name: DepthCloud
+          Name: FrontLeftDepthCloud
           Occlusion Compensation:
             Occlusion Time-Out: 30
             Value: false
@@ -282,8 +282,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.0309298
-            Min Value: -0.681428492
+            Max Value: 2.612113
+            Min Value: -0.112739921
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -293,7 +293,7 @@ Visualization Manager:
           Color Transformer: AxisColor
           Color Transport Hint: raw
           Decay Time: 0
-          Depth Map Topic: /spot/depth/right_depth/image
+          Depth Map Topic: /spot/depth/frontright/image
           Depth Map Transport Hint: raw
           Enabled: true
           Invert Rainbow: false
@@ -301,7 +301,7 @@ Visualization Manager:
           Max Intensity: 4096
           Min Color: 0; 0; 0
           Min Intensity: 0
-          Name: DepthCloud
+          Name: FrontRightDepthCloud
           Occlusion Compensation:
             Occlusion Time-Out: 30
             Value: false
@@ -320,8 +320,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.67886972
-            Min Value: -0.592365205
+            Max Value: 1.41352618
+            Min Value: -0.128979474
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -331,7 +331,7 @@ Visualization Manager:
           Color Transformer: AxisColor
           Color Transport Hint: raw
           Decay Time: 0
-          Depth Map Topic: /spot/depth/frontleft_depth/image
+          Depth Map Topic: /spot/depth/left/image
           Depth Map Transport Hint: raw
           Enabled: true
           Invert Rainbow: false
@@ -339,7 +339,7 @@ Visualization Manager:
           Max Intensity: 4096
           Min Color: 0; 0; 0
           Min Intensity: 0
-          Name: DepthCloud
+          Name: LeftDepthCloud
           Occlusion Compensation:
             Occlusion Time-Out: 30
             Value: false
@@ -358,8 +358,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 0.499640018
-            Min Value: -0.529275119
+            Max Value: 1.45274436
+            Min Value: -0.124786079
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -369,7 +369,7 @@ Visualization Manager:
           Color Transformer: AxisColor
           Color Transport Hint: raw
           Decay Time: 0
-          Depth Map Topic: /spot/depth/back_depth/image
+          Depth Map Topic: /spot/depth/right/image
           Depth Map Transport Hint: raw
           Enabled: true
           Invert Rainbow: false
@@ -377,7 +377,7 @@ Visualization Manager:
           Max Intensity: 4096
           Min Color: 0; 0; 0
           Min Intensity: 0
-          Name: DepthCloud
+          Name: RightDepthCloud
           Occlusion Compensation:
             Occlusion Time-Out: 30
             Value: false
@@ -396,8 +396,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.5393585
-            Min Value: -0.525580704
+            Max Value: 0.655641437
+            Min Value: -0.0852906406
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -407,7 +407,7 @@ Visualization Manager:
           Color Transformer: AxisColor
           Color Transport Hint: raw
           Decay Time: 0
-          Depth Map Topic: /spot/depth/frontright_depth/image
+          Depth Map Topic: /spot/depth/back/image
           Depth Map Transport Hint: raw
           Enabled: true
           Invert Rainbow: false
@@ -415,7 +415,7 @@ Visualization Manager:
           Max Intensity: 4096
           Min Color: 0; 0; 0
           Min Intensity: 0
-          Name: DepthCloud
+          Name: RearDepthCloud
           Occlusion Compensation:
             Occlusion Time-Out: 30
             Value: false
@@ -478,25 +478,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.92157626
+      Distance: 4.59715652
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.179880038
-        Y: 1.12118876
-        Z: 0.988582134
+        X: -0.143477932
+        Y: 0.615365922
+        Z: 0.880245864
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.935398579
+      Pitch: 0.530398846
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.50734305
+      Yaw: 4.32234859
     Saved: ~
 Window Geometry:
   Displays:
