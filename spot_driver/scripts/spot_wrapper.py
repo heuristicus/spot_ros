@@ -122,7 +122,7 @@ class AsyncIdle(AsyncPeriodicQuery):
                 self._spot_wrapper.asyncStand()
 
 class SpotWrapper():
-    """Generic wrapper class to encompass all of of the V1 API features as well as maintaining leases automatically"""
+    """Generic wrapper class to encompass release 1.1.4 API features as well as maintaining leases automatically"""
     def __init__(self, username, password, token, hostname, logger, rates = {}, callbacks = {}):
         self._username = username
         self._password = password
