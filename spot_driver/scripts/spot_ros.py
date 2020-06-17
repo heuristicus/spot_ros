@@ -206,6 +206,16 @@ class SpotROS():
             self.back_depth_info_pub.publish(camera_info_msg1)
             self.tf_pub.publish(camera_tf_msg1)
 
+    def handle_claim(self, req):
+        """ROS service handler for the claim service"""
+        resp = self.spot_wrapper.claim()
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_release(self, req):
+        """ROS service handler for the release service"""
+        resp = self.spot_wrapper.release()
+        return TriggerResponse(resp[0], resp[1])
+
     def handle_stop(self, req):
         """ROS service handler for the stop service"""
         resp = self.spot_wrapper.stop()
@@ -261,6 +271,10 @@ class SpotROS():
         euler_zxy = q.to_euler_zxy()
         self.spot_wrapper.set_mobility_params(data.position.z, euler_zxy)
 
+    def shutdown(self):
+        rospy.loginfo("Shutting down ROS driver for Spot")
+        self.spot_wrapper.disconnect()
+
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
         rospy.init_node('spot_ros', anonymous=True)
@@ -275,7 +289,7 @@ class SpotROS():
 
         self.logger = logging.getLogger('rosout')
 
-        rospy.loginfo("Starting")
+        rospy.loginfo("Starting ROS driver for Spot")
         self.spot_wrapper = SpotWrapper(self.username, self.password, self.app_token, self.hostname, self.logger, self.rates, self.callbacks)
 
         if self.spot_wrapper.is_valid:
@@ -323,6 +337,8 @@ class SpotROS():
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback)
 
+            rospy.Service("claim", Trigger, self.handle_claim)
+            rospy.Service("release", Trigger, self.handle_release)
             rospy.Service("stop", Trigger, self.handle_stop)
             rospy.Service("self_right", Trigger, self.handle_self_right)
             rospy.Service("sit", Trigger, self.handle_sit)
@@ -333,24 +349,24 @@ class SpotROS():
             rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
 
-            rospy.loginfo("Connecting")
-            self.spot_wrapper.connect()
-            rospy.loginfo("Running")
+            rospy.on_shutdown(self.shutdown)
 
             self.spot_wrapper.resetEStop()
 
-            with self.spot_wrapper.getLease():
-                self.auto_power_on = rospy.get_param('~auto_power_on', False)
-                self.auto_stand = rospy.get_param('~auto_stand', False)
+            self.auto_claim = rospy.get_param('~auto_claim', False)
+            self.auto_power_on = rospy.get_param('~auto_power_on', False)
+            self.auto_stand = rospy.get_param('~auto_stand', False)
 
+            if self.auto_claim:
+                self.spot_wrapper.claim()
                 if self.auto_power_on:
                     self.spot_wrapper.power_on()
                     if self.auto_stand:
                         self.spot_wrapper.stand()
 
-                while not rospy.is_shutdown():
-                    self.spot_wrapper.updateTasks()
-                    rate.sleep()
+            while not rospy.is_shutdown():
+                self.spot_wrapper.updateTasks()
+                rate.sleep()
 
 if __name__ == "__main__":
     SR = SpotROS()

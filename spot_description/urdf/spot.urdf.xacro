@@ -242,5 +242,5 @@
     </joint>
 
     <!-- Optional custom includes. -->
-<xacro:include filename="$(optenv SPOT_URDF_EXTRAS empty.urdf)" />
+    <xacro:include filename="$(optenv SPOT_URDF_EXTRAS empty.urdf)" />
 </robot>

@@ -257,15 +257,16 @@ class SpotWrapper():
         """Return boolean of standing state"""
         return self._is_standing
 
-    def connect(self):
+    def claim(self):
         """Get a lease for the robot, a handle on the estop endpoint, and the ID of the robot."""
         try:
             self._robot_id = self._robot.get_id()
-            self._lease = self._lease_client.acquire()
+            self.getLease()
             self.resetEStop()
+            return True, "Success"
         except (ResponseError, RpcError) as err:
             self._logger.error("Failed to initialize robot communication: %s", err)
-            return False
+            return False, str(err)
 
     def updateTasks(self):
         """Loop through all periodic tasks and update their data if needed."""
@@ -300,17 +301,31 @@ class SpotWrapper():
 
     def getLease(self):
         """Get a lease for the robot and keep the lease alive automatically."""
-        return LeaseKeepAlive(self._lease_client)
+        self._lease = self._lease_client.acquire()
+        self._lease_keepalive = LeaseKeepAlive(self._lease_client)
 
-    def disconnect(self):
-        """Release control of robot as gracefully as posssible."""
-        self._logger.info("Shutting down ROS interface")
-        if self._robot.time_sync:
-            self._robot.time_sync.stop()
-        releaseEStop()
+    def releaseLease(self):
+        """Return the lease on the body."""
         if self._lease:
             self._lease_client.return_lease(self._lease)
             self._lease = None
+
+    def release(self):
+        """Return the lease on the body and the eStop handle."""
+        try:
+            self.releaseLease()
+            self.releaseEStop()
+            return True, "Success"
+        except Exception as e:
+            return False, str(e)
+
+    def disconnect(self):
+        """Release control of robot as gracefully as posssible."""
+        self.sit()
+        if self._robot.time_sync:
+            self._robot.time_sync.stop()
+        self.releaseLease()
+        self.releaseEStop()
 
     def _robot_command(self, command_proto, end_time_secs=None):
         """Generic blocking function for sending commands to robots.
