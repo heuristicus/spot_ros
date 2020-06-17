@@ -33,13 +33,16 @@ class AsyncRobotState(AsyncPeriodicQuery):
     """
     def __init__(self, client, logger, rate, callback):
         super(AsyncRobotState, self).__init__("robot-state", client, logger,
-                                           period_sec=1.0/rate)
-        self._callback = callback
+                                           period_sec=1.0/max(rate, 1.0))
+        self._callback = None
+        if rate > 0.0:
+            self._callback = callback
 
     def _start_query(self):
-        callback_future = self._client.get_robot_state_async()
-        callback_future.add_done_callback(self._callback)
-        return callback_future
+        if self._callback:
+            callback_future = self._client.get_robot_state_async()
+            callback_future.add_done_callback(self._callback)
+            return callback_future
 
 class AsyncMetrics(AsyncPeriodicQuery):
     """Class to get robot metrics at regular intervals.  get_robot_metrics_async query sent to the robot at every tick.  Callback registered to defined callback function.
@@ -52,13 +55,16 @@ class AsyncMetrics(AsyncPeriodicQuery):
     """
     def __init__(self, client, logger, rate, callback):
         super(AsyncMetrics, self).__init__("robot-metrics", client, logger,
-                                           period_sec=1.0/rate)
-        self._callback = callback
+                                           period_sec=1.0/max(rate, 1.0))
+        self._callback = None
+        if rate > 0.0:
+            self._callback = callback
 
     def _start_query(self):
-        callback_future = self._client.get_robot_metrics_async()
-        callback_future.add_done_callback(self._callback)
-        return callback_future
+        if self._callback:
+            callback_future = self._client.get_robot_metrics_async()
+            callback_future.add_done_callback(self._callback)
+            return callback_future
 
 class AsyncLease(AsyncPeriodicQuery):
     """Class to get lease state at regular intervals.  list_leases_async query sent to the robot at every tick.  Callback registered to defined callback function.
@@ -71,13 +77,16 @@ class AsyncLease(AsyncPeriodicQuery):
     """
     def __init__(self, client, logger, rate, callback):
         super(AsyncLease, self).__init__("lease", client, logger,
-                                           period_sec=1.0/rate)
-        self._callback = callback
+                                           period_sec=1.0/max(rate, 1.0))
+        self._callback = None
+        if rate > 0.0:
+            self._callback = callback
 
     def _start_query(self):
-        callback_future = self._client.list_leases_async()
-        callback_future.add_done_callback(self._callback)
-        return callback_future
+        if self._callback:
+            callback_future = self._client.list_leases_async()
+            callback_future.add_done_callback(self._callback)
+            return callback_future
 
 class AsyncImageService(AsyncPeriodicQuery):
     """Class to get images at regular intervals.  get_image_from_sources_async query sent to the robot at every tick.  Callback registered to defined callback function.
@@ -90,14 +99,17 @@ class AsyncImageService(AsyncPeriodicQuery):
     """
     def __init__(self, client, logger, rate, callback, image_requests):
         super(AsyncImageService, self).__init__("robot_image_service", client, logger,
-                                           period_sec=1.0/rate)
-        self._callback = callback
+                                           period_sec=1.0/max(rate, 1.0))
+        self._callback = None
+        if rate > 0.0:
+            self._callback = callback
         self._image_requests = image_requests
 
     def _start_query(self):
-        callback_future = self._client.get_image_async(self._image_requests)
-        callback_future.add_done_callback(self._callback)
-        return callback_future
+        if self._callback:
+            callback_future = self._client.get_image_async(self._image_requests)
+            callback_future.add_done_callback(self._callback)
+            return callback_future
 
 class AsyncIdle(AsyncPeriodicQuery):
     """Class to check if the robot is moving, and if not, command a stand with the set mobility parameters
@@ -188,12 +200,13 @@ class SpotWrapper():
                 return
 
             # Async Tasks
-            self._robot_state_task = AsyncRobotState(self._robot_state_client, self._logger, self._rates.get("robot_state", 1.0), self._callbacks.get("robot_state", lambda:None))
-            self._robot_metrics_task = AsyncMetrics(self._robot_state_client, self._logger, self._rates.get("metrics", 1.0), self._callbacks.get("metrics", lambda:None))
-            self._lease_task = AsyncLease(self._lease_client, self._logger, self._rates.get("lease", 1.0), self._callbacks.get("lease", lambda:None))
-            self._front_image_task = AsyncImageService(self._image_client, self._logger, self._rates.get("front_image", 1.0), self._callbacks.get("front_image", lambda:None), self._front_image_requests)
-            self._side_image_task = AsyncImageService(self._image_client, self._logger, self._rates.get("side_image", 1.0), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
-            self._rear_image_task = AsyncImageService(self._image_client, self._logger, self._rates.get("rear_image", 1.0), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
+            self._async_task_list = []
+            self._robot_state_task = AsyncRobotState(self._robot_state_client, self._logger, max(0.0, self._rates.get("robot_state", 0.0)), self._callbacks.get("robot_state", lambda:None))
+            self._robot_metrics_task = AsyncMetrics(self._robot_state_client, self._logger, max(0.0, self._rates.get("metrics", 0.0)), self._callbacks.get("metrics", lambda:None))
+            self._lease_task = AsyncLease(self._lease_client, self._logger, max(0.0, self._rates.get("lease", 0.0)), self._callbacks.get("lease", lambda:None))
+            self._front_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("front_image", 0.0)), self._callbacks.get("front_image", lambda:None), self._front_image_requests)
+            self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("side_image", 0.0)), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
+            self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
             self._idle_task = AsyncIdle(self._logger, 10.0, self)
 
             self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
@@ -278,8 +291,6 @@ class SpotWrapper():
             return True, "Success"
         except:
             return False, "Error"
-
-
 
     def releaseEStop(self):
         """Stop eStop keepalive"""
