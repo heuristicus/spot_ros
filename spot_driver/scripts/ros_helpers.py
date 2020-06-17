@@ -17,6 +17,8 @@ from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 
+from bosdyn.api import image_pb2
+
 friendly_joint_names = {}
 """Dictionary for mapping BD joint names to more friendly names"""
 friendly_joint_names["fl.hx"] = "front_left_hip_x"
@@ -105,37 +107,37 @@ def getImageMsg(data):
 
     # Color/greyscale formats.
     # JPEG format
-    if data.shot.image.format == 1:
+    if data.shot.image.format == image_pb2.Image.FORMAT_JPEG:
         image_msg.encoding = "rgb8"
         image_msg.is_bigendian = True
         image_msg.step = 3 * data.shot.image.cols
         image_msg.data = data.shot.image.data
 
     # Uncompressed.  Requires pixel_format.
-    if data.shot.image.format == 2:
+    if data.shot.image.format == image_pb2.Image.FORMAT_RAW:
         # One byte per pixel.
-        if data.shot.image.pixel_format == 1:
+        if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_GREYSCALE_U8:
             image_msg.encoding = "mono8"
             image_msg.is_bigendian = True
             image_msg.step = data.shot.image.cols
             image_msg.data = data.shot.image.data
 
         # Three bytes per pixel.
-        if data.shot.image.pixel_format == 3:
+        if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_RGB_U8:
             image_msg.encoding = "rgb8"
             image_msg.is_bigendian = True
             image_msg.step = 3 * data.shot.image.cols
             image_msg.data = data.shot.image.data
 
         # Four bytes per pixel.
-        if data.shot.image.pixel_format == 4:
+        if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_RGBA_U8:
             image_msg.encoding = "rgba8"
             image_msg.is_bigendian = True
             image_msg.step = 4 * data.shot.image.cols
             image_msg.data = data.shot.image.data
 
         # Little-endian uint16 z-distance from camera (mm).
-        if data.shot.image.pixel_format == 5:
+        if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_DEPTH_U16:
             image_msg.encoding = "mono16"
             image_msg.is_bigendian = False
             image_msg.step = 2 * data.shot.image.cols
