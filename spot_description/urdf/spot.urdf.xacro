@@ -240,4 +240,7 @@
         <child link="rear_right_lower_leg" />
         <limit effort="1000" velocity="1000.00" lower="-2.7929" upper="-0.257725" />
     </joint>
+
+    <!-- Optional custom includes. -->
+<xacro:include filename="$(optenv SPOT_URDF_EXTRAS empty.urdf)" />
 </robot>
