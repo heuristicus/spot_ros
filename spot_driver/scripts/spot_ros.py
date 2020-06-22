@@ -2,6 +2,7 @@
 import rospy
 
 from std_srvs.srv import Trigger, TriggerResponse
+from std_msgs.msg import Bool
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
@@ -20,6 +21,7 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
+from spot_msgs.msg import Feedback
 
 from ros_helpers import *
 from spot_wrapper import SpotWrapper
@@ -273,6 +275,8 @@ class SpotROS():
 
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
+        self.spot_wrapper.sit()
+        rospy.Rate(0.25).sleep()
         self.spot_wrapper.disconnect()
 
     def main(self):
@@ -334,6 +338,8 @@ class SpotROS():
             self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
             self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
 
+            self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
+
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback)
 
@@ -366,6 +372,20 @@ class SpotROS():
 
             while not rospy.is_shutdown():
                 self.spot_wrapper.updateTasks()
+                feedback_msg = Feedback()
+                feedback_msg.standing = self.spot_wrapper.is_standing
+                feedback_msg.sitting = self.spot_wrapper.is_sitting
+                feedback_msg.moving = self.spot_wrapper.is_moving
+                id = self.spot_wrapper.id
+                try:
+                    feedback_msg.serial_number = id.serial_number
+                    feedback_msg.species = id.species
+                    feedback_msg.version = id.version
+                    feedback_msg.nickname = id.nickname
+                    feedback_msg.computer_serial_number = id.computer_serial_number
+                except:
+                    pass
+                self.feedback_pub.publish(feedback_msg)
                 rate.sleep()
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ add_message_files(
   BatteryState.msg
   BehaviorFaultState.msg
   EStopState.msg
+  Feedback.msg
   FootState.msg
   Lease.msg
   LeaseResource.msg
