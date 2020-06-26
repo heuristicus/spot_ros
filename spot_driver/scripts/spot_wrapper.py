@@ -313,6 +313,11 @@ class SpotWrapper():
         """Return boolean of walking state"""
         return self._is_moving
 
+    @property
+    def time_skew(self):
+        """Return the time skew between local and spot time"""
+        return self._robot.time_sync.clock_skew
+
     def claim(self):
         """Get a lease for the robot, a handle on the estop endpoint, and the ID of the robot."""
         try:
