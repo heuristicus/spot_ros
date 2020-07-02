@@ -71,23 +71,12 @@ class DefaultCameraInfo(CameraInfo):
         self.P[10] = 1
         self.P[11] = 0
 
-def robotToLocalTime(timestamp, skew):
-    """Takes a timestamp and an estimated skew and return seconds and nano seconds
-
-    Args:
-        timestamp: google.protobuf.Duration
-        skew: google.protobuf.Duration
-    Returns:
-        google.protobuf.Duration
-    """
-
-    return timestamp - skew
-
-def getImageMsg(data):
+def getImageMsg(data, spot_wrapper):
     """Takes the image, camera, and TF data and populates the necessary ROS messages
 
     Args:
         data: Image proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         (tuple):
             * Image: message of the image captured
@@ -99,7 +88,7 @@ def getImageMsg(data):
         if data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name:
             transform = data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
             new_tf = TransformStamped()
-            local_time = robotToLocalTime(data.shot.acquisition_time.seconds, self.spot_wrapper.time_skew))
+            local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
             new_tf.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
             new_tf.header.frame_id = transform.parent_frame_name
             new_tf.child_frame_id = frame_name
@@ -113,7 +102,7 @@ def getImageMsg(data):
             tf_msg.transforms.append(new_tf)
 
     image_msg = Image()
-    local_time = robotToLocalTime(data.shot.acquisition_time.seconds, self.spot_wrapper.time_skew))
+    local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
     image_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     image_msg.header.frame_id = data.shot.frame_name_image_sensor
     image_msg.height = data.shot.image.rows
@@ -158,7 +147,7 @@ def getImageMsg(data):
             image_msg.data = data.shot.image.data
 
     camera_info_msg = DefaultCameraInfo()
-    local_time = robotToLocalTime(data.shot.acquisition_time.seconds, self.spot_wrapper.time_skew))
+    local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
     camera_info_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     camera_info_msg.header.frame_id = data.shot.frame_name_image_sensor
     camera_info_msg.height = data.shot.image.rows
@@ -176,16 +165,17 @@ def getImageMsg(data):
 
     return image_msg, camera_info_msg, tf_msg
 
-def GetJointStatesFromState(state):
+def GetJointStatesFromState(state, spot_wrapper):
     """Maps joint state data from robot state proto to ROS JointState message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         JointState message
     """
     joint_state = JointState()
-    local_time = robotToLocalTime(state.kinematic_state.acquisition_timestamp.seconds, self.spot_wrapper.time_skew))
+    local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
     joint_state.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     for joint in state.kinematic_state.joint_states:
         joint_state.name.append(friendly_joint_names.get(joint.name, "ERROR"))
@@ -195,18 +185,19 @@ def GetJointStatesFromState(state):
 
     return joint_state
 
-def GetEStopStateFromState(state):
+def GetEStopStateFromState(state, spot_wrapper):
     """Maps eStop state data from robot state proto to ROS EStopArray message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         EStopArray message
     """
     estop_array_msg = EStopStateArray()
     for estop in state.estop_states:
         estop_msg = EStopState()
-        local_time = robotToLocalTime(estop.timestamp.seconds, self.spot_wrapper.time_skew))
+        local_time = spot_wrapper.robotToLocalTime(estop.timestamp)
         estop_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
         estop_msg.name = estop.name
         estop_msg.type = estop.type
@@ -215,11 +206,12 @@ def GetEStopStateFromState(state):
 
     return estop_array_msg
 
-def GetFeetFromState(state):
+def GetFeetFromState(state, spot_wrapper):
     """Maps foot position state data from robot state proto to ROS FootStateArray message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         FootStateArray message
     """
@@ -234,16 +226,17 @@ def GetFeetFromState(state):
 
     return foot_array_msg
 
-def GetOdomTwistFromState(state):
+def GetOdomTwistFromState(state, spot_wrapper):
     """Maps odometry data from robot state proto to ROS TwistWithCovarianceStamped message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         TwistWithCovarianceStamped message
     """
     twist_odom_msg = TwistWithCovarianceStamped()
-    local_time = robotToLocalTime(state.kinematic_state.acquisition_timestamp.seconds, self.spot_wrapper.time_skew))
+    local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
     twist_odom_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     twist_odom_msg.twist.twist.linear.x = state.kinematic_state.velocity_of_body_in_odom.linear.x
     twist_odom_msg.twist.twist.linear.y = state.kinematic_state.velocity_of_body_in_odom.linear.y
@@ -253,11 +246,12 @@ def GetOdomTwistFromState(state):
     twist_odom_msg.twist.twist.angular.z = state.kinematic_state.velocity_of_body_in_odom.angular.z
     return twist_odom_msg
 
-def GetWifiFromState(state):
+def GetWifiFromState(state, spot_wrapper):
     """Maps wireless state data from robot state proto to ROS WiFiState message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         WiFiState message
     """
@@ -269,11 +263,12 @@ def GetWifiFromState(state):
 
     return wifi_msg
 
-def GetTFFromState(state):
+def GetTFFromState(state, spot_wrapper):
     """Maps robot link state data from robot state proto to ROS TFMessage message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         TFMessage message
     """
@@ -283,7 +278,7 @@ def GetTFFromState(state):
         if state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name:
             transform = state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
             new_tf = TransformStamped()
-            local_time = robotToLocalTime(state.kinematic_state.acquisition_timestamp.seconds, self.spot_wrapper.time_skew))
+            local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
             new_tf.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
             new_tf.header.frame_id = transform.parent_frame_name
             new_tf.child_frame_id = frame_name
@@ -298,18 +293,19 @@ def GetTFFromState(state):
 
     return tf_msg
 
-def GetBatteryStatesFromState(state):
+def GetBatteryStatesFromState(state, spot_wrapper):
     """Maps battery state data from robot state proto to ROS BatteryStateArray message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         BatteryStateArray message
     """
     battery_states_array_msg = BatteryStateArray()
     for battery in state.battery_states:
         battery_msg = BatteryState()
-        local_time = robotToLocalTime(battery.timestamp.seconds, self.spot_wrapper.time_skew))
+        local_time = spot_wrapper.robotToLocalTime(battery.timestamp)
         battery_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
 
         battery_msg.identifier = battery.identifier
@@ -324,16 +320,17 @@ def GetBatteryStatesFromState(state):
 
     return battery_states_array_msg
 
-def GetPowerStatesFromState(state):
+def GetPowerStatesFromState(state, spot_wrapper):
     """Maps power state data from robot state proto to ROS PowerState message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         PowerState message
     """
     power_state_msg = PowerState()
-    local_time = robotToLocalTime(state.power_state.timestamp.seconds, self.spot_wrapper.time_skew))
+    local_time = spot_wrapper.robotToLocalTime(state.power_state.timestamp)
     power_state_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     power_state_msg.motor_power_state = state.power_state.motor_power_state
     power_state_msg.shore_power_state = state.power_state.shore_power_state
@@ -341,11 +338,12 @@ def GetPowerStatesFromState(state):
     power_state_msg.locomotion_estimated_runtime = rospy.Time(state.power_state.locomotion_estimated_runtime.seconds, state.power_state.locomotion_estimated_runtime.nanos)
     return power_state_msg
 
-def getBehaviorFaults(behavior_faults):
+def getBehaviorFaults(behavior_faults, spot_wrapper):
     """Helper function to strip out behavior faults into a list
 
     Args:
         behavior_faults: List of BehaviorFaults
+        spot_wrapper: A SpotWrapper object
     Returns:
         List of BehaviorFault messages
     """
@@ -354,7 +352,7 @@ def getBehaviorFaults(behavior_faults):
     for fault in behavior_faults:
         new_fault = BehaviorFault()
         new_fault.behavior_fault_id = fault.behavior_fault_id
-        local_time = robotToLocalTime(fault.onset_timestamp.seconds, self.spot_wrapper.time_skew))
+        local_time = spot_wrapper.robotToLocalTime(fault.onset_timestamp)
         new_fault.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
         new_fault.cause = fault.cause
         new_fault.status = fault.status
@@ -362,11 +360,12 @@ def getBehaviorFaults(behavior_faults):
 
     return faults
 
-def getSystemFaults(system_faults):
+def getSystemFaults(system_faults, spot_wrapper):
     """Helper function to strip out system faults into a list
 
     Args:
         systen_faults: List of SystemFaults
+        spot_wrapper: A SpotWrapper object
     Returns:
         List of SystemFault messages
     """
@@ -375,7 +374,7 @@ def getSystemFaults(system_faults):
     for fault in system_faults:
         new_fault = SystemFault()
         new_fault.name = fault.name
-        local_time = robotToLocalTime(fault.onset_timestamp, self.spot_wrapper.time_skew))
+        local_time = spot_wrapper.robotToLocalTime(fault.onset_timestamp)
         new_fault.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
         new_fault.duration = rospy.Time(fault.duration.seconds, fault.duration.nanos)
         new_fault.code = fault.code
@@ -390,27 +389,29 @@ def getSystemFaults(system_faults):
 
     return faults
 
-def GetSystemFaultsFromState(state):
+def GetSystemFaultsFromState(state, spot_wrapper):
     """Maps system fault data from robot state proto to ROS SystemFaultState message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         SystemFaultState message
     """
     system_fault_state_msg = SystemFaultState()
-    system_fault_state_msg.faults = getSystemFaults(state.system_fault_state.faults)
-    system_fault_state_msg.historical_faults = getSystemFaults(state.system_fault_state.historical_faults)
+    system_fault_state_msg.faults = getSystemFaults(state.system_fault_state.faults, spot_wrapper)
+    system_fault_state_msg.historical_faults = getSystemFaults(state.system_fault_state.historical_faults, spot_wrapper)
     return system_fault_state_msg
 
-def getBehaviorFaultsFromState(state):
+def getBehaviorFaultsFromState(state, spot_wrapper):
     """Maps behavior fault data from robot state proto to ROS BehaviorFaultState message
 
     Args:
         data: Robot State proto
+        spot_wrapper: A SpotWrapper object
     Returns:
         BehaviorFaultState message
     """
     behavior_fault_state_msg = BehaviorFaultState()
-    behavior_fault_state_msg.faults = getBehaviorFaults(state.behavior_fault_state.faults)
+    behavior_fault_state_msg.faults = getBehaviorFaults(state.behavior_fault_state.faults, spot_wrapper)
     return behavior_fault_state_msg

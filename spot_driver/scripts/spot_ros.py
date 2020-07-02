@@ -53,44 +53,44 @@ class SpotROS():
 
         if state:
             ## joint states ##
-            joint_state = GetJointStatesFromState(state)
+            joint_state = GetJointStatesFromState(state, self.spot_wrapper)
             self.joint_state_pub.publish(joint_state)
 
             ## TF ##
-            tf_msg = GetTFFromState(state)
+            tf_msg = GetTFFromState(state, self.spot_wrapper)
             if len(tf_msg.transforms) > 0:
                 self.tf_pub.publish(tf_msg)
 
             # Odom Twist #
-            twist_odom_msg = GetOdomTwistFromState(state)
+            twist_odom_msg = GetOdomTwistFromState(state, self.spot_wrapper)
             self.odom_twist_pub.publish(twist_odom_msg)
 
             # Feet #
-            foot_array_msg = GetFeetFromState(state)
+            foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
             self.feet_pub.publish(foot_array_msg)
 
             # EStop #
-            estop_array_msg = GetEStopStateFromState(state)
+            estop_array_msg = GetEStopStateFromState(state, self.spot_wrapper)
             self.estop_pub.publish(estop_array_msg)
 
             # WIFI #
-            wifi_msg = GetWifiFromState(state)
+            wifi_msg = GetWifiFromState(state, self.spot_wrapper)
             self.wifi_pub.publish(wifi_msg)
 
             # Battery States #
-            battery_states_array_msg = GetBatteryStatesFromState(state)
+            battery_states_array_msg = GetBatteryStatesFromState(state, self.spot_wrapper)
             self.battery_pub.publish(battery_states_array_msg)
 
             # Power State #
-            power_state_msg = GetPowerStatesFromState(state)
+            power_state_msg = GetPowerStatesFromState(state, self.spot_wrapper)
             self.power_pub.publish(power_state_msg)
 
             # System Faults #
-            system_fault_state_msg = GetSystemFaultsFromState(state)
+            system_fault_state_msg = GetSystemFaultsFromState(state, self.spot_wrapper)
             self.system_faults_pub.publish(system_fault_state_msg)
 
             # Behavior Faults #
-            behavior_fault_state_msg = getBehaviorFaultsFromState(state)
+            behavior_fault_state_msg = getBehaviorFaultsFromState(state, self.spot_wrapper)
             self.behavior_faults_pub.publish(behavior_fault_state_msg)
 
     def MetricsCB(self, results):
@@ -102,7 +102,7 @@ class SpotROS():
         metrics = self.spot_wrapper.metrics
         if metrics:
             metrics_msg = Metrics()
-            local_time = robotToLocalTime(state.kinematic_state.acquisition_timestamp, self.spot_wrapper.time_skew))
+            local_time = self.spot_wrapper.robotToLocalTime(metrics.timestamp)
             metrics_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
 
             for metric in metrics.metrics:
@@ -150,19 +150,19 @@ class SpotROS():
         """
         data = self.spot_wrapper.front_images
         if data:
-            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0])
+            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper)
             self.frontleft_image_pub.publish(image_msg0)
             self.frontleft_image_info_pub.publish(camera_info_msg0)
             self.tf_pub.publish(camera_tf_msg0)
-            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1])
+            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper)
             self.frontright_image_pub.publish(image_msg1)
             self.frontright_image_info_pub.publish(camera_info_msg1)
             self.tf_pub.publish(camera_tf_msg1)
-            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2])
+            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2], self.spot_wrapper)
             self.frontleft_depth_pub.publish(image_msg2)
             self.frontleft_depth_info_pub.publish(camera_info_msg2)
             self.tf_pub.publish(camera_tf_msg2)
-            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3])
+            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3], self.spot_wrapper)
             self.frontright_depth_pub.publish(image_msg3)
             self.frontright_depth_info_pub.publish(camera_info_msg3)
             self.tf_pub.publish(camera_tf_msg3)
@@ -175,19 +175,19 @@ class SpotROS():
         """
         data = self.spot_wrapper.side_images
         if data:
-            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0])
+            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper)
             self.left_image_pub.publish(image_msg0)
             self.left_image_info_pub.publish(camera_info_msg0)
             self.tf_pub.publish(camera_tf_msg0)
-            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1])
+            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper)
             self.right_image_pub.publish(image_msg1)
             self.right_image_info_pub.publish(camera_info_msg1)
             self.tf_pub.publish(camera_tf_msg1)
-            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2])
+            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2], self.spot_wrapper)
             self.left_depth_pub.publish(image_msg2)
             self.left_depth_info_pub.publish(camera_info_msg2)
             self.tf_pub.publish(camera_tf_msg2)
-            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3])
+            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3], self.spot_wrapper)
             self.right_depth_pub.publish(image_msg3)
             self.right_depth_info_pub.publish(camera_info_msg3)
             self.tf_pub.publish(camera_tf_msg3)
@@ -200,11 +200,11 @@ class SpotROS():
         """
         data = self.spot_wrapper.rear_images
         if data:
-            mage_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0])
+            mage_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper)
             self.back_image_pub.publish(mage_msg0)
             self.back_image_info_pub.publish(camera_info_msg0)
             self.tf_pub.publish(camera_tf_msg0)
-            mage_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1])
+            mage_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper)
             self.back_depth_pub.publish(mage_msg1)
             self.back_depth_info_pub.publish(camera_info_msg1)
             self.tf_pub.publish(camera_tf_msg1)

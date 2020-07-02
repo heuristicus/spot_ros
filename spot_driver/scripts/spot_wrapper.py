@@ -15,6 +15,7 @@ from bosdyn.client import power
 
 import bosdyn.api.robot_state_pb2 as robot_state_proto
 from bosdyn.api import basic_command_pb2
+from google.protobuf.timestamp_pb2 import Timestamp
 
 front_image_sources = ['frontleft_fisheye_image', 'frontright_fisheye_image', 'frontleft_depth', 'frontright_depth']
 """List of image sources for front image periodic query"""
@@ -316,7 +317,25 @@ class SpotWrapper():
     @property
     def time_skew(self):
         """Return the time skew between local and spot time"""
-        return self._robot.time_sync.clock_skew
+        return self._robot.time_sync.endpoint.clock_skew
+
+    def robotToLocalTime(self, timestamp):
+        """Takes a timestamp and an estimated skew and return seconds and nano seconds
+
+        Args:
+            timestamp: google.protobuf.Timestamp
+        Returns:
+            google.protobuf.Timestamp
+        """
+
+        rtime = Timestamp()
+        rtime.seconds = timestamp.seconds - self.time_skew.seconds
+        rtime.nanos = timestamp.nanos - self.time_skew.nanos
+        if rtime.nanos < 0:
+            rtime.nanos = rtime.nanos + 1000000000
+            rtime.seconds = rtime.seconds - 1
+
+        return rtime
 
     def claim(self):
         """Get a lease for the robot, a handle on the estop endpoint, and the ID of the robot."""
