@@ -358,8 +358,6 @@ class SpotROS():
 
             rospy.on_shutdown(self.shutdown)
 
-            self.spot_wrapper.resetEStop()
-
             self.auto_claim = rospy.get_param('~auto_claim', False)
             self.auto_power_on = rospy.get_param('~auto_power_on', False)
             self.auto_stand = rospy.get_param('~auto_stand', False)

@@ -251,7 +251,7 @@ class SpotWrapper():
             self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
             self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
 
-            self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
+            self._estop_endpoint = None
 
             self._async_tasks = AsyncTasks(
                 [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
@@ -354,6 +354,7 @@ class SpotWrapper():
 
     def resetEStop(self):
         """Get keepalive for eStop"""
+        self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
         self._estop_endpoint.force_simple_setup()  # Set this endpoint as the robot's sole estop.
         self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
 
@@ -378,6 +379,7 @@ class SpotWrapper():
         if self._estop_keepalive:
             self._estop_keepalive.stop()
             self._estop_keepalive = None
+            self._estop_endpoint = None
 
     def getLease(self):
         """Get a lease for the robot and keep the lease alive automatically."""
@@ -480,3 +482,4 @@ class SpotWrapper():
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                   end_time_secs=end_time)
         self._last_motion_command_time = end_time
+
