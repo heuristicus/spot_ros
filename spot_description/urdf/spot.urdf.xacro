@@ -127,7 +127,7 @@
         <axis xyz="0 1 0" />
         <parent link="front_right_hip" />
         <child link="front_right_upper_leg" />
-        <limit effort="1000" velocity="1000.00" lower="-0.898845" upper="2.24506" />
+        <limit effort="1000" velocity="1000.00" lower="-0.89884456477707963539" upper="2.2951079663725435509" />
     </joint>
     <link name="front_right_lower_leg">
         <visual>
