@@ -172,10 +172,9 @@ class AsyncIdle(AsyncPeriodicQuery):
 
 class SpotWrapper():
     """Generic wrapper class to encompass release 1.1.4 API features as well as maintaining leases automatically"""
-    def __init__(self, username, password, token, hostname, logger, rates = {}, callbacks = {}):
+    def __init__(self, username, password, hostname, logger, rates = {}, callbacks = {}):
         self._username = username
         self._password = password
-        self._token = token
         self._hostname = hostname
         self._logger = logger
         self._rates = rates
@@ -208,12 +207,6 @@ class SpotWrapper():
             self._sdk = create_standard_sdk('ros_spot')
         except Exception as e:
             self._logger.error("Error creating SDK object: %s", e)
-            self._valid = False
-            return
-        try:
-            self._sdk.load_app_token(self._token)
-        except Exception as e:
-            self._logger.error("Error loading developer token: %s", e)
             self._valid = False
             return
 
@@ -482,4 +475,3 @@ class SpotWrapper():
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                   end_time_secs=end_time)
         self._last_motion_command_time = end_time
-
