@@ -1,14 +1,9 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(spot_description)
 
-find_package(catkin REQUIRED COMPONENTS)
+find_package(ament_cmake REQUIRED)
 
-catkin_package()
+install(DIRECTORY launch urdf meshes
+        DESTINATION share/${PROJECT_NAME})
 
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-)
-
-install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-install(DIRECTORY urdf DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-install(DIRECTORY meshes DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+ament_package()

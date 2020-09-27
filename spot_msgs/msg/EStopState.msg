@@ -8,7 +8,7 @@ uint8 STATE_UNKNOWN = 0
 uint8 STATE_ESTOPPED = 1
 uint8 STATE_NOT_ESTOPPED = 2
 
-Header header
+std_msgs/Header header
 string name
 uint8 type
 uint8 state

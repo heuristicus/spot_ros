@@ -1,46 +1,36 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(spot_msgs)
 
-find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  nav_msgs
-  sensor_msgs
-  std_msgs
-  message_generation
+find_package(ament_cmake REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/BatteryStateArray.msg"
+  "msg/BehaviorFault.msg"
+  "msg/EStopStateArray.msg"
+  "msg/FootStateArray.msg"
+  "msg/LeaseArray.msg"
+  "msg/LeaseOwner.msg"
+  "msg/Metrics.msg"
+  "msg/SystemFault.msg"
+  "msg/WiFiState.msg"
+  "msg/BatteryState.msg"
+  "msg/BehaviorFaultState.msg"
+  "msg/EStopState.msg"
+  "msg/Feedback.msg"
+  "msg/FootState.msg"
+  "msg/Lease.msg"
+  "msg/LeaseResource.msg"
+  "msg/PowerState.msg"
+  "msg/SystemFaultState.msg"
+  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs nav_msgs sensor_msgs
 )
 
-add_message_files(
-  FILES
-  BatteryStateArray.msg
-  BehaviorFault.msg
-  EStopStateArray.msg
-  FootStateArray.msg
-  LeaseArray.msg
-  LeaseOwner.msg
-  Metrics.msg
-  SystemFault.msg
-  WiFiState.msg
-  BatteryState.msg
-  BehaviorFaultState.msg
-  EStopState.msg
-  Feedback.msg
-  FootState.msg
-  Lease.msg
-  LeaseResource.msg
-  PowerState.msg
-  SystemFaultState.msg
-)
+ament_export_dependencies(rosidl_default_runtime)
 
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
-)
-
-catkin_package(
-  CATKIN_DEPENDS message_runtime
-)
-
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-)
+ament_package()

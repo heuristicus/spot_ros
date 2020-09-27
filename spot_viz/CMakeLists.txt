@@ -1,13 +1,9 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(spot_viz)
 
-find_package(catkin REQUIRED COMPONENTS)
+find_package(ament_cmake REQUIRED)
 
-catkin_package()
+install(DIRECTORY launch rviz
+        DESTINATION share/${PROJECT_NAME})
 
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-)
-
-install(DIRECTORY rviz DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+ament_package()
