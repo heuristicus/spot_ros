@@ -16,8 +16,8 @@ setup(
     zip_safe=True,
     author='Dave Niewinski',
     author_email='dniewinski@clearpathrobotics.com',
-    maintainer='Dave Niewinski',
-    maintainer_email='dniewinski@clearpathrobotics.com',
+    maintainer='Austin Deric',
+    maintainer_email='Austin.Deric@gmail.com',
     keywords=['ROS'],
     classifiers=[
         'Intended Audience :: Developers',

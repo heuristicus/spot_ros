@@ -7,8 +7,9 @@ from launch_ros.substitutions import FindPackageShare
 import xacro
 
 def generate_launch_description():
-    pkg_share = FindPackageShare('robot_state_publisher').find('robot_state_publisher')
+    pkg_share = FindPackageShare('spot_description').find('spot_description')
     urdf_dir = os.path.join(pkg_share, 'urdf')
+    print(f'urdf_dir: {urdf_dir}')
     xacro_file = os.path.join(urdf_dir, 'spot.urdf.xacro')
     doc = xacro.process_file(xacro_file)
     robot_desc = doc.toprettyxml(indent='  ')
