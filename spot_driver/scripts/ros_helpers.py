@@ -141,7 +141,7 @@ def getImageMsg(data, spot_wrapper):
 
         # Little-endian uint16 z-distance from camera (mm).
         if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_DEPTH_U16:
-            image_msg.encoding = "mono16"
+            image_msg.encoding = "16UC1"
             image_msg.is_bigendian = False
             image_msg.step = 2 * data.shot.image.cols
             image_msg.data = data.shot.image.data
