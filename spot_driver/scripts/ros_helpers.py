@@ -72,12 +72,13 @@ class DefaultCameraInfo(CameraInfo):
         self.P[10] = 1
         self.P[11] = 0
 
-def getImageMsg(data, spot_wrapper):
+def getImageMsg(data, spot_wrapper, inverse_target_frame):
     """Takes the image, camera, and TF data and populates the necessary ROS messages
 
     Args:
         data: Image proto
         spot_wrapper: A SpotWrapper object
+        inverse_target_frame: A frame name to be inversed to a parent frame.
     Returns:
         (tuple):
             * Image: message of the image captured
@@ -94,7 +95,7 @@ def getImageMsg(data, spot_wrapper):
                 new_tf.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
                 parent = transform.parent_frame_name
                 child = frame_name
-                if 'vision' == frame_name:
+                if inverse_target_frame == frame_name:
                     geo_tform_inversed = SE3Pose.from_obj(transform.parent_tform_child).inverse()
                     new_tf.header.frame_id = frame_name
                     new_tf.child_frame_id = transform.parent_frame_name
@@ -281,12 +282,13 @@ def GetWifiFromState(state, spot_wrapper):
 
     return wifi_msg
 
-def GetTFFromState(state, spot_wrapper):
+def GetTFFromState(state, spot_wrapper, inverse_target_frame):
     """Maps robot link state data from robot state proto to ROS TFMessage message
 
     Args:
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
+        inverse_target_frame: A frame name to be inversed to a parent frame.
     Returns:
         TFMessage message
     """
@@ -299,7 +301,7 @@ def GetTFFromState(state, spot_wrapper):
                 new_tf = TransformStamped()
                 local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
                 new_tf.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
-                if 'vision' == frame_name:
+                if inverse_target_frame == frame_name:
                     geo_tform_inversed = SE3Pose.from_obj(transform.parent_tform_child).inverse()
                     new_tf.header.frame_id = frame_name
                     new_tf.child_frame_id = transform.parent_frame_name
