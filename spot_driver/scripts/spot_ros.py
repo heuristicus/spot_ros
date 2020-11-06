@@ -8,6 +8,7 @@ from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose
+from nav_msgs.msg import Odometry
 
 from bosdyn.api.geometry_pb2 import Quaternion
 import bosdyn.geometry
@@ -64,6 +65,13 @@ class SpotROS():
             # Odom Twist #
             twist_odom_msg = GetOdomTwistFromState(state, self.spot_wrapper)
             self.odom_twist_pub.publish(twist_odom_msg)
+
+            # Odom #
+            if self.mode_parent_odom_tf == 'vision':
+                odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=True)
+            else:
+                odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=False)
+            self.odom_pub.publish(odom_msg)
 
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
@@ -342,6 +350,7 @@ class SpotROS():
             self.metrics_pub = rospy.Publisher('status/metrics', Metrics, queue_size=10)
             self.lease_pub = rospy.Publisher('status/leases', LeaseArray, queue_size=10)
             self.odom_twist_pub = rospy.Publisher('odometry/twist', TwistWithCovarianceStamped, queue_size=10)
+            self.odom_pub = rospy.Publisher('odometry', Odometry, queue_size=10)
             self.feet_pub = rospy.Publisher('status/feet', FootStateArray, queue_size=10)
             self.estop_pub = rospy.Publisher('status/estop', EStopStateArray, queue_size=10)
             self.wifi_pub = rospy.Publisher('status/wifi', WiFiState, queue_size=10)
