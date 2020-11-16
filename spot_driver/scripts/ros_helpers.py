@@ -5,7 +5,10 @@ from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import PoseWithCovariance
+from geometry_msgs.msg import TwistWithCovariance
 from geometry_msgs.msg import TwistWithCovarianceStamped
+from nav_msgs.msg import Odometry
 
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
@@ -18,6 +21,8 @@ from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 
 from bosdyn.api import image_pb2
+from bosdyn.client.math_helpers import SE3Pose
+from bosdyn.client.frame_helpers import get_odom_tform_body, get_vision_tform_body
 
 friendly_joint_names = {}
 """Dictionary for mapping BD joint names to more friendly names"""
@@ -71,12 +76,13 @@ class DefaultCameraInfo(CameraInfo):
         self.P[10] = 1
         self.P[11] = 0
 
-def getImageMsg(data, spot_wrapper):
+def getImageMsg(data, spot_wrapper, inverse_target_frame):
     """Takes the image, camera, and TF data and populates the necessary ROS messages
 
     Args:
         data: Image proto
         spot_wrapper: A SpotWrapper object
+        inverse_target_frame: A frame name to be inversed to a parent frame.
     Returns:
         (tuple):
             * Image: message of the image captured
@@ -86,20 +92,37 @@ def getImageMsg(data, spot_wrapper):
     tf_msg = TFMessage()
     for frame_name in data.shot.transforms_snapshot.child_to_parent_edge_map:
         if data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name:
-            transform = data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
-            new_tf = TransformStamped()
-            local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
-            new_tf.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
-            new_tf.header.frame_id = transform.parent_frame_name
-            new_tf.child_frame_id = frame_name
-            new_tf.transform.translation.x = transform.parent_tform_child.position.x
-            new_tf.transform.translation.y = transform.parent_tform_child.position.y
-            new_tf.transform.translation.z = transform.parent_tform_child.position.z
-            new_tf.transform.rotation.x = transform.parent_tform_child.rotation.x
-            new_tf.transform.rotation.y = transform.parent_tform_child.rotation.y
-            new_tf.transform.rotation.z = transform.parent_tform_child.rotation.z
-            new_tf.transform.rotation.w = transform.parent_tform_child.rotation.w
-            tf_msg.transforms.append(new_tf)
+            try:
+                transform = data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
+                new_tf = TransformStamped()
+                local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
+                new_tf.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
+                parent = transform.parent_frame_name
+                child = frame_name
+                if inverse_target_frame == frame_name:
+                    geo_tform_inversed = SE3Pose.from_obj(transform.parent_tform_child).inverse()
+                    new_tf.header.frame_id = frame_name
+                    new_tf.child_frame_id = transform.parent_frame_name
+                    new_tf.transform.translation.x = geo_tform_inversed.position.x
+                    new_tf.transform.translation.y = geo_tform_inversed.position.y
+                    new_tf.transform.translation.z = geo_tform_inversed.position.z
+                    new_tf.transform.rotation.x = geo_tform_inversed.rotation.x
+                    new_tf.transform.rotation.y = geo_tform_inversed.rotation.y
+                    new_tf.transform.rotation.z = geo_tform_inversed.rotation.z
+                    new_tf.transform.rotation.w = geo_tform_inversed.rotation.w
+                else:
+                    new_tf.header.frame_id = transform.parent_frame_name
+                    new_tf.child_frame_id = frame_name
+                    new_tf.transform.translation.x = transform.parent_tform_child.position.x
+                    new_tf.transform.translation.y = transform.parent_tform_child.position.y
+                    new_tf.transform.translation.z = transform.parent_tform_child.position.z
+                    new_tf.transform.rotation.x = transform.parent_tform_child.rotation.x
+                    new_tf.transform.rotation.y = transform.parent_tform_child.rotation.y
+                    new_tf.transform.rotation.z = transform.parent_tform_child.rotation.z
+                    new_tf.transform.rotation.w = transform.parent_tform_child.rotation.w
+                tf_msg.transforms.append(new_tf)
+            except Exception as e:
+                print('Error: {}'.format(e))
 
     image_msg = Image()
     local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
@@ -246,6 +269,37 @@ def GetOdomTwistFromState(state, spot_wrapper):
     twist_odom_msg.twist.twist.angular.z = state.kinematic_state.velocity_of_body_in_odom.angular.z
     return twist_odom_msg
 
+def GetOdomFromState(state, spot_wrapper, use_vision=True):
+    """Maps odometry data from robot state proto to ROS Odometry message
+
+    Args:
+        data: Robot State proto
+        spot_wrapper: A SpotWrapper object
+    Returns:
+        Odometry message
+    """
+    odom_msg = Odometry()
+    local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
+    odom_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
+    if use_vision == True:
+        odom_msg.header.frame_id = 'vision'
+        tform_body = get_vision_tform_body(state.kinematic_state.transforms_snapshot)
+    else:
+        odom_msg.header.frame_id = 'odom'
+        tform_body = get_odom_tform_body(state.kinematic_state.transforms_snapshot)
+    odom_msg.child_frame_id = 'body'
+    pose_odom_msg = PoseWithCovariance()
+    pose_odom_msg.pose.position.x = tform_body.position.x
+    pose_odom_msg.pose.position.y = tform_body.position.y
+    pose_odom_msg.pose.position.z = tform_body.position.z
+    pose_odom_msg.pose.orientation.x = tform_body.rotation.x
+    pose_odom_msg.pose.orientation.y = tform_body.rotation.y
+    pose_odom_msg.pose.orientation.z = tform_body.rotation.z
+    odom_msg.pose = pose_odom_msg
+    twist_odom_msg = GetOdomTwistFromState(state, spot_wrapper).twist
+    odom_msg.twist = twist_odom_msg
+    return odom_msg
+
 def GetWifiFromState(state, spot_wrapper):
     """Maps wireless state data from robot state proto to ROS WiFiState message
 
@@ -263,12 +317,13 @@ def GetWifiFromState(state, spot_wrapper):
 
     return wifi_msg
 
-def GetTFFromState(state, spot_wrapper):
+def GetTFFromState(state, spot_wrapper, inverse_target_frame):
     """Maps robot link state data from robot state proto to ROS TFMessage message
 
     Args:
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
+        inverse_target_frame: A frame name to be inversed to a parent frame.
     Returns:
         TFMessage message
     """
@@ -276,20 +331,35 @@ def GetTFFromState(state, spot_wrapper):
 
     for frame_name in state.kinematic_state.transforms_snapshot.child_to_parent_edge_map:
         if state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name:
-            transform = state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
-            new_tf = TransformStamped()
-            local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
-            new_tf.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
-            new_tf.header.frame_id = transform.parent_frame_name
-            new_tf.child_frame_id = frame_name
-            new_tf.transform.translation.x = transform.parent_tform_child.position.x
-            new_tf.transform.translation.y = transform.parent_tform_child.position.y
-            new_tf.transform.translation.z = transform.parent_tform_child.position.z
-            new_tf.transform.rotation.x = transform.parent_tform_child.rotation.x
-            new_tf.transform.rotation.y = transform.parent_tform_child.rotation.y
-            new_tf.transform.rotation.z = transform.parent_tform_child.rotation.z
-            new_tf.transform.rotation.w = transform.parent_tform_child.rotation.w
-            tf_msg.transforms.append(new_tf)
+            try:
+                transform = state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
+                new_tf = TransformStamped()
+                local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
+                new_tf.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
+                if inverse_target_frame == frame_name:
+                    geo_tform_inversed = SE3Pose.from_obj(transform.parent_tform_child).inverse()
+                    new_tf.header.frame_id = frame_name
+                    new_tf.child_frame_id = transform.parent_frame_name
+                    new_tf.transform.translation.x = geo_tform_inversed.position.x
+                    new_tf.transform.translation.y = geo_tform_inversed.position.y
+                    new_tf.transform.translation.z = geo_tform_inversed.position.z
+                    new_tf.transform.rotation.x = geo_tform_inversed.rotation.x
+                    new_tf.transform.rotation.y = geo_tform_inversed.rotation.y
+                    new_tf.transform.rotation.z = geo_tform_inversed.rotation.z
+                    new_tf.transform.rotation.w = geo_tform_inversed.rotation.w
+                else:
+                    new_tf.header.frame_id = transform.parent_frame_name
+                    new_tf.child_frame_id = frame_name
+                    new_tf.transform.translation.x = transform.parent_tform_child.position.x
+                    new_tf.transform.translation.y = transform.parent_tform_child.position.y
+                    new_tf.transform.translation.z = transform.parent_tform_child.position.z
+                    new_tf.transform.rotation.x = transform.parent_tform_child.rotation.x
+                    new_tf.transform.rotation.y = transform.parent_tform_child.rotation.y
+                    new_tf.transform.rotation.z = transform.parent_tform_child.rotation.z
+                    new_tf.transform.rotation.w = transform.parent_tform_child.rotation.w
+                tf_msg.transforms.append(new_tf)
+            except Exception as e:
+                print('Error: {}'.format(e))
 
     return tf_msg
 

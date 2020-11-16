@@ -8,6 +8,7 @@ from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose
+from nav_msgs.msg import Odometry
 
 from bosdyn.api.geometry_pb2 import Quaternion
 import bosdyn.geometry
@@ -57,13 +58,20 @@ class SpotROS():
             self.joint_state_pub.publish(joint_state)
 
             ## TF ##
-            tf_msg = GetTFFromState(state, self.spot_wrapper)
+            tf_msg = GetTFFromState(state, self.spot_wrapper, self.mode_parent_odom_tf)
             if len(tf_msg.transforms) > 0:
                 self.tf_pub.publish(tf_msg)
 
             # Odom Twist #
             twist_odom_msg = GetOdomTwistFromState(state, self.spot_wrapper)
             self.odom_twist_pub.publish(twist_odom_msg)
+
+            # Odom #
+            if self.mode_parent_odom_tf == 'vision':
+                odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=True)
+            else:
+                odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=False)
+            self.odom_pub.publish(odom_msg)
 
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
@@ -150,19 +158,19 @@ class SpotROS():
         """
         data = self.spot_wrapper.front_images
         if data:
-            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper)
+            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper, self.mode_parent_odom_tf)
             self.frontleft_image_pub.publish(image_msg0)
             self.frontleft_image_info_pub.publish(camera_info_msg0)
             self.tf_pub.publish(camera_tf_msg0)
-            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper)
+            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper, self.mode_parent_odom_tf)
             self.frontright_image_pub.publish(image_msg1)
             self.frontright_image_info_pub.publish(camera_info_msg1)
             self.tf_pub.publish(camera_tf_msg1)
-            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2], self.spot_wrapper)
+            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2], self.spot_wrapper, self.mode_parent_odom_tf)
             self.frontleft_depth_pub.publish(image_msg2)
             self.frontleft_depth_info_pub.publish(camera_info_msg2)
             self.tf_pub.publish(camera_tf_msg2)
-            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3], self.spot_wrapper)
+            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3], self.spot_wrapper, self.mode_parent_odom_tf)
             self.frontright_depth_pub.publish(image_msg3)
             self.frontright_depth_info_pub.publish(camera_info_msg3)
             self.tf_pub.publish(camera_tf_msg3)
@@ -175,19 +183,19 @@ class SpotROS():
         """
         data = self.spot_wrapper.side_images
         if data:
-            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper)
+            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper, self.mode_parent_odom_tf)
             self.left_image_pub.publish(image_msg0)
             self.left_image_info_pub.publish(camera_info_msg0)
             self.tf_pub.publish(camera_tf_msg0)
-            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper)
+            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper, self.mode_parent_odom_tf)
             self.right_image_pub.publish(image_msg1)
             self.right_image_info_pub.publish(camera_info_msg1)
             self.tf_pub.publish(camera_tf_msg1)
-            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2], self.spot_wrapper)
+            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2], self.spot_wrapper, self.mode_parent_odom_tf)
             self.left_depth_pub.publish(image_msg2)
             self.left_depth_info_pub.publish(camera_info_msg2)
             self.tf_pub.publish(camera_tf_msg2)
-            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3], self.spot_wrapper)
+            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3], self.spot_wrapper, self.mode_parent_odom_tf)
             self.right_depth_pub.publish(image_msg3)
             self.right_depth_info_pub.publish(camera_info_msg3)
             self.tf_pub.publish(camera_tf_msg3)
@@ -200,11 +208,11 @@ class SpotROS():
         """
         data = self.spot_wrapper.rear_images
         if data:
-            mage_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper)
+            mage_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper, self.mode_parent_odom_tf)
             self.back_image_pub.publish(mage_msg0)
             self.back_image_info_pub.publish(camera_info_msg0)
             self.tf_pub.publish(camera_tf_msg0)
-            mage_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper)
+            mage_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper, self.mode_parent_odom_tf)
             self.back_depth_pub.publish(mage_msg1)
             self.back_depth_info_pub.publish(camera_info_msg1)
             self.tf_pub.publish(camera_tf_msg1)
@@ -291,6 +299,18 @@ class SpotROS():
         self.hostname = rospy.get_param('~hostname', 'default_value')
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
 
+        # Spot has 2 types of odometries: 'odom' and 'vision'
+        # The former one is kinematic odometry and the second one is a combined odometry of vision and kinematics
+        # These params enables to change which odometry frame is a parent of body frame and to change tf names of each odometry frames.
+        self.mode_parent_odom_tf = rospy.get_param('~mode_parent_odom_tf', 'odom') # 'vision' or 'odom'
+        self.tf_name_kinematic_odom = rospy.get_param('~tf_name_kinematic_odom', 'odom')
+        self.tf_name_raw_kinematic = 'odom'
+        self.tf_name_vision_odom = rospy.get_param('~tf_name_vision_odom', 'vision')
+        self.tf_name_raw_vision = 'vision'
+        if self.mode_parent_odom_tf != self.tf_name_raw_kinematic and self.mode_parent_odom_tf != self.tf_name_raw_vision:
+            rospy.logerr('rosparam \'~mode_parent_odom_tf\' should be \'vision\' or \'vision\'.')
+            return
+
         self.logger = logging.getLogger('rosout')
 
         rospy.loginfo("Starting ROS driver for Spot")
@@ -330,6 +350,7 @@ class SpotROS():
             self.metrics_pub = rospy.Publisher('status/metrics', Metrics, queue_size=10)
             self.lease_pub = rospy.Publisher('status/leases', LeaseArray, queue_size=10)
             self.odom_twist_pub = rospy.Publisher('odometry/twist', TwistWithCovarianceStamped, queue_size=10)
+            self.odom_pub = rospy.Publisher('odometry', Odometry, queue_size=10)
             self.feet_pub = rospy.Publisher('status/feet', FootStateArray, queue_size=10)
             self.estop_pub = rospy.Publisher('status/estop', EStopStateArray, queue_size=10)
             self.wifi_pub = rospy.Publisher('status/wifi', WiFiState, queue_size=10)
