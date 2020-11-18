@@ -227,6 +227,7 @@ class SpotWrapper():
         self._last_trajectory_command = None
         self._last_trajectory_command_precise = None
         self._last_velocity_command_time = None
+        self._last_motion_command_time = None
 
         self._front_image_requests = []
         for source in front_image_sources:
@@ -640,7 +641,7 @@ class SpotWrapper():
                                     params=self._mobility_params
                                     )
                         )
-        self._last_motion_command = response[2]
+        self._last_trajectory_command = response[2]
         return response[0], response[1]
 
     def list_graph(self, upload_path):
