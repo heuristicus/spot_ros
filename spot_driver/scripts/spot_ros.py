@@ -13,6 +13,7 @@ from nav_msgs.msg import Odometry
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.api import geometry_pb2, trajectory_pb2
 from bosdyn.api.geometry_pb2 import Quaternion
+from bosdyn.client import math_helpers
 import bosdyn.geometry
 
 from spot_msgs.msg import Metrics
@@ -28,6 +29,7 @@ from spot_msgs.msg import Feedback
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import MobilityParams
 from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse
+from spot_msgs.srv import Trajectory, TrajectoryResponse
 
 from ros_helpers import *
 from spot_wrapper import SpotWrapper
@@ -294,6 +296,24 @@ class SpotROS():
         except Exception as e:
             return SetLocomotionResponse(False, 'Error:{}'.format(e))
 
+    def handle_trajectory(self, req):
+        """
+        """
+        if req.target_pose.header.frame_id != '':
+            return TrajectoryResponse(False, 'frame_id of target_pose must be \'\'')
+        resp = self.spot_wrapper.trajectory_cmd(
+                        goal_x=req.target_pose.pose.position.x,
+                        goal_y=req.target_pose.pose.position.y,
+                        goal_heading=math_helpers.Quat(
+                            w=req.target_pose.pose.rotation.w,
+                            x=req.target_pose.pose.rotation.x,
+                            y=req.target_pose.pose.rotation.y,
+                            z=req.target_pose.pose.rotation.z
+                            ).to_yaw(),
+                        cmd_duration=req.duration
+                        )
+        return TrajectoryResponse(resp[0], resp[1])
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
@@ -431,6 +451,8 @@ class SpotROS():
 
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
+
+            rospy.Service("trajectory", Trajectory, self.handle_trajectory)
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
