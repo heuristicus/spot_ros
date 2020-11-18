@@ -159,11 +159,11 @@ class AsyncIdle(AsyncPeriodicQuery):
 
         is_moving = False
 
-        if self._spot_wrapper._last_motion_command_time != None:
-            if time.time() < self._spot_wrapper._last_motion_command_time:
+        if self._spot_wrapper._last_velocity_command_time != None:
+            if time.time() < self._spot_wrapper._last_velocity_command_time:
                 is_moving = True
             else:
-                self._spot_wrapper._last_motion_command_time = None
+                self._spot_wrapper._last_velocity_command_time = None
 
         if self._spot_wrapper._last_trajectory_command != None:
             try:
@@ -201,7 +201,7 @@ class SpotWrapper():
         self._last_stand_command = None
         self._last_sit_command = None
         self._last_trajectory_command = None
-        self._last_motion_command_time = None
+        self._last_velocity_command_time = None
 
         self._front_image_requests = []
         for source in front_image_sources:
@@ -486,7 +486,7 @@ class SpotWrapper():
         self._robot_command(RobotCommandBuilder.velocity_command(
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                   end_time_secs=end_time)
-        self._last_motion_command_time = end_time
+        self._last_velocity_command_time = end_time
 
     def trajectory_cmd(self, goal_x, goal_y, goal_heading):
         """Send a trajectory motion command to the robot.
