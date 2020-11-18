@@ -487,3 +487,22 @@ class SpotWrapper():
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                   end_time_secs=end_time)
         self._last_motion_command_time = end_time
+
+    def trajectory_cmd(self, goal_x, goal_y, goal_heading):
+        """Send a trajectory motion command to the robot.
+
+        Args:
+            goal_x:
+            goal_y:
+            goal_heading:
+        """
+        response = self._robot_command(
+                        RobotCommandBuilder.trajectory_command(
+                                    goal_x=goal_x,
+                                    goal_y=goal_y,
+                                    goal_heading=goal_heading,
+                                    params=self._mobility_params
+                                    )
+                        )
+        self._last_motion_command = response[2]
+        return response[0], response[1]
