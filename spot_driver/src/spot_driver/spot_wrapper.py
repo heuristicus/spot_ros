@@ -624,6 +624,25 @@ class SpotWrapper():
             self._last_trajectory_command = response[2]
         return response[0], response[1]
 
+    def trajectory_cmd(self, goal_x, goal_y, goal_heading):
+        """Send a trajectory motion command to the robot.
+
+        Args:
+            goal_x:
+            goal_y:
+            goal_heading:
+        """
+        response = self._robot_command(
+                        RobotCommandBuilder.trajectory_command(
+                                    goal_x=goal_x,
+                                    goal_y=goal_y,
+                                    goal_heading=goal_heading,
+                                    params=self._mobility_params
+                                    )
+                        )
+        self._last_motion_command = response[2]
+        return response[0], response[1]
+
     def list_graph(self, upload_path):
         """List waypoint ids of garph_nav
         Args:
