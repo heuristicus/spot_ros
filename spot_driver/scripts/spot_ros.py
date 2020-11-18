@@ -11,6 +11,7 @@ from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose
 from nav_msgs.msg import Odometry
 
 from bosdyn.api.geometry_pb2 import Quaternion
+from bosdyn.client import math_helpers
 import bosdyn.geometry
 
 from spot_msgs.msg import Metrics
@@ -23,6 +24,7 @@ from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import Feedback
+from spot_msgs.srv import Trajectory, TrajectoryResponse
 
 from ros_helpers import *
 from spot_wrapper import SpotWrapper
@@ -267,6 +269,24 @@ class SpotROS():
         resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_trajectory(self, req):
+        """
+        """
+        if req.target_pose.header.frame_id != '':
+            return TrajectoryResponse(False, 'frame_id of target_pose must be \'\'')
+        resp = self.spot_wrapper.trajectory_cmd(
+                        goal_x=req.target_pose.pose.position.x,
+                        goal_y=req.target_pose.pose.position.y,
+                        goal_heading=math_helpers.Quat(
+                            w=req.target_pose.pose.rotation.w,
+                            x=req.target_pose.pose.rotation.x,
+                            y=req.target_pose.pose.rotation.y,
+                            z=req.target_pose.pose.rotation.z
+                            ).to_yaw(),
+                        cmd_duration=req.duration
+                        )
+        return TrajectoryResponse(resp[0], resp[1])
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
@@ -363,6 +383,8 @@ class SpotROS():
 
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback)
+
+            rospy.Service("trajectory", Trajectory, self.handle_trajectory)
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
