@@ -516,17 +516,16 @@ class SpotWrapper():
         self._last_velocity_command_time = end_time
         return response[0], response[1]
 
-    def trajectory_cmd(self, goal_x, goal_y, goal_heading, frame_name='odom', velocity_for_duration=0.5):
+    def trajectory_cmd(self, goal_x, goal_y, goal_heading, cmd_duration, frame_name='odom'):
         """Send a trajectory motion command to the robot.
 
         Args:
             goal_x: Position X coordinate in meters
             goal_y: Position Y coordinate in meters
             goal_heading: Pose heading in radians
+            cmd_duration: Time-to-live for the command in seconds.
             frame_name: frame_name to be used to calc the target position. 'odom' or 'vision'
-            velocity_for_duration: velocity (m/s) to be used for calculation of robot command duration
         """
-        cmd_duration = math.sqrt( goal_x**2 + goal_y**2 ) / velocity_for_duration
         end_time=time.time() + cmd_duration
         if frame_name == 'vision':
             vision_tform_body = frame_helpers.get_vision_tform_body(
