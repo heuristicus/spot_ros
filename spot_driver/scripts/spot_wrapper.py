@@ -165,17 +165,17 @@ class AsyncIdle(AsyncPeriodicQuery):
             else:
                 self._spot_wrapper._last_motion_command_time = None
 
-        if self._spot_wrapper._last_motion_command != None:
+        if self._spot_wrapper._last_trajectory_command != None:
             try:
-                response = self._client.robot_command_feedback(self._spot_wrapper._last_motion_command)
+                response = self._client.robot_command_feedback(self._spot_wrapper._last_trajectory_command)
                 if (response.feedback.mobility_feedback.se2_trajectory_feedback.status ==
                     basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_GOING_TO_GOAL):
                     is_moving = True
                 else:
-                    self._spot_wrapper._last_motion_command = None
+                    self._spot_wrapper._last_trajectory_command = None
             except (ResponseError, RpcError) as e:
                 self._logger.error("Error when getting robot command feedback: %s", e)
-                self._spot_wrapper._last_motion_command = None
+                self._spot_wrapper._last_trajectory_command = None
 
         self._spot_wrapper._is_moving = is_moving
 
@@ -200,7 +200,7 @@ class SpotWrapper():
         self._is_moving = False
         self._last_stand_command = None
         self._last_sit_command = None
-        self._last_motion_command = None
+        self._last_trajectory_command = None
         self._last_motion_command_time = None
 
         self._front_image_requests = []
@@ -504,5 +504,5 @@ class SpotWrapper():
                                     params=self._mobility_params
                                     )
                         )
-        self._last_motion_command = response[2]
+        self._last_trajectory_command = response[2]
         return response[0], response[1]
