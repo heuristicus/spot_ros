@@ -31,6 +31,11 @@ add_message_files(
   SystemFaultState.msg
 )
 
+add_service_files(
+  FILES
+  Trajectory.srv
+)
+
 generate_messages(
   DEPENDENCIES
   std_msgs
