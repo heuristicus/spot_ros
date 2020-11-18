@@ -37,6 +37,7 @@ add_service_files(
   FILES
   ListGraph.srv
   SetLocomotion.srv
+  Trajectory.srv
 )
 
 add_action_files(
