@@ -334,11 +334,17 @@ class SpotWrapper():
         """
 
         rtime = Timestamp()
+
         rtime.seconds = timestamp.seconds - self.time_skew.seconds
         rtime.nanos = timestamp.nanos - self.time_skew.nanos
         if rtime.nanos < 0:
             rtime.nanos = rtime.nanos + 1000000000
             rtime.seconds = rtime.seconds - 1
+
+        # Workaround for timestamps being incomplete
+        if rtime.seconds < 0:
+            rtime.seconds = 0
+            rtime.nanos = 0
 
         return rtime
 
