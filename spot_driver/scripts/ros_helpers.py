@@ -122,7 +122,7 @@ def getImageMsg(data, spot_wrapper, inverse_target_frame):
                     new_tf.transform.rotation.w = transform.parent_tform_child.rotation.w
                 tf_msg.transforms.append(new_tf)
             except Exception as e:
-                print('Error: {}'.format(e))
+                spot_wrapper.logger('Error: {}'.format(e))
 
     image_msg = Image()
     local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
@@ -361,7 +361,7 @@ def GetTFFromState(state, spot_wrapper, inverse_target_frame):
                     new_tf.transform.rotation.w = transform.parent_tform_child.rotation.w
                 tf_msg.transforms.append(new_tf)
             except Exception as e:
-                print('Error: {}'.format(e))
+                spot_wrapper.logger('Error: {}'.format(e))
 
     return tf_msg
 
