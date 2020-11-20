@@ -23,11 +23,15 @@ from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import Feedback
+from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
+from spot_msgs.srv import ListGraph, ListGraphResponse
 
 from ros_helpers import *
 from spot_wrapper import SpotWrapper
 
+import actionlib
 import logging
+import threading
 
 class SpotROS():
     """Parent class for using the wrapper.  Defines all callbacks and keeps the wrapper alive"""
@@ -282,6 +286,39 @@ class SpotROS():
         euler_zxy = q.to_euler_zxy()
         self.spot_wrapper.set_mobility_params(data.position.z, euler_zxy)
 
+    def handle_list_graph(self, upload_path):
+        """ROS service handler for listing graph_nav waypoint_ids"""
+        resp = self.spot_wrapper.list_graph(upload_path)
+        return ListGraphResponse(resp)
+
+    def handle_navigate_to_feedback(self):
+        """Thread function to send navigate_to feedback"""
+        while not rospy.is_shutdown() and self.run_navigate_to:
+            localization_state = self.spot_wrapper._graph_nav_client.get_localization_state()
+            if localization_state.localization.waypoint_id:
+                self.navigate_as.publish_feedback(NavigateToFeedback(localization_state.localization.waypoint_id))
+            rospy.Rate(10).sleep()
+
+    def handle_navigate_to(self, msg):
+        """ROS service handler to run mission of the robot.  The robot will replay a mission"""
+        # create thread to periodically publish feedback
+        feedback_thraed = threading.Thread(target = self.handle_navigate_to_feedback, args = ())
+        self.run_navigate_to = True
+        feedback_thraed.start()
+        # run navigate_to
+        resp = self.spot_wrapper.navigate_to(upload_path = msg.upload_path,
+                                             navigate_to = msg.navigate_to,
+                                             initial_localization_fiducial = msg.initial_localization_fiducial,
+                                             initial_localization_waypoint = msg.initial_localization_waypoint)
+        self.run_navigate_to = False
+        feedback_thraed.join()
+
+        # check status
+        if resp[0]:
+            self.navigate_as.set_succeeded(NavigateToResult(resp[0], resp[1]))
+        else:
+            self.navigate_as.set_aborted(NavigateToResult(resp[0], resp[1]))
+
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
         self.spot_wrapper.sit()
@@ -375,6 +412,14 @@ class SpotROS():
 
             rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
+
+            rospy.Service("list_graph", ListGraph, self.handle_list_graph)
+
+            self.navigate_as = actionlib.SimpleActionServer('navigate_to', NavigateToAction,
+                                                            execute_cb = self.handle_navigate_to,
+                                                            auto_start = False)
+            self.navigate_as.start()
+
 
             rospy.on_shutdown(self.shutdown)
 
