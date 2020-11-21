@@ -305,10 +305,10 @@ class SpotROS():
                         goal_x=req.target_pose.pose.position.x,
                         goal_y=req.target_pose.pose.position.y,
                         goal_heading=math_helpers.Quat(
-                            w=req.target_pose.pose.rotation.w,
-                            x=req.target_pose.pose.rotation.x,
-                            y=req.target_pose.pose.rotation.y,
-                            z=req.target_pose.pose.rotation.z
+                            w=req.target_pose.pose.orientation.w,
+                            x=req.target_pose.pose.orientation.x,
+                            y=req.target_pose.pose.orientation.y,
+                            z=req.target_pose.pose.orientation.z
                             ).to_yaw(),
                         cmd_duration=req.duration
                         )
