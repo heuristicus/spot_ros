@@ -272,8 +272,8 @@ class SpotROS():
     def handle_trajectory(self, req):
         """
         """
-        if req.target_pose.header.frame_id != '':
-            return TrajectoryResponse(False, 'frame_id of target_pose must be \'\'')
+        if req.target_pose.header.frame_id != 'body':
+            return TrajectoryResponse(False, 'frame_id of target_pose must be \'body\'')
         resp = self.spot_wrapper.trajectory_cmd(
                         goal_x=req.target_pose.pose.position.x,
                         goal_y=req.target_pose.pose.position.y,
