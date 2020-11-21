@@ -650,7 +650,7 @@ class SpotWrapper():
                             end_time_secs=end_time
                             )
         elif frame_name == 'odom':
-            odom_tform_body = frame_helpers.get_vision_tform_body(
+            odom_tform_body = frame_helpers.get_odom_tform_body(
                     self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot)
             body_tform_goal = math_helpers.SE3Pose(x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading))
             odom_tform_goal = odom_tform_body * body_tform_goal
