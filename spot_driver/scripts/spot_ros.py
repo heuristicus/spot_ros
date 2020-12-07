@@ -361,8 +361,8 @@ class SpotROS():
 
             self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
 
-            rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback)
-            rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback)
+            rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
+            rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
