@@ -295,6 +295,8 @@ def GetOdomFromState(state, spot_wrapper, use_vision=True):
     pose_odom_msg.pose.orientation.x = tform_body.rotation.x
     pose_odom_msg.pose.orientation.y = tform_body.rotation.y
     pose_odom_msg.pose.orientation.z = tform_body.rotation.z
+    pose_odom_msg.pose.orientation.w = tform_body.rotation.w
+
     odom_msg.pose = pose_odom_msg
     twist_odom_msg = GetOdomTwistFromState(state, spot_wrapper).twist
     odom_msg.twist = twist_odom_msg
