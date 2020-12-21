@@ -517,7 +517,8 @@ class SpotWrapper():
           upload_path : Path to the root directory of the map.
         """
         ids, eds = self._list_graph_waypoint_and_edge_ids()
-        return [v for k, v in sorted(ids.items(), key=lambda id : int(id[0].replace('waypoint','')))]
+        # skip waypoint_ for v2.2.1, skip waypiont for < v2.2
+        return [v for k, v in sorted(ids.items(), key=lambda id : int(id[0].replace('waypoint_','')))]
 
     def navigate_to(self, upload_path,
                     navigate_to,
