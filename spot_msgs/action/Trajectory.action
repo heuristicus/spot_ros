@@ -1,5 +1,7 @@
 geometry_msgs/PoseStamped target_pose
-float64 duration
+std_msgs/Duration duration
 ---
 bool success
 string message
+---
+string feedback

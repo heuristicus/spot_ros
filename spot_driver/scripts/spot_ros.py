@@ -14,6 +14,8 @@ from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.api import geometry_pb2, trajectory_pb2
 from bosdyn.api.geometry_pb2 import Quaternion
 from bosdyn.client import math_helpers
+import actionlib
+import functools
 import bosdyn.geometry
 
 from spot_msgs.msg import Metrics
@@ -26,10 +28,10 @@ from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import Feedback
-from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import MobilityParams
+from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
+from spot_msgs.msg import TrajectoryAction, TrajectoryResult, TrajectoryFeedback
 from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse
-from spot_msgs.srv import Trajectory, TrajectoryResponse
 
 from ros_helpers import *
 from spot_wrapper import SpotWrapper
@@ -297,10 +299,11 @@ class SpotROS():
             return SetLocomotionResponse(False, 'Error:{}'.format(e))
 
     def handle_trajectory(self, req):
-        """
-        """
+        """ROS actionserver execution handler to handle receiving a request to move to a location"""
         if req.target_pose.header.frame_id != 'body':
-            return TrajectoryResponse(False, 'frame_id of target_pose must be \'body\'')
+            self.trajectory_server.set_aborted(TrajectoryResult(False, 'frame_id of target_pose must be \'body\''))
+            return
+        cmd_duration = rospy.Duration(req.duration.data.secs, req.duration.data.nsecs)
         resp = self.spot_wrapper.trajectory_cmd(
                         goal_x=req.target_pose.pose.position.x,
                         goal_y=req.target_pose.pose.position.y,
@@ -310,9 +313,39 @@ class SpotROS():
                             y=req.target_pose.pose.orientation.y,
                             z=req.target_pose.pose.orientation.z
                             ).to_yaw(),
-                        cmd_duration=req.duration
+                        cmd_duration=cmd_duration.to_sec()
                         )
-        return TrajectoryResponse(resp[0], resp[1])
+
+        def timeout_cb(trajectory_server, _):
+            trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal, timed out"))
+            trajectory_server.set_aborted(TrajectoryResult(False, "Failed to reach goal, timed out"))
+
+        # Abort the actionserver if cmd_duration is exceeded - the driver stops but does not provide feedback to
+        # indicate this so we monitor it ourselves
+        cmd_timeout = rospy.Timer(cmd_duration, functools.partial(timeout_cb, self.trajectory_server), oneshot=True)
+
+        # The trajectory command is non-blocking but we need to keep this function up in order to interrupt if a
+        # preempt is requested and to return success if/when the robot reaches the goal. Also check the is_active to
+        # monitor whether the timeout_cb has already aborted the command
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown() and not self.trajectory_server.is_preempt_requested() and not self.spot_wrapper.at_goal and self.trajectory_server.is_active():
+            self.trajectory_server.publish_feedback(TrajectoryFeedback("Moving to goal"))
+            rate.sleep()
+
+        # If still active after exiting the loop, the command did not time out
+        if self.trajectory_server.is_active():
+            cmd_timeout.shutdown()
+            if self.trajectory_server.is_preempt_requested():
+                self.trajectory_server.publish_feedback(TrajectoryFeedback("Preempted"))
+                self.trajectory_server.set_preempted()
+                self.spot_wrapper.stop()
+
+            if self.spot_wrapper.at_goal:
+                self.trajectory_server.publish_feedback(TrajectoryFeedback("Reached goal"))
+                self.trajectory_server.set_succeeded(TrajectoryResult(resp[0], resp[1]))
+            else:
+                self.trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal"))
+                self.trajectory_server.set_aborted(TrajectoryResult(False, "Failed to reach goal"))
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
@@ -452,8 +485,6 @@ class SpotROS():
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
 
-            rospy.Service("trajectory", Trajectory, self.handle_trajectory)
-
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
             rospy.Service("stop", Trigger, self.handle_stop)
@@ -466,6 +497,7 @@ class SpotROS():
             rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
 
+<<<<<<< HEAD
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
 
@@ -476,6 +508,12 @@ class SpotROS():
                                                             auto_start = False)
             self.navigate_as.start()
 
+=======
+            self.trajectory_server = actionlib.SimpleActionServer("trajectory", TrajectoryAction,
+                                                                  execute_cb=self.handle_trajectory,
+                                                                  auto_start=False)
+            self.trajectory_server.start()
+>>>>>>> ee594aa... convert trajectory command to an actionserver
 
             rospy.on_shutdown(self.shutdown)
 

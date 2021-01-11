@@ -20,6 +20,7 @@ from bosdyn.client.estop import EstopClient, EstopEndpoint, EstopKeepAlive
 from bosdyn.client import power
 from bosdyn.client import frame_helpers
 from bosdyn.client import math_helpers
+from bosdyn.client.exceptions import InternalServerError
 
 import graph_nav_util
 
@@ -181,6 +182,11 @@ class AsyncIdle(AsyncPeriodicQuery):
                 if (response.feedback.mobility_feedback.se2_trajectory_feedback.status ==
                     basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_GOING_TO_GOAL):
                     is_moving = True
+                elif (response.feedback.mobility_feedback.se2_trajectory_feedback.status ==
+                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_AT_GOAL):
+                    self._spot_wrapper._at_goal = True
+                    # Clear the command once at the goal
+                    self._spot_wrapper._last_trajectory_command = None
                 else:
                     self._spot_wrapper._last_trajectory_command = None
             except (ResponseError, RpcError) as e:
@@ -208,6 +214,7 @@ class SpotWrapper():
         self._is_standing = False
         self._is_sitting = True
         self._is_moving = False
+        self._at_goal = False
         self._last_stand_command = None
         self._last_sit_command = None
         self._last_trajectory_command = None
@@ -337,6 +344,10 @@ class SpotWrapper():
     def is_moving(self):
         """Return boolean of walking state"""
         return self._is_moving
+
+    @property
+    def at_goal(self):
+        return self._at_goal
 
     @property
     def time_skew(self):
@@ -526,6 +537,8 @@ class SpotWrapper():
             cmd_duration: Time-to-live for the command in seconds.
             frame_name: frame_name to be used to calc the target position. 'odom' or 'vision'
         """
+        self._at_goal = False
+        self._logger.info("got command duration of {}".format(cmd_duration))
         end_time=time.time() + cmd_duration
         if frame_name == 'vision':
             vision_tform_body = frame_helpers.get_vision_tform_body(
