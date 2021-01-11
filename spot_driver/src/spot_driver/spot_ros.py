@@ -571,8 +571,6 @@ class SpotROS():
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
 
-            rospy.Service("trajectory", Trajectory, self.handle_trajectory)
-
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
             rospy.Service("stop", Trigger, self.handle_stop)

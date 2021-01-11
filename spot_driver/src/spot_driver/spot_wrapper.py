@@ -140,6 +140,7 @@ class AsyncIdle(AsyncPeriodicQuery):
         self._spot_wrapper = spot_wrapper
 
     def _start_query(self):
+        # TODO: fix this method after rebasing
         if self._spot_wrapper._last_stand_command != None:
             try:
                 response = self._client.robot_command_feedback(self._spot_wrapper._last_stand_command)
@@ -634,6 +635,8 @@ class SpotWrapper():
             cmd_duration: Time-to-live for the command in seconds.
             frame_name: frame_name to be used to calc the target position. 'odom' or 'vision'
         """
+        self._at_goal = False
+        self._logger.info("got command duration of {}".format(cmd_duration))
         end_time=time.time() + cmd_duration
         if frame_name == 'vision':
             vision_tform_body = frame_helpers.get_vision_tform_body(

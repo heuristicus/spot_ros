@@ -1,5 +1,0 @@
-geometry_msgs/PoseStamped target_pose
-float64 duration
----
-bool success
-string message
