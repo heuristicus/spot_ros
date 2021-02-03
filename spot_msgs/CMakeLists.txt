@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   sensor_msgs
   std_msgs
+  actionlib
   message_generation
 )
 
@@ -31,14 +32,25 @@ add_message_files(
   SystemFaultState.msg
 )
 
+add_service_files(
+  FILES
+  ListGraph.srv
+)
+
+add_action_files(
+  FILES
+  NavigateTo.action
+)
+
 generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  actionlib_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS message_runtime
+  CATKIN_DEPENDS message_runtime actionlib
 )
 
 include_directories(
