@@ -10,6 +10,8 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose
 from nav_msgs.msg import Odometry
 
+from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
+from bosdyn.api import geometry_pb2, trajectory_pb2
 from bosdyn.api.geometry_pb2 import Quaternion
 import bosdyn.geometry
 
@@ -284,6 +286,15 @@ class SpotROS():
         q.w = data.orientation.w
 
         euler_zxy = q.to_euler_zxy()
+
+        position = geometry_pb2.Vec3(z=data.position.z)
+        pose = geometry_pb2.SE3Pose(position=position, rotation=euler_zxy)
+        point = trajectory_pb2.SE3TrajectoryPoint(pose=pose)
+        traj = trajectory_pb2.SE3Trajectory(points=[point])
+        body_control = spot_command_pb2.BodyControlParams(base_offset_rt_footprint=traj)
+
+        mobility_params = self.spot_wrapper.get_mobility_params()
+        mobility_params.body_control = body_control
         self.spot_wrapper.set_mobility_params(data.position.z, euler_zxy)
 
     def handle_list_graph(self, upload_path):
