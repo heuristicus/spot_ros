@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 
-from std_srvs.srv import Trigger, TriggerResponse
+from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 from std_msgs.msg import Bool
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
@@ -273,6 +273,16 @@ class SpotROS():
         resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_stair_mode(self, req):
+        """ROS service handler to set a stair mode to the robot."""
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.stair_hint = req.data
+            self.spot_wrapper.set_mobility_params( req.data )
+            return SetBoolResponse(True, 'Success')
+        except:
+            return SetBoolResponse(False, 'Error')
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
@@ -423,6 +433,8 @@ class SpotROS():
 
             rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
+
+            rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 
