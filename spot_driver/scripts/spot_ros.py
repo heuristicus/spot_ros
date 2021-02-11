@@ -446,6 +446,7 @@ class SpotROS():
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
 
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
+            rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 
