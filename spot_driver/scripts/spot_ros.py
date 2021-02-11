@@ -26,6 +26,7 @@ from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
+from spot_msgs.msg import MobilityParams
 from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse
 
 from ros_helpers import *
@@ -430,6 +431,8 @@ class SpotROS():
 
             self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
 
+            self.mobility_params_pub = rospy.Publisher('status/mobility_params', MobilityParams, queue_size=10)
+
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
 
@@ -485,6 +488,28 @@ class SpotROS():
                 except:
                     pass
                 self.feedback_pub.publish(feedback_msg)
+                mobility_params_msg = MobilityParams()
+                try:
+                    mobility_params = self.spot_wrapper.get_mobility_params()
+                    mobility_params_msg.body_control.position.x = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.x
+                    mobility_params_msg.body_control.position.y = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.y
+                    mobility_params_msg.body_control.position.z = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.z
+                    mobility_params_msg.body_control.rotation.x = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.x
+                    mobility_params_msg.body_control.rotation.y = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.y
+                    mobility_params_msg.body_control.rotation.z = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.z
+                    mobility_params_msg.body_control.rotation.w = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.w
+                    mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
+                    mobility_params_msg.stair_hint = mobility_params.stair_hint
+                except:
+                    pass
+                self.mobility_params_pub.publish(mobility_params_msg)
                 rate.sleep()
 
 if __name__ == "__main__":
