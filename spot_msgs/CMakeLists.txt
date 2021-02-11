@@ -19,6 +19,7 @@ add_message_files(
   LeaseArray.msg
   LeaseOwner.msg
   Metrics.msg
+  MobilityParams.msg
   SystemFault.msg
   WiFiState.msg
   BatteryState.msg
