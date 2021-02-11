@@ -1,4 +1,4 @@
-int locomotion_mode
+uint32 locomotion_mode
 ---
 bool success
 string message
