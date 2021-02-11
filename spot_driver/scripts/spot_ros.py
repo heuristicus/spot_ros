@@ -26,7 +26,7 @@ from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
-from spot_msgs.srv import ListGraph, ListGraphResponse
+from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse
 
 from ros_helpers import *
 from spot_wrapper import SpotWrapper
@@ -278,10 +278,21 @@ class SpotROS():
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
             mobility_params.stair_hint = req.data
-            self.spot_wrapper.set_mobility_params( req.data )
+            self.spot_wrapper.set_mobility_params( mobility_params )
             return SetBoolResponse(True, 'Success')
         except:
             return SetBoolResponse(False, 'Error')
+
+    def handle_locomotion_mode(self, req):
+        """ROS service handler to set locomotion mode"""
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.locomotion_hint = locomotion_hint
+            self.spot_wrapper.set_mobility_params( mobility_params )
+            return SetLocomotionResponse(True, 'Success')
+        except:
+            return SetLocomotionResponse(False, 'Error')
+
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
