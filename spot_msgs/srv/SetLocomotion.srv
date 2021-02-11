@@ -1,0 +1,4 @@
+int locomotion_mode
+---
+bool success
+string message

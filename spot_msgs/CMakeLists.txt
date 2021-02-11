@@ -35,6 +35,7 @@ add_message_files(
 add_service_files(
   FILES
   ListGraph.srv
+  SetLocomotion.srv
 )
 
 add_action_files(
