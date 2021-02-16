@@ -281,19 +281,18 @@ class SpotROS():
             mobility_params.stair_hint = req.data
             self.spot_wrapper.set_mobility_params( mobility_params )
             return SetBoolResponse(True, 'Success')
-        except:
-            return SetBoolResponse(False, 'Error')
+        except Exception as e:
+            return SetBoolResponse(False, 'Error:{}'.format(e))
 
     def handle_locomotion_mode(self, req):
         """ROS service handler to set locomotion mode"""
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
-            mobility_params.locomotion_hint = locomotion_hint
+            mobility_params.locomotion_hint = req.locomotion_mode
             self.spot_wrapper.set_mobility_params( mobility_params )
             return SetLocomotionResponse(True, 'Success')
-        except:
-            return SetLocomotionResponse(False, 'Error')
-
+        except Exception as e:
+            return SetLocomotionResponse(False, 'Error:{}'.format(e))
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
@@ -306,18 +305,15 @@ class SpotROS():
         q.y = data.orientation.y
         q.z = data.orientation.z
         q.w = data.orientation.w
-
-        euler_zxy = q.to_euler_zxy()
-
         position = geometry_pb2.Vec3(z=data.position.z)
-        pose = geometry_pb2.SE3Pose(position=position, rotation=euler_zxy)
+        pose = geometry_pb2.SE3Pose(position=position, rotation=q)
         point = trajectory_pb2.SE3TrajectoryPoint(pose=pose)
         traj = trajectory_pb2.SE3Trajectory(points=[point])
         body_control = spot_command_pb2.BodyControlParams(base_offset_rt_footprint=traj)
 
         mobility_params = self.spot_wrapper.get_mobility_params()
-        mobility_params.body_control = body_control
-        self.spot_wrapper.set_mobility_params(data.position.z, euler_zxy)
+        mobility_params.body_control.CopyFrom(body_control)
+        self.spot_wrapper.set_mobility_params(mobility_params)
 
     def handle_list_graph(self, upload_path):
         """ROS service handler for listing graph_nav waypoint_ids"""
@@ -497,17 +493,18 @@ class SpotROS():
                             mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.y
                     mobility_params_msg.body_control.position.z = \
                             mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.z
-                    mobility_params_msg.body_control.rotation.x = \
+                    mobility_params_msg.body_control.orientation.x = \
                             mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.x
-                    mobility_params_msg.body_control.rotation.y = \
+                    mobility_params_msg.body_control.orientation.y = \
                             mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.y
-                    mobility_params_msg.body_control.rotation.z = \
+                    mobility_params_msg.body_control.orientation.z = \
                             mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.z
-                    mobility_params_msg.body_control.rotation.w = \
+                    mobility_params_msg.body_control.orientation.w = \
                             mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.w
                     mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
                     mobility_params_msg.stair_hint = mobility_params.stair_hint
-                except:
+                except Exception as e:
+                    print('Error:{}'.format(e))
                     pass
                 self.mobility_params_pub.publish(mobility_params_msg)
                 rate.sleep()
