@@ -5,6 +5,6 @@ rates:
   front_image: 10.0
   side_image: 10.0
   rear_image: 10.0
-auto_claim: False
-auto_power_on: False
-auto_stand: False
+auto_claim: True
+auto_power_on: True
+auto_stand: True
