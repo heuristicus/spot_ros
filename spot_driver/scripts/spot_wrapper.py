@@ -485,16 +485,18 @@ class SpotWrapper():
         except:
             return False, "Error"
 
-    def set_mobility_params(self, body_height=0, footprint_R_body=EulerZXY(), locomotion_hint=1, stair_hint=False, external_force_params=None):
-        """Define body, locomotion, and stair parameters.
+    def set_mobility_params(self, mobility_params):
+        """Set Params for mobility and movement
 
         Args:
-            body_height: Body height in meters
-            footprint_R_body: (EulerZXY) – The orientation of the body frame with respect to the footprint frame (gravity aligned framed with yaw computed from the stance feet)
-            locomotion_hint: Locomotion hint
-            stair_hint: Boolean to define stair motion
+            mobility_params: spot.MobilityParams, params for spot mobility commands.
         """
-        self._mobility_params = RobotCommandBuilder.mobility_params(body_height, footprint_R_body, locomotion_hint, stair_hint, external_force_params)
+        self._mobility_params = mobility_params
+
+    def get_mobility_params(self):
+        """Get mobility params
+        """
+        return self._mobility_params
 
     def velocity_cmd(self, v_x, v_y, v_rot, cmd_duration=0.1):
         """Send a velocity motion command to the robot.

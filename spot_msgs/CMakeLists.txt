@@ -19,6 +19,7 @@ add_message_files(
   LeaseArray.msg
   LeaseOwner.msg
   Metrics.msg
+  MobilityParams.msg
   SystemFault.msg
   WiFiState.msg
   BatteryState.msg
@@ -35,6 +36,7 @@ add_message_files(
 add_service_files(
   FILES
   ListGraph.srv
+  SetLocomotion.srv
 )
 
 add_action_files(

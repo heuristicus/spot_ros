@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 
-from std_srvs.srv import Trigger, TriggerResponse
+from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 from std_msgs.msg import Bool
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
@@ -10,6 +10,8 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose
 from nav_msgs.msg import Odometry
 
+from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
+from bosdyn.api import geometry_pb2, trajectory_pb2
 from bosdyn.api.geometry_pb2 import Quaternion
 import bosdyn.geometry
 
@@ -24,7 +26,8 @@ from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
-from spot_msgs.srv import ListGraph, ListGraphResponse
+from spot_msgs.msg import MobilityParams
+from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse
 
 from ros_helpers import *
 from spot_wrapper import SpotWrapper
@@ -271,6 +274,26 @@ class SpotROS():
         resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_stair_mode(self, req):
+        """ROS service handler to set a stair mode to the robot."""
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.stair_hint = req.data
+            self.spot_wrapper.set_mobility_params( mobility_params )
+            return SetBoolResponse(True, 'Success')
+        except Exception as e:
+            return SetBoolResponse(False, 'Error:{}'.format(e))
+
+    def handle_locomotion_mode(self, req):
+        """ROS service handler to set locomotion mode"""
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.locomotion_hint = req.locomotion_mode
+            self.spot_wrapper.set_mobility_params( mobility_params )
+            return SetLocomotionResponse(True, 'Success')
+        except Exception as e:
+            return SetLocomotionResponse(False, 'Error:{}'.format(e))
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
@@ -282,9 +305,15 @@ class SpotROS():
         q.y = data.orientation.y
         q.z = data.orientation.z
         q.w = data.orientation.w
+        position = geometry_pb2.Vec3(z=data.position.z)
+        pose = geometry_pb2.SE3Pose(position=position, rotation=q)
+        point = trajectory_pb2.SE3TrajectoryPoint(pose=pose)
+        traj = trajectory_pb2.SE3Trajectory(points=[point])
+        body_control = spot_command_pb2.BodyControlParams(base_offset_rt_footprint=traj)
 
-        euler_zxy = q.to_euler_zxy()
-        self.spot_wrapper.set_mobility_params(data.position.z, euler_zxy)
+        mobility_params = self.spot_wrapper.get_mobility_params()
+        mobility_params.body_control.CopyFrom(body_control)
+        self.spot_wrapper.set_mobility_params(mobility_params)
 
     def handle_list_graph(self, upload_path):
         """ROS service handler for listing graph_nav waypoint_ids"""
@@ -398,6 +427,8 @@ class SpotROS():
 
             self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
 
+            self.mobility_params_pub = rospy.Publisher('status/mobility_params', MobilityParams, queue_size=10)
+
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
 
@@ -412,6 +443,9 @@ class SpotROS():
 
             rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
+
+            rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
+            rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 
@@ -450,6 +484,29 @@ class SpotROS():
                 except:
                     pass
                 self.feedback_pub.publish(feedback_msg)
+                mobility_params_msg = MobilityParams()
+                try:
+                    mobility_params = self.spot_wrapper.get_mobility_params()
+                    mobility_params_msg.body_control.position.x = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.x
+                    mobility_params_msg.body_control.position.y = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.y
+                    mobility_params_msg.body_control.position.z = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.z
+                    mobility_params_msg.body_control.orientation.x = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.x
+                    mobility_params_msg.body_control.orientation.y = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.y
+                    mobility_params_msg.body_control.orientation.z = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.z
+                    mobility_params_msg.body_control.orientation.w = \
+                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.w
+                    mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
+                    mobility_params_msg.stair_hint = mobility_params.stair_hint
+                except Exception as e:
+                    print('Error:{}'.format(e))
+                    pass
+                self.mobility_params_pub.publish(mobility_params_msg)
                 rate.sleep()
 
 if __name__ == "__main__":
