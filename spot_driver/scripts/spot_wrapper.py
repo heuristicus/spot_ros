@@ -467,7 +467,7 @@ class SpotWrapper():
 
     def stand(self, monitor_command=True):
         """If the e-stop is enabled, and the motor power is enabled, stand the robot up."""
-        response = self._robot_command(RobotCommandBuilder.stand_command(params=self._mobility_params))
+        response = self._robot_command(RobotCommandBuilder.synchro_stand_command(params=self._mobility_params))
         if monitor_command:
             self._last_stand_command = response[2]
         return response[0], response[1]
@@ -508,7 +508,7 @@ class SpotWrapper():
             cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
         """
         end_time=time.time() + cmd_duration
-        self._robot_command(RobotCommandBuilder.velocity_command(
+        self._robot_command(RobotCommandBuilder.synchro_velocity_command(
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                   end_time_secs=end_time)
         self._last_motion_command_time = end_time
