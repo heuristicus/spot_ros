@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:if value="$(optenv SPOT_PACK 0)">
+    <joint name="pack_mount_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="pack_mount"/>
+      <origin xyz="-0.019986 0 0.093662" rpy="0 0 0"/>
+    </joint>
+
+    <link name="pack_mount">
+      <visual>
+        <geometry>
+          <mesh filename="package://spot_description/meshes/pack_top.dae"/>
+        </geometry>
+      </visual>
+      <visual>
+        <geometry>
+          <mesh filename="package://spot_description/meshes/pack_body.dae"/>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://spot_description/meshes/pack_body.dae"/>
+        </geometry>
+      </collision>
+    </link>
+  </xacro:if>
+
+  <xacro:if value="$(optenv SPOT_LIDAR_MOUNT 0)">
+    <joint name="lidar_mount_joint" type="fixed">
+      <parent link="pack_mount"/>
+      <child link="lidar_mount"/>
+      <origin xyz="0.015 0 0.149285" rpy="0 0 0"/>
+    </joint>
+
+    <link name="lidar_mount">
+      <visual>
+        <geometry>
+          <mesh filename="package://spot_description/meshes/lidar_mount.dae"/>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://spot_description/meshes/lidar_mount_collision.stl"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <xacro:if value="$(optenv SPOT_VELODYNE 0)">
+      <joint name="velodyne_mount_joint" type="fixed">
+        <parent link="lidar_mount"/>
+        <child link="velodyne_mount"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </joint>
+      <link name="velodyne_mount">
+        <visual>
+          <geometry>
+            <mesh filename="package://spot_description/meshes/velo.dae"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="package://spot_description/meshes/velo_collision.stl"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="velodyne_joint" type="fixed">
+        <parent link="velodyne_mount"/>
+        <child link="velodyne"/>
+        <origin xyz="0 0 0.0377" rpy="0 0 0"/>
+      </joint>
+      <link name="velodyne"/>
+
+    </xacro:if>
+  </xacro:if>
+</robot>
