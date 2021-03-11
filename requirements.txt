@@ -1,0 +1,2 @@
+bosdyn-client==2.3.0
+bosdyn-mission==2.3.0

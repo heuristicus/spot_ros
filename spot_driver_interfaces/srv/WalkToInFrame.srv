@@ -1,0 +1,7 @@
+string frame_name
+float32 goal_x
+float32 goal_y
+float32 heading
+int32 max_duration
+---
+bool success

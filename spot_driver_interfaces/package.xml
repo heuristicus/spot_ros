@@ -1,0 +1,37 @@
+<?xml version='1.0'?>
+<?xml-model href='http://download.ros.org/schema/package_format3.xsd' schematypens='http://www.w3.org/2001/XMLSchema'?>
+<package format='3'>
+<name>spot_driver_interfaces</name>
+<version>0.0.0</version>
+<description>The Spot driver supplies a ROS2 interface to the Spot SDK</description>
+<maintainer email='jeroen.fransman@tno.nl'>Jeroen Fransman</maintainer>
+<license>TODO</license>
+
+<buildtool_depend>ament_cmake</buildtool_depend>
+
+<test_depend>ament_lint_auto</test_depend>
+<test_depend>ament_lint_common</test_depend>
+
+<build_depend>geometry_msgs</build_depend>
+<exec_depend>geometry_msgs</exec_depend>
+
+<build_depend>nav_msgs</build_depend>
+<exec_depend>nav_msgs</exec_depend>
+
+<build_depend>builtin_interfaces</build_depend>
+<exec_depend>builtin_interfaces</exec_depend>
+
+<build_depend>sensor_msgs</build_depend>
+<exec_depend>sensor_msgs</exec_depend>
+
+<build_depend>std_msgs</build_depend>
+<exec_depend>std_msgs</exec_depend>
+
+<build_depend>rosidl_default_generators</build_depend>
+<exec_depend>rosidl_default_runtime</exec_depend>
+<member_of_group>rosidl_interface_packages</member_of_group>
+
+<export>
+    <build_type>ament_cmake</build_type>
+</export>
+</package>

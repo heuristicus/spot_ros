@@ -1,0 +1,8 @@
+float32 roll
+float32 pitch
+float32 yaw
+float32 height
+int32 duration
+---
+bool success
+string message
