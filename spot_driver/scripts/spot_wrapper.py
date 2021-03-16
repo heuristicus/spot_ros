@@ -183,7 +183,9 @@ class AsyncIdle(AsyncPeriodicQuery):
                     basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_GOING_TO_GOAL):
                     is_moving = True
                 elif (response.feedback.mobility_feedback.se2_trajectory_feedback.status ==
-                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_AT_GOAL):
+                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_AT_GOAL) or \
+                     (response.feedback.mobility_feedback.se2_trajectory_feedback.status ==
+                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL):
                     self._spot_wrapper._at_goal = True
                     # Clear the command once at the goal
                     self._spot_wrapper._last_trajectory_command = None
