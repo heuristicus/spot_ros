@@ -497,7 +497,6 @@ class SpotROS():
             rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
 
-<<<<<<< HEAD
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
 
@@ -508,12 +507,10 @@ class SpotROS():
                                                             auto_start = False)
             self.navigate_as.start()
 
-=======
             self.trajectory_server = actionlib.SimpleActionServer("trajectory", TrajectoryAction,
                                                                   execute_cb=self.handle_trajectory,
                                                                   auto_start=False)
             self.trajectory_server.start()
->>>>>>> ee594aa... convert trajectory command to an actionserver
 
             rospy.on_shutdown(self.shutdown)
 
