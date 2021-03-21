@@ -303,6 +303,10 @@ class SpotROS():
         if req.target_pose.header.frame_id != 'body':
             self.trajectory_server.set_aborted(TrajectoryResult(False, 'frame_id of target_pose must be \'body\''))
             return
+        if req.duration.data.to_sec() <= 0:
+            self.trajectory_server.set_aborted(TrajectoryResult(False, 'duration must be larger than 0'))
+            return
+
         cmd_duration = rospy.Duration(req.duration.data.secs, req.duration.data.nsecs)
         resp = self.spot_wrapper.trajectory_cmd(
                         goal_x=req.target_pose.pose.position.x,
