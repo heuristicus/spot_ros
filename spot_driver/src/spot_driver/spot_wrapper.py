@@ -672,33 +672,50 @@ class SpotWrapper():
             self._last_trajectory_command = response[2]
         return response[0], response[1]
 
-    def list_graph(self, upload_path):
+    def list_graph(self):
         """List waypoint ids of garph_nav
         Args:
-          upload_path : Path to the root directory of the map.
         """
         ids, eds = self._list_graph_waypoint_and_edge_ids()
         # skip waypoint_ for v2.2.1, skip waypiont for < v2.2
         return [v for k, v in sorted(ids.items(), key=lambda id : int(id[0].replace('waypoint_','')))]
 
-    def navigate_to(self, upload_path,
-                    navigate_to,
+    def upload_graph(self, upload_path):
+        """List waypoint ids of garph_nav
+        Args:
+          upload_path : Path to the root directory of the map.
+        """
+        try:
+            self._upload_graph_and_snapshots(upload_path)
+            return True, 'Success'
+        except Exception as e:
+            return False, 'Error: {}'.format(e)
+
+    def set_localization_fiducial(self):
+        try:
+            self._set_initial_localization_fiducial()
+            return True, 'Success'
+        except Exception as e:
+            return False, 'Error: {}'.format(e)
+
+    def set_localization_waypoint(self, waypoint_id):
+        try:
+            resp = self._set_initial_localization_waypoint()
+            return resp[0], resp[1]
+        except Exception as e:
+            return False, 'Error: {}'.format(e)
+
+    def navigate_to(self,
+                    id_navigate_to,
                     initial_localization_fiducial=True,
                     initial_localization_waypoint=None):
         """ navigate with graph nav.
 
         Args:
-           upload_path : Path to the root directory of the map.
            navigate_to : Waypont id string for where to goal
            initial_localization_fiducial : Tells the initializer whether to use fiducials
            initial_localization_waypoint : Waypoint id string of current robot position (optional)
         """
-        # Filepath for uploading a saved graph's and snapshots too.
-        if upload_path[-1] == "/":
-            upload_filepath = upload_path[:-1]
-        else:
-            upload_filepath = upload_path
-
         # Boolean indicating the robot's power state.
         power_state = self._robot_state_client.get_robot_state().power_state
         self._started_powered_on = (power_state.motor_power_state == power_state.STATE_ON)
@@ -731,27 +748,19 @@ class SpotWrapper():
 
     def _set_initial_localization_fiducial(self, *args):
         """Trigger localization when near a fiducial."""
-        robot_state = self._robot_state_client.get_robot_state()
-        current_odom_tform_body = get_odom_tform_body(
-            robot_state.kinematic_state.transforms_snapshot).to_proto()
+        current_odom_tform_body = get_odom_tform_body(self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot).to_proto()
         # Create an empty instance for initial localization since we are asking it to localize
         # based on the nearest fiducial.
         localization = nav_pb2.Localization()
         self._graph_nav_client.set_localization(initial_guess_localization=localization,
                                                 ko_tform_body=current_odom_tform_body)
 
-    def _set_initial_localization_waypoint(self, *args):
+    def _set_initial_localization_waypoint(self, waypoint_id):
         """Trigger localization to a waypoint."""
-        # Take the first argument as the localization waypoint.
-        if len(args) < 1:
-            # If no waypoint id is given as input, then return without initializing.
-            self._logger.error("No waypoint specified to initialize to.")
-            return
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
-            args[0][0], self._current_graph, self._current_annotation_name_to_wp_id, self._logger)
+                waypoint_id, self._current_graph, self._current_annotation_name_to_wp_id)
         if not destination_waypoint:
-            # Failed to find the unique waypoint id.
-            return
+            return False, 'Failed to find the unique waypoint id.'
 
         robot_state = self._robot_state_client.get_robot_state()
         current_odom_tform_body = get_odom_tform_body(
@@ -767,6 +776,8 @@ class SpotWrapper():
             max_yaw = 20.0 * math.pi / 180.0,
             fiducial_init=graph_nav_pb2.SetLocalizationRequest.FIDUCIAL_INIT_NO_FIDUCIAL,
             ko_tform_body=current_odom_tform_body)
+
+        return True, 'Success'
 
     def _list_graph_waypoint_and_edge_ids(self, *args):
         """List the waypoint ids and edge ids of the graph currently on the robot."""
@@ -828,9 +839,7 @@ class SpotWrapper():
         localization_state = self._graph_nav_client.get_localization_state()
         if not localization_state.localization.waypoint_id:
             # The robot is not localized to the newly uploaded graph.
-            self._logger.info(
-                   "Upload complete! The robot is currently not localized to the map; please localize", \
-                   "the robot using commands (2) or (3) before attempting a navigation command.")
+            self._logger.warn("Upload complete! The robot is currently not localized to the map; please localize")
 
     def _navigate_to(self, *args):
         """Navigate to a specific waypoint."""

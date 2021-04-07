@@ -37,9 +37,12 @@ add_message_files(
 add_service_files(
   FILES
   ListGraph.srv
+  SetLocalizationFiducial.srv
+  SetLocalizationWaypoint.srv
   SetLocomotion.srv
   SetVelocity.srv
   ClearBehaviorFault.srv
+  UploadGraph.srv
 )
 
 add_action_files(
