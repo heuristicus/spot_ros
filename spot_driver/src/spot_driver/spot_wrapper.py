@@ -706,15 +706,11 @@ class SpotWrapper():
             return False, 'Error: {}'.format(e)
 
     def navigate_to(self,
-                    id_navigate_to,
-                    initial_localization_fiducial=True,
-                    initial_localization_waypoint=None):
+                    id_navigate_to):
         """ navigate with graph nav.
 
         Args:
            navigate_to : Waypont id string for where to goal
-           initial_localization_fiducial : Tells the initializer whether to use fiducials
-           initial_localization_waypoint : Waypoint id string of current robot position (optional)
         """
         # Boolean indicating the robot's power state.
         power_state = self._robot_state_client.get_robot_state().power_state
@@ -726,15 +722,8 @@ class SpotWrapper():
             self.sit()
 
         # TODO verify estop  / claim / power_on
-        self._clear_graph()
-        self._upload_graph_and_snapshots(upload_filepath)
-        if initial_localization_fiducial:
-            self._set_initial_localization_fiducial()
-        if initial_localization_waypoint:
-            self._set_initial_localization_waypoint([initial_localization_waypoint])
-        self._list_graph_waypoint_and_edge_ids()
         self._get_localization_state()
-        resp = self._navigate_to([navigate_to])
+        resp = self._navigate_to([id_navigate_to])
 
         return resp
 
