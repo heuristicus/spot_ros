@@ -427,7 +427,7 @@ class SpotROS():
 
     def handle_upload_graph(self, req):
         """"""
-        resp = self.spot_wrapper.upload_graph(req.upload_path)
+        resp = self.spot_wrapper.upload_graph(req.upload_filepath)
         return UploadGraphResponse(resp[0], resp[1])
 
     def handle_set_localization_fiducial(self, req):
@@ -455,10 +455,7 @@ class SpotROS():
         self.run_navigate_to = True
         feedback_thraed.start()
         # run navigate_to
-        resp = self.spot_wrapper.navigate_to(upload_path = msg.upload_path,
-                                             navigate_to = msg.navigate_to,
-                                             initial_localization_fiducial = msg.initial_localization_fiducial,
-                                             initial_localization_waypoint = msg.initial_localization_waypoint)
+        resp = self.spot_wrapper.navigate_to(id_navigate_to = msg.id_navigate_to)
         self.run_navigate_to = False
         feedback_thraed.join()
 

@@ -448,8 +448,9 @@ class SpotWrapper():
         try:
             self._estop_keepalive.allow()
             return True, "Success"
-        except:
-            return False, "Error"
+        except Exception as e:
+            self._logger.error('Error: {}'.format(e))
+            return False, "Error: {}".format(e)
 
 
     def releaseEStop(self):
@@ -542,7 +543,8 @@ class SpotWrapper():
             power.power_on(self._power_client)
             return True, "Success"
         except Exception as e:
-            return False, str(e)
+            self._logger.error('Error: {}'.format(e))
+            return False, "Error: {}".format(e)
 
     def set_mobility_params(self, mobility_params):
         """Set Params for mobility and movement
@@ -849,9 +851,9 @@ class SpotWrapper():
             return
 
         # Stop the lease keepalive and create a new sublease for graph nav.
-        self._lease = self._lease_wallet.advance()
-        sublease = self._lease.create_sublease()
-        self._lease_keepalive.shutdown()
+        #self._lease = self._lease_wallet.advance()
+        #sublease = self._lease.create_sublease()
+        #self._lease_keepalive.shutdown()
 
         # Navigate to the destination waypoint.
         is_finished = False
@@ -859,8 +861,9 @@ class SpotWrapper():
         while not is_finished:
             # Issue the navigation command about twice a second such that it is easy to terminate the
             # navigation command (with estop or killing the program).
-            nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 1.0,
-                                                               leases=[sublease.lease_proto])
+            #nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 1.0,
+            #                                                   leases=[sublease.lease_proto])
+            nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 1.0)
             time.sleep(.5)  # Sleep for half a second to allow for command execution.
             # Poll the robot for feedback to determine if the navigation command is complete. Then sit
             # the robot down once it is finished.
