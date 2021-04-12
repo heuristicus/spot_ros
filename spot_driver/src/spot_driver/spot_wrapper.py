@@ -703,7 +703,7 @@ class SpotWrapper():
 
     def set_localization_waypoint(self, waypoint_id):
         try:
-            resp = self._set_initial_localization_waypoint()
+            resp = self._set_initial_localization_waypoint(waypoint_id)
             return resp[0], resp[1]
         except Exception as e:
             return False, 'Error: {}'.format(e)
