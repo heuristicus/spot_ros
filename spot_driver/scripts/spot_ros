@@ -1,0 +1,7 @@
+#!/bin/env python
+
+from spot_driver.spot_ros import SpotROS
+
+if __name__ == "__main__":
+    SR = SpotROS()
+    SR.main()
