@@ -213,15 +213,15 @@ class SpotWrapper():
 
         self._front_image_requests = []
         for source in front_image_sources:
-            self._front_image_requests.append(build_image_request(source, image_format=image_pb2.Image.Format.FORMAT_RAW))
+            self._front_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
 
         self._side_image_requests = []
         for source in side_image_sources:
-            self._side_image_requests.append(build_image_request(source, image_format=image_pb2.Image.Format.FORMAT_RAW))
+            self._side_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
 
         self._rear_image_requests = []
         for source in rear_image_sources:
-            self._rear_image_requests.append(build_image_request(source, image_format=image_pb2.Image.Format.FORMAT_RAW))
+            self._rear_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
 
         try:
             self._sdk = create_standard_sdk('ros_spot')
@@ -280,6 +280,11 @@ class SpotWrapper():
 
             self._robot_id = None
             self._lease = None
+
+    @property
+    def logger(self):
+        """Return logger instance of the SpotWrapper"""
+        return self._logger
 
     @property
     def is_valid(self):
@@ -566,9 +571,9 @@ class SpotWrapper():
     def _get_localization_state(self, *args):
         """Get the current localization and state of the robot."""
         state = self._graph_nav_client.get_localization_state()
-        print('Got localization: \n%s' % str(state.localization))
+        self._logger.info('Got localization: \n%s' % str(state.localization))
         odom_tform_body = get_odom_tform_body(state.robot_kinematics.transforms_snapshot)
-        print('Got robot state in kinematic odometry frame: \n%s' % str(odom_tform_body))
+        self._logger.info('Got robot state in kinematic odometry frame: \n%s' % str(odom_tform_body))
 
     def _set_initial_localization_fiducial(self, *args):
         """Trigger localization when near a fiducial."""
@@ -586,10 +591,10 @@ class SpotWrapper():
         # Take the first argument as the localization waypoint.
         if len(args) < 1:
             # If no waypoint id is given as input, then return without initializing.
-            print("No waypoint specified to initialize to.")
+            self._logger.error("No waypoint specified to initialize to.")
             return
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
-            args[0][0], self._current_graph, self._current_annotation_name_to_wp_id)
+            args[0][0], self._current_graph, self._current_annotation_name_to_wp_id, self._logger)
         if not destination_waypoint:
             # Failed to find the unique waypoint id.
             return
@@ -615,7 +620,7 @@ class SpotWrapper():
         # Download current graph
         graph = self._graph_nav_client.download_graph()
         if graph is None:
-            print("Empty graph.")
+            self._logger.error("Empty graph.")
             return
         self._current_graph = graph
 
@@ -623,19 +628,19 @@ class SpotWrapper():
 
         # Update and print waypoints and edges
         self._current_annotation_name_to_wp_id, self._current_edges = graph_nav_util.update_waypoints_and_edges(
-            graph, localization_id)
+            graph, localization_id, self._logger)
         return self._current_annotation_name_to_wp_id, self._current_edges
 
 
     def _upload_graph_and_snapshots(self, upload_filepath):
         """Upload the graph and snapshots to the robot."""
-        print("Loading the graph from disk into local storage...")
+        self._logger.info("Loading the graph from disk into local storage...")
         with open(upload_filepath + "/graph", "rb") as graph_file:
             # Load the graph from disk.
             data = graph_file.read()
             self._current_graph = map_pb2.Graph()
             self._current_graph.ParseFromString(data)
-            print("Loaded graph has {} waypoints and {} edges".format(
+            self._logger.info("Loaded graph has {} waypoints and {} edges".format(
                 len(self._current_graph.waypoints), len(self._current_graph.edges)))
         for waypoint in self._current_graph.waypoints:
             # Load the waypoint snapshots from disk.
@@ -652,16 +657,16 @@ class SpotWrapper():
                 edge_snapshot.ParseFromString(snapshot_file.read())
                 self._current_edge_snapshots[edge_snapshot.id] = edge_snapshot
         # Upload the graph to the robot.
-        print("Uploading the graph and snapshots to the robot...")
+        self._logger.info("Uploading the graph and snapshots to the robot...")
         self._graph_nav_client.upload_graph(lease=self._lease.lease_proto,
                                             graph=self._current_graph)
         # Upload the snapshots to the robot.
         for waypoint_snapshot in self._current_waypoint_snapshots.values():
             self._graph_nav_client.upload_waypoint_snapshot(waypoint_snapshot)
-            print("Uploaded {}".format(waypoint_snapshot.id))
+            self._logger.info("Uploaded {}".format(waypoint_snapshot.id))
         for edge_snapshot in self._current_edge_snapshots.values():
             self._graph_nav_client.upload_edge_snapshot(edge_snapshot)
-            print("Uploaded {}".format(edge_snapshot.id))
+            self._logger.info("Uploaded {}".format(edge_snapshot.id))
 
         # The upload is complete! Check that the robot is localized to the graph,
         # and it if is not, prompt the user to localize the robot before attempting
@@ -669,8 +674,8 @@ class SpotWrapper():
         localization_state = self._graph_nav_client.get_localization_state()
         if not localization_state.localization.waypoint_id:
             # The robot is not localized to the newly uploaded graph.
-            print("\n")
-            print("Upload complete! The robot is currently not localized to the map; please localize", \
+            self._logger.info(
+                   "Upload complete! The robot is currently not localized to the map; please localize", \
                    "the robot using commands (2) or (3) before attempting a navigation command.")
 
     def _navigate_to(self, *args):
@@ -678,17 +683,17 @@ class SpotWrapper():
         # Take the first argument as the destination waypoint.
         if len(args) < 1:
             # If no waypoint id is given as input, then return without requesting navigation.
-            print("No waypoint provided as a destination for navigate to.")
+            self._logger.info("No waypoint provided as a destination for navigate to.")
             return
 
         self._lease = self._lease_wallet.get_lease()
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
-            args[0][0], self._current_graph, self._current_annotation_name_to_wp_id)
+            args[0][0], self._current_graph, self._current_annotation_name_to_wp_id, self._logger)
         if not destination_waypoint:
             # Failed to find the appropriate unique waypoint id for the navigation command.
             return
         if not self.toggle_power(should_power_on=True):
-            print("Failed to power on the robot, and cannot complete navigate to request.")
+            self._logger.info("Failed to power on the robot, and cannot complete navigate to request.")
             return
 
         # Stop the lease keepalive and create a new sublease for graph nav.
@@ -733,12 +738,12 @@ class SpotWrapper():
         """Navigate through a specific route of waypoints."""
         if len(args) < 1:
             # If no waypoint ids are given as input, then return without requesting navigation.
-            print("No waypoints provided for navigate route.")
+            self._logger.error("No waypoints provided for navigate route.")
             return
         waypoint_ids = args[0]
         for i in range(len(waypoint_ids)):
             waypoint_ids[i] = graph_nav_util.find_unique_waypoint_id(
-                waypoint_ids[i], self._current_graph, self._current_annotation_name_to_wp_id)
+                waypoint_ids[i], self._current_graph, self._current_annotation_name_to_wp_id, self._logger)
             if not waypoint_ids[i]:
                 # Failed to find the unique waypoint id.
                 return
@@ -755,8 +760,8 @@ class SpotWrapper():
                 edge_ids_list.append(edge_id)
             else:
                 all_edges_found = False
-                print("Failed to find an edge between waypoints: ", start_wp, " and ", end_wp)
-                print(
+                self._logger.error("Failed to find an edge between waypoints: ", start_wp, " and ", end_wp)
+                self._logger.error(
                     "List the graph's waypoints and edges to ensure pairs of waypoints has an edge."
                 )
                 break
@@ -764,7 +769,7 @@ class SpotWrapper():
         self._lease = self._lease_wallet.get_lease()
         if all_edges_found:
             if not self.toggle_power(should_power_on=True):
-                print("Failed to power on the robot, and cannot complete navigate route request.")
+                self._logger.error("Failed to power on the robot, and cannot complete navigate route request.")
                 return
 
             # Stop the lease keepalive and create a new sublease for graph nav.
@@ -839,13 +844,13 @@ class SpotWrapper():
             # Successfully completed the navigation commands!
             return True
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_LOST:
-            print("Robot got lost when navigating the route, the robot will now sit down.")
+            self._logger.error("Robot got lost when navigating the route, the robot will now sit down.")
             return True
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_STUCK:
-            print("Robot got stuck when navigating the route, the robot will now sit down.")
+            self._logger.error("Robot got stuck when navigating the route, the robot will now sit down.")
             return True
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_ROBOT_IMPAIRED:
-            print("Robot is impaired.")
+            self._logger.error("Robot is impaired.")
             return True
         else:
             # Navigation command is not complete yet.

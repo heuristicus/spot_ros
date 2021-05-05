@@ -11,6 +11,7 @@ include_directories(
 
 catkin_install_python(
 	PROGRAMS
+	  scripts/graph_nav_util.py
 	  scripts/ros_helpers.py
 	  scripts/spot_ros.py
 	  scripts/spot_wrapper.py

@@ -545,7 +545,7 @@ class SpotROS():
                     mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
                     mobility_params_msg.stair_hint = mobility_params.stair_hint
                 except Exception as e:
-                    print('Error:{}'.format(e))
+                    rospy.logerr('Error:{}'.format(e))
                     pass
                 self.mobility_params_pub.publish(mobility_params_msg)
                 rate.sleep()

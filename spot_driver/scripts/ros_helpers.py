@@ -334,7 +334,7 @@ def GetTFFromState(state, spot_wrapper, inverse_target_frame):
                     new_tf = populateTransformStamped(tf_time, transform.parent_frame_name, frame_name, transform.parent_tform_child)
                 tf_msg.transforms.append(new_tf)
             except Exception as e:
-                print('Error: {}'.format(e))
+                spot_wrapper.logger.error('Error: {}'.format(e))
 
     return tf_msg
 
