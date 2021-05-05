@@ -213,15 +213,15 @@ class SpotWrapper():
 
         self._front_image_requests = []
         for source in front_image_sources:
-            self._front_image_requests.append(build_image_request(source, image_format=image_pb2.Image.Format.FORMAT_RAW))
+            self._front_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
 
         self._side_image_requests = []
         for source in side_image_sources:
-            self._side_image_requests.append(build_image_request(source, image_format=image_pb2.Image.Format.FORMAT_RAW))
+            self._side_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
 
         self._rear_image_requests = []
         for source in rear_image_sources:
-            self._rear_image_requests.append(build_image_request(source, image_format=image_pb2.Image.Format.FORMAT_RAW))
+            self._rear_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
 
         try:
             self._sdk = create_standard_sdk('ros_spot')
