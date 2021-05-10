@@ -19,7 +19,7 @@ from bosdyn.api.graph_nav import nav_pb2
 from bosdyn.client.estop import EstopClient, EstopEndpoint, EstopKeepAlive
 from bosdyn.client import power
 
-import graph_nav_util
+from . import graph_nav_util
 
 import bosdyn.api.robot_state_pb2 as robot_state_proto
 from bosdyn.api import basic_command_pb2
