@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python3
 
 from spot_driver.spot_ros import SpotROS
 
