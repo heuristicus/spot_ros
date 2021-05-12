@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import rospy
 
 from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
@@ -30,8 +29,8 @@ from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import MobilityParams
 from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse
 
-from ros_helpers import *
-from spot_wrapper import SpotWrapper
+from .ros_helpers import *
+from .spot_wrapper import SpotWrapper
 
 import actionlib
 import logging
@@ -549,7 +548,3 @@ class SpotROS():
                     pass
                 self.mobility_params_pub.publish(mobility_params_msg)
                 rate.sleep()
-
-if __name__ == "__main__":
-    SR = SpotROS()
-    SR.main()
