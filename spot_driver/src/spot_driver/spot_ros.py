@@ -27,7 +27,7 @@ from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import MobilityParams
-from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse
+from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse, ClearBehaviorFault, ClearBehaviorFaultResponse
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
@@ -277,6 +277,11 @@ class SpotROS():
         resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_clear_bahavior_fault(self, req):
+        """ROS service handler for clearing behavior faults"""
+        resp = self.spot_wrapper.clear_behavior_fault(req.id)
+        return ClearBehaviorFaultResponse(resp[0], resp[1])
+
     def handle_stair_mode(self, req):
         """ROS service handler to set a stair mode to the robot."""
         try:
@@ -486,6 +491,7 @@ class SpotROS():
 
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
+            rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_bahavior_fault)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 

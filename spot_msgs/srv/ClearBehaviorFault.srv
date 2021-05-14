@@ -1,0 +1,4 @@
+uint32 id
+---
+bool success
+string message
