@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import rospy
 
 from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
@@ -17,6 +16,7 @@ from bosdyn.client import math_helpers
 import actionlib
 import functools
 import bosdyn.geometry
+import tf2_ros
 
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
@@ -31,10 +31,10 @@ from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import TrajectoryAction, TrajectoryResult, TrajectoryFeedback
-from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse
+from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse, ClearBehaviorFault, ClearBehaviorFaultResponse
 
-from ros_helpers import *
-from spot_wrapper import SpotWrapper
+from .ros_helpers import *
+from .spot_wrapper import SpotWrapper
 
 import actionlib
 import logging
@@ -169,22 +169,23 @@ class SpotROS():
         """
         data = self.spot_wrapper.front_images
         if data:
-            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper, self.mode_parent_odom_tf)
+            image_msg0, camera_info_msg0 = getImageMsg(data[0], self.spot_wrapper)
             self.frontleft_image_pub.publish(image_msg0)
             self.frontleft_image_info_pub.publish(camera_info_msg0)
-            self.tf_pub.publish(camera_tf_msg0)
-            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper, self.mode_parent_odom_tf)
+            image_msg1, camera_info_msg1 = getImageMsg(data[1], self.spot_wrapper)
             self.frontright_image_pub.publish(image_msg1)
             self.frontright_image_info_pub.publish(camera_info_msg1)
-            self.tf_pub.publish(camera_tf_msg1)
-            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2], self.spot_wrapper, self.mode_parent_odom_tf)
+            image_msg2, camera_info_msg2 = getImageMsg(data[2], self.spot_wrapper)
             self.frontleft_depth_pub.publish(image_msg2)
             self.frontleft_depth_info_pub.publish(camera_info_msg2)
-            self.tf_pub.publish(camera_tf_msg2)
-            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3], self.spot_wrapper, self.mode_parent_odom_tf)
+            image_msg3, camera_info_msg3 = getImageMsg(data[3], self.spot_wrapper)
             self.frontright_depth_pub.publish(image_msg3)
             self.frontright_depth_info_pub.publish(camera_info_msg3)
-            self.tf_pub.publish(camera_tf_msg3)
+
+            self.populate_camera_static_transforms(data[0])
+            self.populate_camera_static_transforms(data[1])
+            self.populate_camera_static_transforms(data[2])
+            self.populate_camera_static_transforms(data[3])
 
     def SideImageCB(self, results):
         """Callback for when the Spot Wrapper gets new side image data.
@@ -194,22 +195,23 @@ class SpotROS():
         """
         data = self.spot_wrapper.side_images
         if data:
-            image_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper, self.mode_parent_odom_tf)
+            image_msg0, camera_info_msg0 = getImageMsg(data[0], self.spot_wrapper)
             self.left_image_pub.publish(image_msg0)
             self.left_image_info_pub.publish(camera_info_msg0)
-            self.tf_pub.publish(camera_tf_msg0)
-            image_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper, self.mode_parent_odom_tf)
+            image_msg1, camera_info_msg1 = getImageMsg(data[1], self.spot_wrapper)
             self.right_image_pub.publish(image_msg1)
             self.right_image_info_pub.publish(camera_info_msg1)
-            self.tf_pub.publish(camera_tf_msg1)
-            image_msg2, camera_info_msg2, camera_tf_msg2 = getImageMsg(data[2], self.spot_wrapper, self.mode_parent_odom_tf)
+            image_msg2, camera_info_msg2 = getImageMsg(data[2], self.spot_wrapper)
             self.left_depth_pub.publish(image_msg2)
             self.left_depth_info_pub.publish(camera_info_msg2)
-            self.tf_pub.publish(camera_tf_msg2)
-            image_msg3, camera_info_msg3, camera_tf_msg3 = getImageMsg(data[3], self.spot_wrapper, self.mode_parent_odom_tf)
+            image_msg3, camera_info_msg3 = getImageMsg(data[3], self.spot_wrapper)
             self.right_depth_pub.publish(image_msg3)
             self.right_depth_info_pub.publish(camera_info_msg3)
-            self.tf_pub.publish(camera_tf_msg3)
+
+            self.populate_camera_static_transforms(data[0])
+            self.populate_camera_static_transforms(data[1])
+            self.populate_camera_static_transforms(data[2])
+            self.populate_camera_static_transforms(data[3])
 
     def RearImageCB(self, results):
         """Callback for when the Spot Wrapper gets new rear image data.
@@ -219,14 +221,15 @@ class SpotROS():
         """
         data = self.spot_wrapper.rear_images
         if data:
-            mage_msg0, camera_info_msg0, camera_tf_msg0 = getImageMsg(data[0], self.spot_wrapper, self.mode_parent_odom_tf)
+            mage_msg0, camera_info_msg0 = getImageMsg(data[0], self.spot_wrapper)
             self.back_image_pub.publish(mage_msg0)
             self.back_image_info_pub.publish(camera_info_msg0)
-            self.tf_pub.publish(camera_tf_msg0)
-            mage_msg1, camera_info_msg1, camera_tf_msg1 = getImageMsg(data[1], self.spot_wrapper, self.mode_parent_odom_tf)
+            mage_msg1, camera_info_msg1 = getImageMsg(data[1], self.spot_wrapper)
             self.back_depth_pub.publish(mage_msg1)
             self.back_depth_info_pub.publish(camera_info_msg1)
-            self.tf_pub.publish(camera_tf_msg1)
+
+            self.populate_camera_static_transforms(data[0])
+            self.populate_camera_static_transforms(data[1])
 
     def handle_claim(self, req):
         """ROS service handler for the claim service"""
@@ -277,6 +280,11 @@ class SpotROS():
         """ROS service handler to soft-eStop the robot.  The robot will try to settle on the ground before cutting power to the motors"""
         resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
+
+    def handle_clear_bahavior_fault(self, req):
+        """ROS service handler for clearing behavior faults"""
+        resp = self.spot_wrapper.clear_behavior_fault(req.id)
+        return ClearBehaviorFaultResponse(resp[0], resp[1])
 
     def handle_stair_mode(self, req):
         """ROS service handler to set a stair mode to the robot."""
@@ -405,6 +413,36 @@ class SpotROS():
         else:
             self.navigate_as.set_aborted(NavigateToResult(resp[0], resp[1]))
 
+    def populate_camera_static_transforms(self, image_data):
+        """Check data received from one of the image tasks and use the transform snapshot to extract the camera frame
+        transforms. This is the transforms from body->frontleft->frontleft_fisheye, for example. These transforms
+        never change, but they may be calibrated slightly differently for each robot so we need to generate the
+        transforms at runtime.
+
+        Args:
+        image_data: Image protobuf data from the wrapper
+        """
+        # We exclude the odometry frames from static transforms since they are not static. We can ignore the body
+        # frame because it is a child of odom or vision depending on the mode_parent_odom_tf, and will be published
+        # by the non-static transform publishing that is done by the state callback
+        excluded_frames = [self.tf_name_vision_odom, self.tf_name_kinematic_odom, "body"]
+        for frame_name in image_data.shot.transforms_snapshot.child_to_parent_edge_map:
+            if frame_name in excluded_frames:
+                continue
+            parent_frame = image_data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name
+            existing_transforms = [(transform.header.frame_id, transform.child_frame_id) for transform in self.camera_static_transforms]
+            if (parent_frame, frame_name) in existing_transforms:
+                # We already extracted this transform
+                continue
+
+            transform = image_data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name)
+            local_time = self.spot_wrapper.robotToLocalTime(image_data.shot.acquisition_time)
+            tf_time = rospy.Time(local_time.seconds, local_time.nanos)
+            static_tf = populateTransformStamped(tf_time, transform.parent_frame_name, frame_name,
+                                                 transform.parent_tform_child)
+            self.camera_static_transforms.append(static_tf)
+            self.camera_static_transform_broadcaster.sendTransform(self.camera_static_transforms)
+
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
         self.spot_wrapper.sit()
@@ -422,6 +460,13 @@ class SpotROS():
         self.hostname = rospy.get_param('~hostname', 'default_value')
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
 
+        self.camera_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        # Static transform broadcaster is super simple and just a latched publisher. Every time we add a new static
+        # transform we must republish all static transforms from this source, otherwise the tree will be incomplete.
+        # We keep a list of all the static transforms we already have so they can be republished, and so we can check
+        # which ones we already have
+        self.camera_static_transforms = []
+
         # Spot has 2 types of odometries: 'odom' and 'vision'
         # The former one is kinematic odometry and the second one is a combined odometry of vision and kinematics
         # These params enables to change which odometry frame is a parent of body frame and to change tf names of each odometry frames.
@@ -431,7 +476,7 @@ class SpotROS():
         self.tf_name_vision_odom = rospy.get_param('~tf_name_vision_odom', 'vision')
         self.tf_name_raw_vision = 'vision'
         if self.mode_parent_odom_tf != self.tf_name_raw_kinematic and self.mode_parent_odom_tf != self.tf_name_raw_vision:
-            rospy.logerr('rosparam \'~mode_parent_odom_tf\' should be \'vision\' or \'vision\'.')
+            rospy.logerr('rosparam \'~mode_parent_odom_tf\' should be \'odom\' or \'vision\'.')
             return
 
         self.logger = logging.getLogger('rosout')
@@ -503,6 +548,7 @@ class SpotROS():
 
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
+            rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_bahavior_fault)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 
@@ -565,11 +611,7 @@ class SpotROS():
                     mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
                     mobility_params_msg.stair_hint = mobility_params.stair_hint
                 except Exception as e:
-                    print('Error:{}'.format(e))
+                    rospy.logerr('Error:{}'.format(e))
                     pass
                 self.mobility_params_pub.publish(mobility_params_msg)
                 rate.sleep()
-
-if __name__ == "__main__":
-    SR = SpotROS()
-    SR.main()
