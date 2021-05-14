@@ -1,0 +1,7 @@
+geometry_msgs/PoseStamped target_pose
+std_msgs/Duration duration
+---
+bool success
+string message
+---
+string feedback

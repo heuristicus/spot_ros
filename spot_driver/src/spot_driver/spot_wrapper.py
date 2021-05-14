@@ -18,6 +18,9 @@ from bosdyn.api.graph_nav import map_pb2
 from bosdyn.api.graph_nav import nav_pb2
 from bosdyn.client.estop import EstopClient, EstopEndpoint, EstopKeepAlive
 from bosdyn.client import power
+from bosdyn.client import frame_helpers
+from bosdyn.client import math_helpers
+from bosdyn.client.exceptions import InternalServerError
 
 from . import graph_nav_util
 
@@ -167,23 +170,30 @@ class AsyncIdle(AsyncPeriodicQuery):
 
         is_moving = False
 
-        if self._spot_wrapper._last_motion_command_time != None:
-            if time.time() < self._spot_wrapper._last_motion_command_time:
+        if self._spot_wrapper._last_velocity_command_time != None:
+            if time.time() < self._spot_wrapper._last_velocity_command_time:
                 is_moving = True
             else:
-                self._spot_wrapper._last_motion_command_time = None
+                self._spot_wrapper._last_velocity_command_time = None
 
-        if self._spot_wrapper._last_motion_command != None:
+        if self._spot_wrapper._last_trajectory_command != None:
             try:
-                response = self._client.robot_command_feedback(self._spot_wrapper._last_motion_command)
+                response = self._client.robot_command_feedback(self._spot_wrapper._last_trajectory_command)
                 if (response.feedback.synchronized_feedback.mobility_command_feedback.se2_trajectory_feedback.status ==
                     basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_GOING_TO_GOAL):
                     is_moving = True
+                elif (response.feedback.synchronized_feedback.mobility_command_feedback.se2_trajectory_feedback.status ==
+                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_AT_GOAL) or \
+                     (response.feedback.synchronized_feedback.mobility_command_feedback.se2_trajectory_feedback.status ==
+                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL):
+                    self._spot_wrapper._at_goal = True
+                    # Clear the command once at the goal
+                    self._spot_wrapper._last_trajectory_command = None
                 else:
-                    self._spot_wrapper._last_motion_command = None
+                    self._spot_wrapper._last_trajectory_command = None
             except (ResponseError, RpcError) as e:
                 self._logger.error("Error when getting robot command feedback: %s", e)
-                self._spot_wrapper._last_motion_command = None
+                self._spot_wrapper._last_trajectory_command = None
 
         self._spot_wrapper._is_moving = is_moving
 
@@ -206,10 +216,11 @@ class SpotWrapper():
         self._is_standing = False
         self._is_sitting = True
         self._is_moving = False
+        self._at_goal = False
         self._last_stand_command = None
         self._last_sit_command = None
-        self._last_motion_command = None
-        self._last_motion_command_time = None
+        self._last_trajectory_command = None
+        self._last_velocity_command_time = None
 
         self._front_image_requests = []
         for source in front_image_sources:
@@ -340,6 +351,10 @@ class SpotWrapper():
     def is_moving(self):
         """Return boolean of walking state"""
         return self._is_moving
+
+    @property
+    def at_goal(self):
+        return self._at_goal
 
     @property
     def time_skew(self):
@@ -522,10 +537,58 @@ class SpotWrapper():
             cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
         """
         end_time=time.time() + cmd_duration
-        self._robot_command(RobotCommandBuilder.synchro_velocity_command(
+        response = self._robot_command(RobotCommandBuilder.synchro_velocity_command(
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
-                                  end_time_secs=end_time, timesync_endpoint=self._robot.time_sync.endpoint)
-        self._last_motion_command_time = end_time
+                                      end_time_secs=end_time, timesync_endpoint=self._robot.time_sync.endpoint)
+        self._last_velocity_command_time = end_time
+        return response[0], response[1]
+
+    def trajectory_cmd(self, goal_x, goal_y, goal_heading, cmd_duration, frame_name='odom'):
+        """Send a trajectory motion command to the robot.
+
+        Args:
+            goal_x: Position X coordinate in meters
+            goal_y: Position Y coordinate in meters
+            goal_heading: Pose heading in radians
+            cmd_duration: Time-to-live for the command in seconds.
+            frame_name: frame_name to be used to calc the target position. 'odom' or 'vision'
+        """
+        self._at_goal = False
+        self._logger.info("got command duration of {}".format(cmd_duration))
+        end_time=time.time() + cmd_duration
+        if frame_name == 'vision':
+            vision_tform_body = frame_helpers.get_vision_tform_body(
+                    self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot)
+            body_tform_goal = math_helpers.SE3Pose(x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading))
+            vision_tform_goal = vision_tform_body * body_tform_goal
+            response = self._robot_command(
+                            RobotCommandBuilder.trajectory_command(
+                                goal_x=vision_tform_goal.x,
+                                goal_y=vision_tform_goal.y,
+                                goal_heading=vision_tform_goal.rot.to_yaw(),
+                                frame_name=frame_helpers.VISION_FRAME_NAME,
+                                params=self._mobility_params),
+                            end_time_secs=end_time
+                            )
+        elif frame_name == 'odom':
+            odom_tform_body = frame_helpers.get_odom_tform_body(
+                    self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot)
+            body_tform_goal = math_helpers.SE3Pose(x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading))
+            odom_tform_goal = odom_tform_body * body_tform_goal
+            response = self._robot_command(
+                            RobotCommandBuilder.trajectory_command(
+                                goal_x=odom_tform_goal.x,
+                                goal_y=odom_tform_goal.y,
+                                goal_heading=odom_tform_goal.rot.to_yaw(),
+                                frame_name=frame_helpers.ODOM_FRAME_NAME,
+                                params=self._mobility_params),
+                            end_time_secs=end_time
+                            )
+        else:
+            raise ValueError('frame_name must be \'vision\' or \'odom\'')
+        if response[0]:
+            self._last_trajectory_command = response[2]
+        return response[0], response[1]
 
     def list_graph(self, upload_path):
         """List waypoint ids of garph_nav
