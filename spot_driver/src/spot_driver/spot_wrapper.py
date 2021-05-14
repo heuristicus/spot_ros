@@ -483,6 +483,14 @@ class SpotWrapper():
         response = self._robot_command(RobotCommandBuilder.safe_power_off_command())
         return response[0], response[1]
 
+    def clear_behavior_fault(self, id):
+        """Clear the behavior fault defined by id."""
+        try:
+            rid = self._robot_command_client.clear_behavior_fault(behavior_fault_id=id, lease=None)
+            return True, "Success", rid
+        except Exception as e:
+            return False, str(e), None
+
     def power_on(self):
         """Enble the motor power if e-stop is enabled."""
         try:
