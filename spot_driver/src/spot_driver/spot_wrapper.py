@@ -483,12 +483,22 @@ class SpotWrapper():
     def sit(self):
         """Stop the robot's motion and sit down if able."""
         response = self._robot_command(RobotCommandBuilder.synchro_sit_command())
+        if "UnsupportedError" in response[1]:
+            self._logger.warn("Call to synchro_sit_command failed - you are likely on an old version of spot "
+                              "software. Trying deprecated (since 2.1.0) sit_command instead. The specific error was:\n"
+                              "{}".format(response[1]))
+            response = self._robot_command(RobotCommandBuilder.sit_command())
         self._last_sit_command = response[2]
         return response[0], response[1]
 
     def stand(self, monitor_command=True):
         """If the e-stop is enabled, and the motor power is enabled, stand the robot up."""
         response = self._robot_command(RobotCommandBuilder.synchro_stand_command(params=self._mobility_params))
+        if "UnsupportedError" in response[1]:
+            self._logger.warn("Call to synchro_stand_command failed - you are likely on an old version of spot "
+                              "software. Trying deprecated (since 2.1.0) stand_command instead. The specific error "
+                              "was:\n{}".format(response[1]))
+            response = self._robot_command(RobotCommandBuilder.stand_command())
         if monitor_command:
             self._last_stand_command = response[2]
         return response[0], response[1]
@@ -540,6 +550,14 @@ class SpotWrapper():
         response = self._robot_command(RobotCommandBuilder.synchro_velocity_command(
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                       end_time_secs=end_time, timesync_endpoint=self._robot.time_sync.endpoint)
+        if "UnsupportedError" in response[1]:
+            self._logger.warn("Call to synchro_velocity_command failed - you are likely on an old version of spot "
+                              "software. Trying deprecated (since 2.1.0) velocity_command instead. The specific error "
+                              "was:\n{}".format(response[1]))
+            response = self._robot_command(RobotCommandBuilder.velocity_command(
+                                          v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
+                                          end_time_secs=end_time, timesync_endpoint=self._robot.time_sync.endpoint)
+
         self._last_velocity_command_time = end_time
         return response[0], response[1]
 
