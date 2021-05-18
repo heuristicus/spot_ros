@@ -442,26 +442,37 @@ class SpotROS():
 
     def handle_navigate_to_feedback(self):
         """Thread function to send navigate_to feedback"""
+        rate = rospy.Rate(10)
         while not rospy.is_shutdown() and self.run_navigate_to:
+            rate.sleep()
             localization_state = self.spot_wrapper._graph_nav_client.get_localization_state()
             if localization_state.localization.waypoint_id:
                 self.navigate_as.publish_feedback(NavigateToFeedback(localization_state.localization.waypoint_id))
-            rospy.Rate(10).sleep()
+
+    def handle_navigate_to_preemption(self):
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown() and self.run_navigate_to:
+            rate.sleep()
+            if self.navigate_as.is_preempt_requested:
+                self.spot_wrapper.cancel_navigate_to()
+                break
 
     def handle_navigate_to(self, msg):
         """ROS service handler to run mission of the robot.  The robot will replay a mission"""
         # create thread to periodically publish feedback
-        feedback_thraed = threading.Thread(target = self.handle_navigate_to_feedback, args = ())
+        feedback_thread = threading.Thread(target = self.handle_navigate_to_feedback, args = ())
         self.run_navigate_to = True
-        feedback_thraed.start()
+        feedback_thread.start()
         # run navigate_to
         resp = self.spot_wrapper.navigate_to(id_navigate_to = msg.id_navigate_to)
         self.run_navigate_to = False
-        feedback_thraed.join()
+        feedback_thread.join()
 
         # check status
         if resp[0]:
             self.navigate_as.set_succeeded(NavigateToResult(resp[0], resp[1]))
+        elif not resp[0] and resp[2] == 'preempted':
+            self.navigate_as.set_preempted(NavigateToResult(resp[0], resp[1]))
         else:
             self.navigate_as.set_aborted(NavigateToResult(resp[0], resp[1]))
 

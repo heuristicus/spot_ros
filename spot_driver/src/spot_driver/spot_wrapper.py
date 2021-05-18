@@ -682,6 +682,13 @@ class SpotWrapper():
         # skip waypoint_ for v2.2.1, skip waypiont for < v2.2
         return [v for k, v in sorted(ids.items(), key=lambda id : int(id[0].replace('waypoint_','')))]
 
+    def clear_graph(self):
+        try:
+            self._clear_graph()
+            return True, 'Success'
+        except Exception as e:
+            return False, 'Error: {}'.format(e)
+
     def upload_graph(self, upload_path):
         """List waypoint ids of garph_nav
         Args:
@@ -708,6 +715,9 @@ class SpotWrapper():
         except Exception as e:
             return False, 'Error: {}'.format(e)
 
+    def cancel_navigate_to(self):
+        self._cancel_navigate_to()
+
     def navigate_to(self,
                     id_navigate_to):
         """ navigate with graph nav.
@@ -715,19 +725,8 @@ class SpotWrapper():
         Args:
            id_navigate_to : Waypont id string for where to goal
         """
-        # Boolean indicating the robot's power state.
-        power_state = self._robot_state_client.get_robot_state().power_state
-        self._started_powered_on = (power_state.motor_power_state == power_state.STATE_ON)
-        self._powered_on = self._started_powered_on
-
-        # FIX ME somehow,,,, if the robot is stand, need to sit the robot before starting garph nav
-        if self.is_standing and not self.is_moving:
-            self.sit()
-
-        # TODO verify estop  / claim / power_on
         self._get_localization_state()
-        resp = self._navigate_to([id_navigate_to])
-
+        resp = self._start_navigate_to(id_navigate_to)
         return resp
 
     ## copy from spot-sdk/python/examples/graph_nav_command_line/graph_nav_command_line.py
@@ -737,6 +736,7 @@ class SpotWrapper():
         self._logger.info('Got localization: \n%s' % str(state.localization))
         odom_tform_body = get_odom_tform_body(state.robot_kinematics.transforms_snapshot)
         self._logger.info('Got robot state in kinematic odometry frame: \n%s' % str(odom_tform_body))
+        return state
 
     def _set_initial_localization_fiducial(self, *args):
         """Trigger localization when near a fiducial."""
@@ -777,7 +777,7 @@ class SpotWrapper():
         # Download current graph
         graph = self._graph_nav_client.download_graph()
         if graph is None:
-            self._logger.error("Empty graph.")
+            self._logger.warn("Empty graph.")
             return
         self._current_graph = graph
 
@@ -833,62 +833,50 @@ class SpotWrapper():
             # The robot is not localized to the newly uploaded graph.
             self._logger.warn("Upload complete! The robot is currently not localized to the map; please localize")
 
-    def _navigate_to(self, *args):
+    def _cancel_navigate_to(self):
+        self._navigate_to_valid = False
+
+    def _start_navigate_to(self, waypoint_id):
         """Navigate to a specific waypoint."""
         # Take the first argument as the destination waypoint.
-        if len(args) < 1:
-            # If no waypoint id is given as input, then return without requesting navigation.
-            self._logger.info("No waypoint provided as a destination for navigate to.")
-            return
 
         self._lease = self._lease_wallet.get_lease()
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
-            args[0][0], self._current_graph, self._current_annotation_name_to_wp_id, self._logger)
+                                    waypoint_id,
+                                    self.
+                                    current_graph,
+                                    self.
+                                    current_annotation_name_to_wp_id)
         if not destination_waypoint:
             # Failed to find the appropriate unique waypoint id for the navigation command.
             return
-        if not self.toggle_power(should_power_on=True):
-            self._logger.info("Failed to power on the robot, and cannot complete navigate to request.")
-            return
+        else:
+            self._logger.info('navigate to {}'.format(destination_waypoint))
 
-        # Stop the lease keepalive and create a new sublease for graph nav.
-        #self._lease = self._lease_wallet.advance()
-        #sublease = self._lease.create_sublease()
-        #self._lease_keepalive.shutdown()
-
-        # Navigate to the destination waypoint.
-        is_finished = False
+        self._navigate_to_valid = True
         nav_to_cmd_id = -1
-        while not is_finished:
-            # Issue the navigation command about twice a second such that it is easy to terminate the
-            # navigation command (with estop or killing the program).
-            #nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 1.0,
-            #                                                   leases=[sublease.lease_proto])
-            nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 1.0)
+        while self._navigate_to_valid:
             time.sleep(.5)  # Sleep for half a second to allow for command execution.
-            # Poll the robot for feedback to determine if the navigation command is complete. Then sit
-            # the robot down once it is finished.
-            is_finished = self._check_success(nav_to_cmd_id)
+            nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 1.0)
+            if self._check_success(nav_to_cmd_id):
+                break
 
         self._lease = self._lease_wallet.advance()
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
 
-        # Update the lease and power off the robot if appropriate.
-        if self._powered_on and not self._started_powered_on:
-            # Sit the robot down + power off after the navigation command is complete.
-            self.toggle_power(should_power_on=False)
-
+        if self._navigate_to_valid == False:
+            return False, 'Navigate to is canceled.', 'preempted'
         status = self._graph_nav_client.navigation_feedback(nav_to_cmd_id)
         if status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_REACHED_GOAL:
-            return True, "Successfully completed the navigation commands!"
+            return True, "Successfully completed the navigation commands!", None
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_LOST:
-            return False, "Robot got lost when navigating the route, the robot will now sit down."
+            return False, "Robot got lost when navigating the route, the robot will now sit down.", 'fail'
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_STUCK:
-            return False, "Robot got stuck when navigating the route, the robot will now sit down."
+            return False, "Robot got stuck when navigating the route, the robot will now sit down.", 'fail'
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_ROBOT_IMPAIRED:
-            return False, "Robot is impaired."
+            return False, "Robot is impaired.", 'fail'
         else:
-            return False, "Navigation command is not complete yet."
+            return False, "Navigation command is not complete yet.", 'fail'
 
     def _navigate_route(self, *args):
         """Navigate through a specific route of waypoints."""
@@ -949,46 +937,9 @@ class SpotWrapper():
             self._lease = self._lease_wallet.advance()
             self._lease_keepalive = LeaseKeepAlive(self._lease_client)
 
-            # Update the lease and power off the robot if appropriate.
-            if self._powered_on and not self._started_powered_on:
-                # Sit the robot down + power off after the navigation command is complete.
-                self.toggle_power(should_power_on=False)
-
     def _clear_graph(self, *args):
         """Clear the state of the map on the robot, removing all waypoints and edges."""
         return self._graph_nav_client.clear_graph(lease=self._lease.lease_proto)
-
-    def toggle_power(self, should_power_on):
-        """Power the robot on/off dependent on the current power state."""
-        is_powered_on = self.check_is_powered_on()
-        if not is_powered_on and should_power_on:
-            # Power on the robot up before navigating when it is in a powered-off state.
-            power_on(self._power_client)
-            motors_on = False
-            while not motors_on:
-                future = self._robot_state_client.get_robot_state_async()
-                state_response = future.result(timeout=10) # 10 second timeout for waiting for the state response.
-                if state_response.power_state.motor_power_state == robot_state_pb2.PowerState.STATE_ON:
-                    motors_on = True
-                else:
-                    # Motors are not yet fully powered on.
-                    time.sleep(.25)
-        elif is_powered_on and not should_power_on:
-            # Safe power off (robot will sit then power down) when it is in a
-            # powered-on state.
-            safe_power_off(self._robot_command_client, self._robot_state_client)
-        else:
-            # Return the current power state without change.
-            return is_powered_on
-        # Update the locally stored power state.
-        self.check_is_powered_on()
-        return self._powered_on
-
-    def check_is_powered_on(self):
-        """Determine if the robot is powered on or off."""
-        power_state = self._robot_state_client.get_robot_state().power_state
-        self._powered_on = (power_state.motor_power_state == power_state.STATE_ON)
-        return self._powered_on
 
     def _check_success(self, command_id=-1):
         """Use a navigation command id to get feedback from the robot and sit when command succeeds."""
