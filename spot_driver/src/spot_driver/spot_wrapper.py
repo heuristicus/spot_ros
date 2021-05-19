@@ -843,10 +843,8 @@ class SpotWrapper():
         self._lease = self._lease_wallet.get_lease()
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
                                     waypoint_id,
-                                    self.
-                                    current_graph,
-                                    self.
-                                    current_annotation_name_to_wp_id)
+                                    self._current_graph,
+                                    self._current_annotation_name_to_wp_id)
         if not destination_waypoint:
             # Failed to find the appropriate unique waypoint id for the navigation command.
             return
