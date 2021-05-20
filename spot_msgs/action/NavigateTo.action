@@ -1,7 +1,4 @@
-string upload_path # Absolute path to map_directory, which is downloaded from tablet controller
-string navigate_to # Waypoint id string for where to go
-bool initial_localization_fiducial   # Tells the initializer whether to use fiducials
-string initial_localization_waypoint # Waypoint id to trigger localization 
+string id_navigate_to # Waypoint id string for where to go
 ---
 bool success   # indicate successful run of triggered service
 string message # informational, e.g. for error messages
