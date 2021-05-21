@@ -281,6 +281,11 @@ class SpotROS():
         resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_estop_disengage(self, req):
+        """ROS service handler to disengage the eStop on the robot."""
+        resp = self.spot_wrapper.disengageEStop()
+        return TriggerResponse(resp[0], resp[1])
+
     def handle_clear_bahavior_fault(self, req):
         """ROS service handler for clearing behavior faults"""
         resp = self.spot_wrapper.clear_behavior_fault(req.id)
@@ -545,6 +550,8 @@ class SpotROS():
 
             rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
+            rospy.Service("estop/release", Trigger, self.handle_estop_disengage)
+
 
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
