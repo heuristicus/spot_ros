@@ -414,13 +414,22 @@ class SpotWrapper():
         """
         try:
             if severe:
-                self._estop_endpoint.stop()
+                self._estop_keepalive.stop()
             else:
-                self._estop_endpoint.settle_then_cut()
+                self._estop_keepalive.settle_then_cut()
 
             return True, "Success"
         except:
             return False, "Error"
+
+    def disengageEStop(self):
+        """Disengages the E-Stop"""
+        try:
+            self._estop_keepalive.allow()
+            return True, "Success"
+        except:
+            return False, "Error"
+
 
     def releaseEStop(self):
         """Stop eStop keepalive"""
