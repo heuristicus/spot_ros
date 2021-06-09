@@ -732,6 +732,15 @@ class SpotWrapper():
         except Exception as e:
             return False, 'Error: {}'.format(e)
 
+    def start_recording(self):
+        return self._start_recording()
+
+    def stop_recording(self):
+        return self._stop_recording()
+
+    def download_graph(self, download_filepath):
+        return self._download_full_graph(download_filepath)
+
     def upload_graph(self, upload_path):
         """List waypoint ids of garph_nav
         Args:

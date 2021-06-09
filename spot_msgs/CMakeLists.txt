@@ -37,6 +37,7 @@ add_message_files(
 add_service_files(
   FILES
   ListGraph.srv
+  DownloadGraph.srv
   SetLocalizationFiducial.srv
   SetLocalizationWaypoint.srv
   SetLocomotion.srv
