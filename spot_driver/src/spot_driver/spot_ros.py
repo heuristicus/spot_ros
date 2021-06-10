@@ -446,20 +446,20 @@ class SpotROS():
 
     def handle_start_recording(self, req):
         resp = self.spot_wrapper.start_recording()
-        return TriggerResponse(resp)
+        return TriggerResponse(resp[0], resp[1])
 
     def handle_stop_recording(self, req):
         resp = self.spot_wrapper.stop_recording()
-        return TriggerResponse(resp)
+        return TriggerResponse(resp[0], resp[1])
 
     def handle_download_graph(self, req):
         resp = self.spot_wrapper.download_graph(req.download_filepath)
-        return DownloadGraphResponse(resp)
+        return DownloadGraphResponse(resp[0], resp[1])
 
     def handle_clear_graph(self, req):
         """"""
         resp = self.spot_wrapper.clear_graph()
-        return TriggerResponse(resp)
+        return TriggerResponse(resp[0], resp[1])
 
     def handle_list_graph(self, req):
         """ROS service handler for listing graph_nav waypoint_ids"""

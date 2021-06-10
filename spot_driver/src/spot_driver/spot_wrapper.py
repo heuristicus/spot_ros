@@ -1040,18 +1040,18 @@ class SpotWrapper():
         """Start recording a map."""
         should_start_recording = self._should_we_start_recording()
         if not should_start_recording:
-            self._logger.error(
-                "The system is not in the proper state to start recording." +
-                "Try using the graph_nav_command_line to either clear the map or " +
-                "attempt to localize to the map.")
-            return False
+            message =  "The system is not in the proper state to start recording." + \
+                "Try using the graph_nav_command_line to either clear the map or " + \
+                "attempt to localize to the map."
+            self._logger.error(message)
+            return False, message
         try:
             status = self._recording_client.start_recording()
             self._logger.info("Successfully started recording a map.")
-            return True
+            return True, "Successfully started recording a map."
         except Exception as err:
             self._logger.error("Start recording failed: {}".format(err))
-            return False
+            return False, "Start recording failed: {}".format(err)
 
     def _stop_recording(self):
         """Stop or pause recording a map."""
