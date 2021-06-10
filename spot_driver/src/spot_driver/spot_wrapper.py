@@ -1,5 +1,6 @@
 import time
 import math
+import os
 
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
@@ -1125,3 +1126,4 @@ class SpotWrapper():
                 download_path + '/edge_snapshots',
                 '/' + edge.snapshot_id,
                 edge_snapshot.SerializeToString())
+        return True, 'Success'
