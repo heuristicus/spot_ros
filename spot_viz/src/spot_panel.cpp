@@ -1,0 +1,181 @@
+#include "spot_panel.hpp"
+
+#include <cmath>
+#include <QFile>
+#include <QUiLoader>
+#include <QVBoxLayout>
+#include <ros/package.h>
+#include <std_srvs/Trigger.h>
+#include <geometry_msgs/Pose.h>
+#include <QDoubleValidator>
+#include <tf/transform_datatypes.h>
+
+
+namespace spot_viz
+{
+
+    ControlPanel::ControlPanel(QWidget *parent) {
+        std::string packagePath = ros::package::getPath("spot_viz") + "/resource/spot_control.ui";
+        ROS_INFO("Getting ui file from package path %s", packagePath.c_str());
+        QFile file(packagePath.c_str());
+        file.open(QIODevice::ReadOnly);
+
+        QUiLoader loader;
+        QWidget* ui = loader.load(&file, parent);
+        file.close();
+        QVBoxLayout* topLayout = new QVBoxLayout();
+        this->setLayout(topLayout);
+        topLayout->addWidget(ui);
+
+        sitService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/sit");
+        standService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/stand");
+        claimLeaseService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/claim");
+        releaseLeaseService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/release");
+        powerOnService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/power_on");
+        powerOffService_ = nh_.serviceClient<std_srvs::Trigger>("spot/power_off");
+        bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
+
+        claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
+        releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
+        powerOnButton = this->findChild<QPushButton*>("powerOnButton");
+        powerOffButton = this->findChild<QPushButton*>("powerOffButton");
+        standButton = this->findChild<QPushButton*>("standButton");
+        sitButton = this->findChild<QPushButton*>("sitButton");
+        setBodyPoseButton = this->findChild<QPushButton*>("setBodyPoseButton");
+        statusLabel = this->findChild<QLabel*>("statusLabel");
+
+        double bodyHeightLimit = 0.3;
+        bodyHeightSpin = this->findChild<QDoubleSpinBox*>("bodyHeightSpin");
+        bodyHeightLabel = this->findChild<QLabel*>("bodyHeightLabel");
+        updateLabelTextWithLimit(bodyHeightLabel, bodyHeightLimit);
+        bodyHeightSpin->setMaximum(bodyHeightLimit);
+        bodyHeightSpin->setMinimum(-bodyHeightLimit);
+
+        double rollLimit = 20;
+        rollSpin = this->findChild<QDoubleSpinBox*>("rollSpin");
+        rollLabel = this->findChild<QLabel*>("rollLabel");
+        updateLabelTextWithLimit(rollLabel, rollLimit);
+        rollSpin->setMaximum(rollLimit);
+        rollSpin->setMinimum(-rollLimit);
+
+        double pitchLimit = 30;
+        pitchSpin = this->findChild<QDoubleSpinBox*>("pitchSpin");
+        pitchLabel = this->findChild<QLabel*>("pitchLabel");
+        updateLabelTextWithLimit(pitchLabel, pitchLimit);
+        pitchSpin->setMaximum(pitchLimit);
+        pitchSpin->setMinimum(-pitchLimit);
+
+        double yawLimit = 30;
+        yawSpin = this->findChild<QDoubleSpinBox*>("yawSpin");
+        yawLabel = this->findChild<QLabel*>("yawLabel");
+        updateLabelTextWithLimit(yawLabel, yawLimit);
+        yawSpin->setMaximum(yawLimit);
+        yawSpin->setMinimum(-yawLimit);
+
+        connect(claimLeaseButton, SIGNAL(clicked()), this, SLOT(claimLease()));
+        connect(releaseLeaseButton, SIGNAL(clicked()), this, SLOT(releaseLease()));
+        connect(powerOnButton, SIGNAL(clicked()), this, SLOT(powerOn()));
+        connect(powerOffButton, SIGNAL(clicked()), this, SLOT(powerOff()));
+        connect(sitButton, SIGNAL(clicked()), this, SLOT(sit()));
+        connect(standButton, SIGNAL(clicked()), this, SLOT(stand()));
+        connect(setBodyPoseButton, SIGNAL(clicked()), this, SLOT(sendBodyPose()));
+    }
+
+    void ControlPanel::updateLabelTextWithLimit(QLabel* label, double limit) {
+        int precision = 1;
+        // Kind of hacky but default to_string returns 6 digit precision which is unnecessary
+        std::string limit_value = std::to_string(limit).substr(0, std::to_string(limit).find(".") + precision + 1);
+        std::string limit_range = " [-" + limit_value + ", " + limit_value + "]";
+        std::string current_text = label->text().toStdString();
+        label->setText(QString((current_text+ limit_range).c_str()));
+    }
+
+    void ControlPanel::toggleControlButtons() {
+        claimLeaseButton->setEnabled(!claimLeaseButton->isEnabled());
+        releaseLeaseButton->setEnabled(!releaseLeaseButton->isEnabled());
+        powerOnButton->setEnabled(!powerOnButton->isEnabled());
+        powerOffButton->setEnabled(!powerOffButton->isEnabled());
+        sitButton->setEnabled(!sitButton->isEnabled());
+        standButton->setEnabled(!standButton->isEnabled());
+        setBodyPoseButton->setEnabled(!setBodyPoseButton->isEnabled());
+    }
+
+    bool ControlPanel::callTriggerService(ros::ServiceClient service, std::string serviceName) {
+        std_srvs::Trigger req;
+        std::string labelText = "Calling " + serviceName + " service";
+        statusLabel->setText(QString(labelText.c_str()));
+        if (service.call(req)) {
+            if (req.response.success) {
+                labelText = "Successfully called " + serviceName + " service";
+                statusLabel->setText(QString(labelText.c_str()));
+                return true;
+            } else {
+                labelText = serviceName + " service failed: " + req.response.message;
+                statusLabel->setText(QString(labelText.c_str()));
+                return false;
+            }
+        } else {
+            labelText = "Failed to call " + serviceName + " service" + req.response.message;
+            statusLabel->setText(QString(labelText.c_str()));
+            return false;
+        }
+    }
+
+    void ControlPanel::sit() {
+        callTriggerService(sitService_, "sit");
+    }
+
+    void ControlPanel::stand() {
+        callTriggerService(standService_, "stand");
+    }
+
+    void ControlPanel::powerOn() {
+        callTriggerService(powerOnService_, "power on");
+    }
+
+    void ControlPanel::powerOff() {
+        callTriggerService(powerOffService_, "power off");
+    }
+
+    void ControlPanel::claimLease() {
+        if (callTriggerService(claimLeaseService_, "claim lease")) {
+            // If we successfully got the lease, enable buttons to command the robot
+            toggleControlButtons();
+        }
+    }
+
+    void ControlPanel::releaseLease() {
+        if (callTriggerService(releaseLeaseService_, "release lease")) {
+            // If we successfully got the lease, enable buttons to command the robot
+            toggleControlButtons();
+        }
+    }
+
+    void ControlPanel::sendBodyPose() {
+        ROS_INFO("Sending body pose");
+        tf::Quaternion q;
+        q.setRPY(rollSpin->value() * M_PI / 180, pitchSpin->value() * M_PI / 180, yawSpin->value() * M_PI / 180);
+        geometry_msgs::Pose p;
+        p.position.z = bodyHeightSpin->value();
+        p.orientation.x = q.getX();
+        p.orientation.y = q.getY();
+        p.orientation.z = q.getZ();
+        p.orientation.w = q.getW();
+        bodyPosePub_.publish(p);
+    }
+
+    void ControlPanel::save(rviz::Config config) const
+    {
+        rviz::Panel::save(config);
+    }
+
+    // Load all configuration data for this panel from the given Config object.
+    void ControlPanel::load(const rviz::Config &config)
+    {
+        rviz::Panel::load(config);
+    }
+} // end namespace spot_viz
+
+#include <pluginlib/class_list_macros.h>
+PLUGINLIB_EXPORT_CLASS(spot_viz::ControlPanel, rviz::Panel)
+// END_TUTORIAL
