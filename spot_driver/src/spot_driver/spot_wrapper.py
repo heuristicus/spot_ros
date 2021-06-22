@@ -398,7 +398,10 @@ class SpotWrapper():
 
     def updateTasks(self):
         """Loop through all periodic tasks and update their data if needed."""
-        self._async_tasks.update()
+        try:
+            self._async_tasks.update()
+        except Exception as e:
+            print(f"Update tasks failed with error: {str(e)}")
 
     def resetEStop(self):
         """Get keepalive for eStop"""
