@@ -38,6 +38,7 @@ add_service_files(
   FILES
   ListGraph.srv
   SetLocomotion.srv
+  SetVelocity.srv
   ClearBehaviorFault.srv
 )
 

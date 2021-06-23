@@ -215,6 +215,7 @@ def GetEStopStateFromState(state, spot_wrapper):
         estop_msg.name = estop.name
         estop_msg.type = estop.type
         estop_msg.state = estop.state
+        estop_msg.state_description = estop.state_description
         estop_array_msg.estop_states.append(estop_msg)
 
     return estop_array_msg

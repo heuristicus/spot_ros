@@ -1,0 +1,6 @@
+# The api only takes into account x and y for linear velocity, and z for angular.
+# Other values are ignored.
+geometry_msgs/Twist velocity_limit
+---
+bool success
+string message
