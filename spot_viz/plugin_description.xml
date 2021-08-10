@@ -1,0 +1,9 @@
+<library path="lib/libspot_viz">
+  <class name="spot_viz/SpotControlPanel"
+         type="spot_viz::ControlPanel"
+         base_class_type="rviz::Panel">
+    <description>
+      A panel for controlling the Boston Dynamics Spot robot with the Clearpath driver
+    </description>
+  </class>
+</library>
