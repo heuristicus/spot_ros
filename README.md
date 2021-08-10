@@ -54,13 +54,16 @@ ImportError: dynamic module does not define module export function (PyInit__tf2)
 
 when launching the driver, please follow these steps:
 
-1- `rm -rf devel/ build/ install/` -- this will remove any old build artifacts from your workspace
-2- `git clone https://github.com/ros/geometry2 --branch 0.6.5` into your `src` folder
-3- rebuild your workspace with
+1.  `rm -rf devel/ build/ install/` -- this will remove any old build artifacts from your workspace
+
+2. `git clone https://github.com/ros/geometry2 --branch 0.6.5` into your `src` folder
+
+3. rebuild your workspace with
 
 ```bash
 catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
 ```
 
-4- re-run `source devel/setup.bash`
-5- start the driver with `roslaunch spot_driver driver.launch`
+4. re-run `source devel/setup.bash`
+
+5. start the driver with `roslaunch spot_driver driver.launch`
