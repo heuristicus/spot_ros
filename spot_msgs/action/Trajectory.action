@@ -1,5 +1,12 @@
 geometry_msgs/PoseStamped target_pose
+# After this duration, the command will time out and the robot will stop. Must be non-zero
 std_msgs/Duration duration
+# If true, the feedback from the trajectory command must indicate that the robot is
+# at the goal position. If set to false, the robot being near the goal is equivalent to
+# it being at the goal. This is based on the feedback received from the boston dynamics
+# API call at
+# https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference.html?highlight=status_near_goal#se2trajectorycommand-feedback-status
+bool precise_positioning
 ---
 bool success
 string message

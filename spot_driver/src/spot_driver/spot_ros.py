@@ -330,7 +330,8 @@ class SpotROS():
                             y=req.target_pose.pose.orientation.y,
                             z=req.target_pose.pose.orientation.z
                             ).to_yaw(),
-                        cmd_duration=cmd_duration.to_sec()
+                        cmd_duration=cmd_duration.to_sec(),
+                        precise_position=req.precise_positioning,
                         )
 
         def timeout_cb(trajectory_server, _):
@@ -346,7 +347,13 @@ class SpotROS():
         # monitor whether the timeout_cb has already aborted the command
         rate = rospy.Rate(10)
         while not rospy.is_shutdown() and not self.trajectory_server.is_preempt_requested() and not self.spot_wrapper.at_goal and self.trajectory_server.is_active():
-            self.trajectory_server.publish_feedback(TrajectoryFeedback("Moving to goal"))
+            if self.spot_wrapper.near_goal:
+                if self.spot_wrapper._last_trajectory_command_precise:
+                    self.trajectory_server.publish_feedback(TrajectoryFeedback("Near goal, performing final adjustments"))
+                else:
+                    self.trajectory_server.publish_feedback(TrajectoryFeedback("Near goal"))
+            else:
+                self.trajectory_server.publish_feedback(TrajectoryFeedback("Moving to goal"))
             rate.sleep()
 
         # If still active after exiting the loop, the command did not time out
