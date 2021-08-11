@@ -179,16 +179,20 @@ class AsyncIdle(AsyncPeriodicQuery):
         if self._spot_wrapper._last_trajectory_command != None:
             try:
                 response = self._client.robot_command_feedback(self._spot_wrapper._last_trajectory_command)
-                if (response.feedback.synchronized_feedback.mobility_command_feedback.se2_trajectory_feedback.status ==
-                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_GOING_TO_GOAL):
-                    is_moving = True
-                elif (response.feedback.synchronized_feedback.mobility_command_feedback.se2_trajectory_feedback.status ==
-                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_AT_GOAL) or \
-                     (response.feedback.synchronized_feedback.mobility_command_feedback.se2_trajectory_feedback.status ==
-                    basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL):
+                status = response.feedback.synchronized_feedback.mobility_command_feedback.se2_trajectory_feedback.status
+                # STATUS_AT_GOAL always means that the robot reached the goal. If the trajectory command did not
+                # request precise positioning, then STATUS_NEAR_GOAL also counts as reaching the goal
+                if status == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_AT_GOAL or \
+                    (status == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL and
+                     not self._spot_wrapper._last_trajectory_command_precise):
                     self._spot_wrapper._at_goal = True
                     # Clear the command once at the goal
                     self._spot_wrapper._last_trajectory_command = None
+                elif status == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_GOING_TO_GOAL:
+                    is_moving = True
+                elif status == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL:
+                    is_moving = True
+                    self._spot_wrapper._near_goal = True
                 else:
                     self._spot_wrapper._last_trajectory_command = None
             except (ResponseError, RpcError) as e:
@@ -217,9 +221,11 @@ class SpotWrapper():
         self._is_sitting = True
         self._is_moving = False
         self._at_goal = False
+        self._near_goal = False
         self._last_stand_command = None
         self._last_sit_command = None
         self._last_trajectory_command = None
+        self._last_trajectory_command_precise = None
         self._last_velocity_command_time = None
 
         self._front_image_requests = []
@@ -351,6 +357,10 @@ class SpotWrapper():
     def is_moving(self):
         """Return boolean of walking state"""
         return self._is_moving
+
+    @property
+    def near_goal(self):
+        return self._near_goal
 
     @property
     def at_goal(self):
@@ -559,7 +569,7 @@ class SpotWrapper():
         self._last_velocity_command_time = end_time
         return response[0], response[1]
 
-    def trajectory_cmd(self, goal_x, goal_y, goal_heading, cmd_duration, frame_name='odom'):
+    def trajectory_cmd(self, goal_x, goal_y, goal_heading, cmd_duration, frame_name='odom', precise_position=False):
         """Send a trajectory motion command to the robot.
 
         Args:
@@ -568,8 +578,13 @@ class SpotWrapper():
             goal_heading: Pose heading in radians
             cmd_duration: Time-to-live for the command in seconds.
             frame_name: frame_name to be used to calc the target position. 'odom' or 'vision'
+            precise_position: if set to false, the status STATUS_NEAR_GOAL and STATUS_AT_GOAL will be equivalent. If
+            true, the robot must complete its final positioning before it will be considered to have successfully
+            reached the goal.
         """
         self._at_goal = False
+        self._near_goal = False
+        self._last_trajectory_command_precise = precise_position
         self._logger.info("got command duration of {}".format(cmd_duration))
         end_time=time.time() + cmd_duration
         if frame_name == 'vision':
