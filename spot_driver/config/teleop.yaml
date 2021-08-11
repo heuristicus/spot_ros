@@ -1,0 +1,78 @@
+# Teleop configuration for PS4 joystick using the x-pad configuration.
+# Left thumb-stick up/down/left/right for forward/backward/left/right translation
+# Right thumb-stick left/right for twist
+# Left shoulder button for enable
+# Right shoulder button for enable-turbo
+#
+#          L1                                       R1
+#          L2                                       R2
+#       _=====_                                  _=====_
+#      / _____ \                                / _____ \
+#    +.-'_____'-.------------------------------.-'_____'-.+
+#   /   |     |  '.        S O N Y           .'  |  _  |   \
+#  / ___| /|\ |___ \                        / ___| /_\ |___ \      (Y)
+# / |      |      | ;                      ; | _         _ ||
+# | | <---   ---> | |                      | ||_|       (_)||  (X)     (B)
+# | |___   |   ___| ;                      ; |___       ___||
+# |\    | \|/ |    /  _      ____      _   \    | (X) |    /|      (A)
+# | \   |_____|  .','" "',  (_PS_)  ,'" "', '.  |_____|  .' |
+# |  '-.______.-' /       \        /       \  '-._____.-'   |
+# |               |  LJ   |--------|  RJ   |                |
+# |              /\       /        \       /\               |
+# |             /  '.___.'          '.___.'  \              |
+# |            /                              \             |
+#  \          /                                \           /
+#   \________/                                  \_________/
+#
+#          ^ x
+#          |
+#          |
+#  y <-----+      Accelerometer axes
+#           \
+#            \
+#             > z (out)
+#
+# BUTTON         Value
+#   L1             4
+#   L2             6
+#   R1             5
+#   R2             7
+#   A              1
+#   B              2
+#   X              0
+#   Y              3
+#
+#    AXIS        Value
+# Left Horiz.      0
+# Left Vert.       1
+# Right Horiz.     3
+# Right Vert.      4
+#    L2            2
+#    R2            5
+# D-pad Horiz.     9
+# D-pad Vert.      10
+# Accel x          7
+# Accel y          6
+# Accel z          8
+
+teleop_twist_joy:
+  axis_linear:
+    x: 1
+    y: 0
+  scale_linear:
+    x: 0.4
+    y: 0.4
+  scale_linear_turbo:
+    x: 2.0 # TODO: should this be 1.0?
+    y: 2.0 # TODO: should this be 1.0?
+  axis_angular:
+    yaw: 3
+  scale_angular:
+    yaw: 1.4 # TODO: should this be 1.0?
+  scale_angular_turbo:
+    yaw: 1.4 # TODO: should this be 1.0?
+  enable_button: 4
+  enable_turbo_button: 5
+joy_node:
+  deadzone: 0.1 # TODO: should this be 0.02?
+  autorepeat_rate: 20
