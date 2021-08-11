@@ -18,7 +18,7 @@ class ControlPanel : public rviz::Panel
 {
     Q_OBJECT
     public:
-    
+
     ControlPanel(QWidget *parent=0);
     virtual void save(rviz::Config config) const;
     virtual void load(const rviz::Config &config);
@@ -31,6 +31,7 @@ class ControlPanel : public rviz::Panel
     void powerOn();
     void powerOff();
     void sendBodyPose();
+    void setMaxVel();
 
     private:
 
@@ -46,6 +47,7 @@ class ControlPanel : public rviz::Panel
     ros::ServiceClient releaseLeaseService_;
     ros::ServiceClient powerOnService_;
     ros::ServiceClient powerOffService_;
+    ros::ServiceClient maxVelocityService_;
     ros::Publisher bodyPosePub_;
 
     QPushButton* claimLeaseButton;
@@ -55,6 +57,10 @@ class ControlPanel : public rviz::Panel
     QPushButton* setBodyPoseButton;
     QPushButton* sitButton;
     QPushButton* standButton;
+    QPushButton* setMaxVelButton;
+    QLabel* linearXLabel;
+    QLabel* linearYLabel;
+    QLabel* angularZLabel;
     QLabel* statusLabel;
     QLabel* bodyHeightLabel;
     QLabel* rollLabel;

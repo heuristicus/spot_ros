@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(spot_viz)
 
-find_package(catkin REQUIRED COMPONENTS rviz)
+find_package(catkin REQUIRED COMPONENTS rviz spot_msgs)
 
 catkin_package()
 

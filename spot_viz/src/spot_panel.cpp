@@ -7,8 +7,10 @@
 #include <ros/package.h>
 #include <std_srvs/Trigger.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Twist.h>
 #include <QDoubleValidator>
 #include <tf/transform_datatypes.h>
+#include <spot_msgs/SetVelocity.h>
 
 
 namespace spot_viz
@@ -33,6 +35,7 @@ namespace spot_viz
         releaseLeaseService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/release");
         powerOnService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/power_on");
         powerOffService_ = nh_.serviceClient<std_srvs::Trigger>("spot/power_off");
+        maxVelocityService_ = nh_.serviceClient<spot_msgs::SetVelocity>("/spot/max_velocity");
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
 
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
@@ -42,7 +45,27 @@ namespace spot_viz
         standButton = this->findChild<QPushButton*>("standButton");
         sitButton = this->findChild<QPushButton*>("sitButton");
         setBodyPoseButton = this->findChild<QPushButton*>("setBodyPoseButton");
+        setMaxVelButton = this->findChild<QPushButton*>("setMaxVelButton");
         statusLabel = this->findChild<QLabel*>("statusLabel");
+
+        double linearVelocityLimit = 2;
+        linearXSpin = this->findChild<QDoubleSpinBox*>("linearXSpin");
+        linearXLabel = this->findChild<QLabel*>("linearXLabel");
+        updateLabelTextWithLimit(linearXLabel, linearVelocityLimit);
+        linearXSpin->setMaximum(linearVelocityLimit);
+        linearXSpin->setMinimum(-linearVelocityLimit);
+
+        linearYSpin = this->findChild<QDoubleSpinBox*>("linearYSpin");
+        linearYLabel = this->findChild<QLabel*>("linearYLabel");
+        updateLabelTextWithLimit(linearYLabel, linearVelocityLimit);
+        linearYSpin->setMaximum(linearVelocityLimit);
+        linearYSpin->setMinimum(-linearVelocityLimit);
+
+        angularZSpin = this->findChild<QDoubleSpinBox*>("angularZSpin");
+        angularZLabel = this->findChild<QLabel*>("angularZLabel");
+        updateLabelTextWithLimit(angularZLabel, linearVelocityLimit);
+        angularZSpin->setMaximum(linearVelocityLimit);
+        angularZSpin->setMinimum(-linearVelocityLimit);
 
         double bodyHeightLimit = 0.3;
         bodyHeightSpin = this->findChild<QDoubleSpinBox*>("bodyHeightSpin");
@@ -79,6 +102,7 @@ namespace spot_viz
         connect(sitButton, SIGNAL(clicked()), this, SLOT(sit()));
         connect(standButton, SIGNAL(clicked()), this, SLOT(stand()));
         connect(setBodyPoseButton, SIGNAL(clicked()), this, SLOT(sendBodyPose()));
+        connect(setMaxVelButton, SIGNAL(clicked()), this, SLOT(setMaxVel()));
     }
 
     void ControlPanel::updateLabelTextWithLimit(QLabel* label, double limit) {
@@ -98,6 +122,7 @@ namespace spot_viz
         sitButton->setEnabled(!sitButton->isEnabled());
         standButton->setEnabled(!standButton->isEnabled());
         setBodyPoseButton->setEnabled(!setBodyPoseButton->isEnabled());
+        setMaxVelButton->setEnabled(!setMaxVelButton->isEnabled());
     }
 
     bool ControlPanel::callTriggerService(ros::ServiceClient service, std::string serviceName) {
@@ -148,6 +173,28 @@ namespace spot_viz
         if (callTriggerService(releaseLeaseService_, "release lease")) {
             // If we successfully got the lease, enable buttons to command the robot
             toggleControlButtons();
+        }
+    }
+
+    void ControlPanel::setMaxVel() {
+        spot_msgs::SetVelocity req;
+        req.request.velocity_limit.angular.z = angularZSpin->value();
+        req.request.velocity_limit.linear.x = linearXSpin->value();
+        req.request.velocity_limit.linear.y = linearYSpin->value();
+
+        std::string labelText = "Calling set max velocity service";
+        statusLabel->setText(QString(labelText.c_str()));
+        if (maxVelocityService_.call(req)) {
+            if (req.response.success) {
+                labelText = "Successfully called set max velocity service";
+                statusLabel->setText(QString(labelText.c_str()));
+            } else {
+                labelText = "set max velocity service failed: " + req.response.message;
+                statusLabel->setText(QString(labelText.c_str()));
+            }
+        } else {
+            labelText = "Failed to call set max velocity service" + req.response.message;
+            statusLabel->setText(QString(labelText.c_str()));
         }
     }
 
