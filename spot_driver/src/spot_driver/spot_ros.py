@@ -11,7 +11,7 @@ from nav_msgs.msg import Odometry
 
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.api import geometry_pb2, trajectory_pb2
-from bosdyn.api.geometry_pb2 import Quaternion
+from bosdyn.api.geometry_pb2 import Quaternion, SE2VelocityLimit
 from bosdyn.client import math_helpers
 import actionlib
 import functools
@@ -31,7 +31,10 @@ from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import TrajectoryAction, TrajectoryResult, TrajectoryFeedback
-from spot_msgs.srv import ListGraph, ListGraphResponse, SetLocomotion, SetLocomotionResponse, ClearBehaviorFault, ClearBehaviorFaultResponse
+from spot_msgs.srv import ListGraph, ListGraphResponse
+from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
+from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
+from spot_msgs.srv import SetVelocity, SetVelocityResponse
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
@@ -277,7 +280,8 @@ class SpotROS():
         return TriggerResponse(resp[0], resp[1])
 
     def handle_estop_soft(self, req):
-        """ROS service handler to soft-eStop the robot.  The robot will try to settle on the ground before cutting power to the motors"""
+        """ROS service handler to soft-eStop the robot.  The robot will try to settle on the ground before cutting
+        power to the motors """
         resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
 
@@ -286,7 +290,7 @@ class SpotROS():
         resp = self.spot_wrapper.disengageEStop()
         return TriggerResponse(resp[0], resp[1])
 
-    def handle_clear_bahavior_fault(self, req):
+    def handle_clear_behavior_fault(self, req):
         """ROS service handler for clearing behavior faults"""
         resp = self.spot_wrapper.clear_behavior_fault(req.id)
         return ClearBehaviorFaultResponse(resp[0], resp[1])
@@ -310,6 +314,27 @@ class SpotROS():
             return SetLocomotionResponse(True, 'Success')
         except Exception as e:
             return SetLocomotionResponse(False, 'Error:{}'.format(e))
+
+    def handle_max_vel(self, req):
+        """
+        Handle a max_velocity service call. This will modify the mobility params to have a limit on the maximum
+        velocity that the robot can move during motion commmands. This affects trajectory commands and velocity
+        commands
+
+        Args:
+            req: SetVelocityRequest containing requested maximum velocity
+
+        Returns: SetVelocityResponse
+        """
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.vel_limit.CopyFrom(SE2VelocityLimit(max_vel=math_helpers.SE2Velocity(req.velocity_limit.linear.x,
+                                                                                                 req.velocity_limit.linear.y,
+                                                                                                 req.velocity_limit.angular.z).to_proto()))
+            self.spot_wrapper.set_mobility_params(mobility_params)
+            return SetVelocityResponse(True, 'Success')
+        except Exception as e:
+            return SetVelocityResponse(False, 'Error:{}'.format(e))
 
     def handle_trajectory(self, req):
         """ROS actionserver execution handler to handle receiving a request to move to a location"""
@@ -559,10 +584,10 @@ class SpotROS():
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
             rospy.Service("estop/release", Trigger, self.handle_estop_disengage)
 
-
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
-            rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_bahavior_fault)
+            rospy.Service("max_velocity", SetVelocity, self.handle_max_vel)
+            rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_behavior_fault)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 

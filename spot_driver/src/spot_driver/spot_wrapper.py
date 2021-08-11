@@ -371,6 +371,13 @@ class SpotWrapper():
         """Return the time skew between local and spot time"""
         return self._robot.time_sync.endpoint.clock_skew
 
+    def resetMobilityParams(self):
+        """
+        Resets the mobility parameters used for motion commands to the default values provided by the bosdyn api.
+        Returns:
+        """
+        self._mobility_params = RobotCommandBuilder.mobility_params()
+
     def robotToLocalTime(self, timestamp):
         """Takes a timestamp and an estimated skew and return seconds and nano seconds in local time
 
@@ -408,7 +415,10 @@ class SpotWrapper():
 
     def updateTasks(self):
         """Loop through all periodic tasks and update their data if needed."""
-        self._async_tasks.update()
+        try:
+            self._async_tasks.update()
+        except Exception as e:
+            print(f"Update tasks failed with error: {str(e)}")
 
     def resetEStop(self):
         """Get keepalive for eStop"""
@@ -530,8 +540,8 @@ class SpotWrapper():
         try:
             power.power_on(self._power_client)
             return True, "Success"
-        except:
-            return False, "Error"
+        except Exception as e:
+            return False, str(e)
 
     def set_mobility_params(self, mobility_params):
         """Set Params for mobility and movement
@@ -586,7 +596,7 @@ class SpotWrapper():
             body_tform_goal = math_helpers.SE3Pose(x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading))
             vision_tform_goal = vision_tform_body * body_tform_goal
             response = self._robot_command(
-                            RobotCommandBuilder.trajectory_command(
+                            RobotCommandBuilder.synchro_se2_trajectory_point_command(
                                 goal_x=vision_tform_goal.x,
                                 goal_y=vision_tform_goal.y,
                                 goal_heading=vision_tform_goal.rot.to_yaw(),
@@ -600,7 +610,7 @@ class SpotWrapper():
             body_tform_goal = math_helpers.SE3Pose(x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading))
             odom_tform_goal = odom_tform_body * body_tform_goal
             response = self._robot_command(
-                            RobotCommandBuilder.trajectory_command(
+                            RobotCommandBuilder.synchro_se2_trajectory_point_command(
                                 goal_x=odom_tform_goal.x,
                                 goal_y=odom_tform_goal.y,
                                 goal_heading=odom_tform_goal.rot.to_yaw(),
