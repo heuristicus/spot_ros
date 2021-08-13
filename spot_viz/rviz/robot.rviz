@@ -297,7 +297,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: odom
+    Fixed Frame: gpe
     Frame Rate: 30
   Name: root
   Tools:
@@ -329,9 +329,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.1434779316186905
-        Y: 0.6153659224510193
-        Z: 0.8802458643913269
+        X: -0.09166686236858368
+        Y: 0.17000189423561096
+        Z: 0.21145612001419067
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

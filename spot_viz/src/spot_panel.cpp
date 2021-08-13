@@ -11,6 +11,8 @@
 #include <QDoubleValidator>
 #include <tf/transform_datatypes.h>
 #include <spot_msgs/SetVelocity.h>
+#include <spot_msgs/LeaseArray.h>
+#include <string.h>
 
 
 namespace spot_viz
@@ -28,6 +30,7 @@ namespace spot_viz
         QVBoxLayout* topLayout = new QVBoxLayout();
         this->setLayout(topLayout);
         topLayout->addWidget(ui);
+        haveLease = false;
 
         sitService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/sit");
         standService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/stand");
@@ -37,6 +40,8 @@ namespace spot_viz
         powerOffService_ = nh_.serviceClient<std_srvs::Trigger>("spot/power_off");
         maxVelocityService_ = nh_.serviceClient<spot_msgs::SetVelocity>("/spot/max_velocity");
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
+
+        leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
 
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
         releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
@@ -114,15 +119,15 @@ namespace spot_viz
         label->setText(QString((current_text+ limit_range).c_str()));
     }
 
-    void ControlPanel::toggleControlButtons() {
-        claimLeaseButton->setEnabled(!claimLeaseButton->isEnabled());
-        releaseLeaseButton->setEnabled(!releaseLeaseButton->isEnabled());
-        powerOnButton->setEnabled(!powerOnButton->isEnabled());
-        powerOffButton->setEnabled(!powerOffButton->isEnabled());
-        sitButton->setEnabled(!sitButton->isEnabled());
-        standButton->setEnabled(!standButton->isEnabled());
-        setBodyPoseButton->setEnabled(!setBodyPoseButton->isEnabled());
-        setMaxVelButton->setEnabled(!setMaxVelButton->isEnabled());
+    void ControlPanel::setControlButtons() {
+        claimLeaseButton->setEnabled(!haveLease);
+        releaseLeaseButton->setEnabled(haveLease);
+        powerOnButton->setEnabled(haveLease);
+        powerOffButton->setEnabled(haveLease);
+        sitButton->setEnabled(haveLease);
+        standButton->setEnabled(haveLease);
+        setBodyPoseButton->setEnabled(haveLease);
+        setMaxVelButton->setEnabled(haveLease);
     }
 
     bool ControlPanel::callTriggerService(ros::ServiceClient service, std::string serviceName) {
@@ -146,6 +151,29 @@ namespace spot_viz
         }
     }
 
+    void ControlPanel::leaseCallback(const spot_msgs::LeaseArray::ConstPtr &leases) {
+        // check to see if the body is already owned by the ROS node
+        // the resource will be "body" and the lease_owner.client_name will begin with "ros_spot"
+        // if the claim exists, treat this as a successful click of the Claim button
+        // if the claim does not exist, treat this as a click of the Release button
+
+        bool msg_has_lease = false;
+        for (int i=leases->resources.size()-1; i>=0; i--) {
+            const spot_msgs::LeaseResource &resource = leases->resources[i];
+            bool right_resource = resource.resource.compare("body") == 0;
+            bool owned_by_ros = resource.lease_owner.client_name.compare(0, 8, "ros_spot") == 0;
+
+            if (right_resource && owned_by_ros) {
+                msg_has_lease = true;
+            }
+        }
+
+        if (msg_has_lease != haveLease) {
+            haveLease = msg_has_lease;
+            setControlButtons();
+        }
+    }
+
     void ControlPanel::sit() {
         callTriggerService(sitService_, "sit");
     }
@@ -165,14 +193,16 @@ namespace spot_viz
     void ControlPanel::claimLease() {
         if (callTriggerService(claimLeaseService_, "claim lease")) {
             // If we successfully got the lease, enable buttons to command the robot
-            toggleControlButtons();
+            haveLease = true;
+            setControlButtons();
         }
     }
 
     void ControlPanel::releaseLease() {
         if (callTriggerService(releaseLeaseService_, "release lease")) {
             // If we successfully got the lease, enable buttons to command the robot
-            toggleControlButtons();
+            haveLease = false;
+            setControlButtons();
         }
     }
 

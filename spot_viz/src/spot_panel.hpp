@@ -10,6 +10,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QDoubleSpinBox>
+#include <spot_msgs/LeaseArray.h>
 
 namespace spot_viz
 {
@@ -35,10 +36,11 @@ class ControlPanel : public rviz::Panel
 
     private:
 
-    void toggleControlButtons();
+    void setControlButtons();
     void toggleBodyPoseButtons();
     bool callTriggerService(ros::ServiceClient service, std::string serviceName);
     void updateLabelTextWithLimit(QLabel* label, double limit);
+    void leaseCallback(const spot_msgs::LeaseArray::ConstPtr &leases);
 
     ros::NodeHandle nh_;
     ros::ServiceClient sitService_;
@@ -49,6 +51,7 @@ class ControlPanel : public rviz::Panel
     ros::ServiceClient powerOffService_;
     ros::ServiceClient maxVelocityService_;
     ros::Publisher bodyPosePub_;
+    ros::Subscriber leaseSub_;
 
     QPushButton* claimLeaseButton;
     QPushButton* releaseLeaseButton;
