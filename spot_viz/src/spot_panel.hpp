@@ -78,7 +78,6 @@ class ControlPanel : public rviz::Panel
     QDoubleSpinBox* yawSpin;
 
     bool haveLease;
-
 };
 
 } // end namespace spot_viz

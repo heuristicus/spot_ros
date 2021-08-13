@@ -191,19 +191,13 @@ namespace spot_viz
     }
 
     void ControlPanel::claimLease() {
-        if (callTriggerService(claimLeaseService_, "claim lease")) {
-            // If we successfully got the lease, enable buttons to command the robot
-            haveLease = true;
-            setControlButtons();
-        }
+        if (callTriggerService(claimLeaseService_, "claim lease"))
+            claimLeaseButton->setEnabled(false);
     }
 
     void ControlPanel::releaseLease() {
-        if (callTriggerService(releaseLeaseService_, "release lease")) {
-            // If we successfully got the lease, enable buttons to command the robot
-            haveLease = false;
-            setControlButtons();
-        }
+        if (callTriggerService(releaseLeaseService_, "release lease"))
+            releaseLeaseButton->setEnabled(false);
     }
 
     void ControlPanel::setMaxVel() {
