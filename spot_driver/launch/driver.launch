@@ -5,6 +5,7 @@
 
   <include file="$(find spot_description)/launch/description.launch" />
   <include file="$(find spot_driver)/launch/control.launch" />
+  <include file="$(find spot_driver)/launch/accessories.launch" />
 
   <node pkg="spot_driver" type="spot_ros" name="spot_ros"  ns="spot" output="screen">
     <rosparam file="$(find spot_driver)/config/spot_ros.yaml" command="load" />
