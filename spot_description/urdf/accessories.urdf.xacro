@@ -48,31 +48,33 @@
     </link>
 
     <xacro:if value="$(optenv SPOT_VELODYNE 0)">
-      <joint name="velodyne_mount_joint" type="fixed">
-        <parent link="lidar_mount"/>
-        <child link="velodyne_mount"/>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-      </joint>
-      <link name="velodyne_mount">
+      <!-- Use the Velodyne macro for the actual sensor -->
+      <xacro:include filename="$(find velodyne_description)/urdf/VLP-16.urdf.xacro" />
+      <xacro:VLP-16 parent="lidar_mount">
+        <origin xyz="$(optenv SPOT_VELODYNE_XYZ 0 0 0)" rpy="$(optenv SPOT_VELODYNE_RPY 0 0 0)" />
+      </xacro:VLP-16>
+
+      <!-- Add the protective cage -->
+      <link name="velodyne_cage">
         <visual>
           <geometry>
-            <mesh filename="package://spot_description/meshes/velo.dae"/>
+            <mesh filename="package://spot_description/meshes/velodyne_cage.stl" scale="0.001 0.001 0.001" />
           </geometry>
+          <origin xyz="0 0 0" rpy="0 0 0" />
+          <material name="black" />
         </visual>
         <collision>
           <geometry>
-            <mesh filename="package://spot_description/meshes/velo_collision.stl"/>
+            <mesh filename="package://spot_description/meshes/velodyne_cage.stl" scale="0.001 0.001 0.001" />
           </geometry>
+          <origin xyz="0 0 0" rpy="0 0 0" />
         </collision>
       </link>
-
-      <joint name="velodyne_joint" type="fixed">
-        <parent link="velodyne_mount"/>
-        <child link="velodyne"/>
-        <origin xyz="0 0 0.0377" rpy="0 0 0"/>
+      <joint name="velodyne_cage_joint" type="fixed">
+        <parent link="lidar_mount" />
+        <child link="velodyne_cage" />
+        <origin xyz="$(optenv SPOT_VELODYNE_XYZ 0 0 0)" rpy="$(optenv SPOT_VELODYNE_RPY 0 0 0)" />
       </joint>
-      <link name="velodyne"/>
-
     </xacro:if>
   </xacro:if>
 </robot>

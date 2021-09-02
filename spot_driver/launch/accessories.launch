@@ -1,0 +1,7 @@
+<launch>
+  <group if="$(eval optenv('SPOT_VELODYNE', 0) and optenv('SPOT_VELODYNE_AUTOLAUNCH', 1))">
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
+      <arg name="device_ip"   value="$(optenv SPOT_VELODYNE_HOST 192.168.131.20)" />
+    </include>
+  </group>
+</launch>

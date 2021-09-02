@@ -18,6 +18,8 @@
   <exec_depend>python3-rospkg-modules</exec_depend>
   <exec_depend>twist_mux</exec_depend>
   <exec_depend>interactive_marker_twist_server</exec_depend>
+  <exec_depend>teleop_twist_joy</exec_depend>
+  <exec_depend>velodyne_pointcloud</exec_depend>
 
   <export>
     <rosdoc config="rosdoc.yaml" />
