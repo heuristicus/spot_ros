@@ -1,5 +1,5 @@
 import rospy
-
+import math
 from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 from std_msgs.msg import Bool
 from tf2_msgs.msg import TFMessage
@@ -27,6 +27,7 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
+from spot_msgs.msg import PoseBodyAction, PoseBodyResult
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
@@ -402,12 +403,61 @@ class SpotROS():
 
     def bodyPoseCallback(self, data):
         """Callback for cmd_vel command"""
+        self._set_body_pose(data)
+
+    def handle_body_pose(self, goal):
+        """
+        Handle a goal received from the pose body actionserver
+
+        Args:
+            goal: PoseBodyGoal containing a pose to apply to the body
+
+        Returns:
+
+        """
+        # If the body_pose is empty, we use the rpy + height components instead
+        if goal.body_pose == Pose():
+            # If the rpy+body height are all zero then we set the body to neutral pose
+            if not any([goal.roll, goal.pitch, goal.yaw, not math.isclose(goal.body_height, 0, abs_tol=1e-9)]):
+                pose = Pose()
+                pose.orientation.w = 1
+                self._set_body_pose(pose)
+            else:
+                pose = Pose()
+                # Multiplication order is important to get the correct quaternion
+                orientation_quat = (
+                    math_helpers.Quat.from_yaw(math.radians(goal.yaw))
+                    * math_helpers.Quat.from_pitch(math.radians(goal.pitch))
+                    * math_helpers.Quat.from_roll(math.radians(goal.roll))
+                )
+                pose.orientation.x = orientation_quat.x
+                pose.orientation.y = orientation_quat.y
+                pose.orientation.z = orientation_quat.z
+                pose.orientation.w = orientation_quat.w
+                pose.position.z = goal.body_height
+                self._set_body_pose(pose)
+        else:
+            self._set_body_pose(goal.body_pose)
+        # Give it some time to move
+        rospy.sleep(2)
+        self.body_pose_as.set_succeeded(PoseBodyResult(success=True, message="Successfully posed body"))
+
+    def _set_body_pose(self, pose):
+        """
+        Set the pose of the body
+
+        Args:
+            pose: Pose to be applied to the body. Only the body height is taken from the position component
+
+        Returns:
+
+        """
         q = Quaternion()
-        q.x = data.orientation.x
-        q.y = data.orientation.y
-        q.z = data.orientation.z
-        q.w = data.orientation.w
-        position = geometry_pb2.Vec3(z=data.position.z)
+        q.x = pose.orientation.x
+        q.y = pose.orientation.y
+        q.z = pose.orientation.z
+        q.w = pose.orientation.w
+        position = geometry_pb2.Vec3(z=pose.position.z)
         pose = geometry_pb2.SE3Pose(position=position, rotation=q)
         point = trajectory_pb2.SE3TrajectoryPoint(pose=pose)
         traj = trajectory_pb2.SE3Trajectory(points=[point])
@@ -600,6 +650,11 @@ class SpotROS():
                                                                   execute_cb=self.handle_trajectory,
                                                                   auto_start=False)
             self.trajectory_server.start()
+
+            self.body_pose_as = actionlib.SimpleActionServer('pose_body', PoseBodyAction,
+                                                             execute_cb=self.handle_body_pose,
+                                                             auto_start=False)
+            self.body_pose_as.start()
 
             rospy.on_shutdown(self.shutdown)
 

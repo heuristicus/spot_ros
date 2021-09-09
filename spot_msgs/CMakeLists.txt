@@ -45,6 +45,7 @@ add_service_files(
 add_action_files(
   FILES
   NavigateTo.action
+  PoseBody.action
   Trajectory.action
 )
 
