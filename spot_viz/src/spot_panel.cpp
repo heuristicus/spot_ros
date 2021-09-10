@@ -56,47 +56,47 @@ namespace spot_viz
         double linearVelocityLimit = 2;
         linearXSpin = this->findChild<QDoubleSpinBox*>("linearXSpin");
         linearXLabel = this->findChild<QLabel*>("linearXLabel");
-        updateLabelTextWithLimit(linearXLabel, linearVelocityLimit);
+        updateLabelTextWithLimit(linearXLabel, 0, linearVelocityLimit);
         linearXSpin->setMaximum(linearVelocityLimit);
-        linearXSpin->setMinimum(-linearVelocityLimit);
+        linearXSpin->setMinimum(0);
 
         linearYSpin = this->findChild<QDoubleSpinBox*>("linearYSpin");
         linearYLabel = this->findChild<QLabel*>("linearYLabel");
-        updateLabelTextWithLimit(linearYLabel, linearVelocityLimit);
+        updateLabelTextWithLimit(linearYLabel, 0, linearVelocityLimit);
         linearYSpin->setMaximum(linearVelocityLimit);
-        linearYSpin->setMinimum(-linearVelocityLimit);
+        linearYSpin->setMinimum(0);
 
         angularZSpin = this->findChild<QDoubleSpinBox*>("angularZSpin");
         angularZLabel = this->findChild<QLabel*>("angularZLabel");
-        updateLabelTextWithLimit(angularZLabel, linearVelocityLimit);
+        updateLabelTextWithLimit(angularZLabel, 0, linearVelocityLimit);
         angularZSpin->setMaximum(linearVelocityLimit);
-        angularZSpin->setMinimum(-linearVelocityLimit);
+        angularZSpin->setMinimum(0);
 
-        double bodyHeightLimit = 0.3;
+        double bodyHeightLimit = 0.15;
         bodyHeightSpin = this->findChild<QDoubleSpinBox*>("bodyHeightSpin");
         bodyHeightLabel = this->findChild<QLabel*>("bodyHeightLabel");
-        updateLabelTextWithLimit(bodyHeightLabel, bodyHeightLimit);
+        updateLabelTextWithLimit(bodyHeightLabel, -bodyHeightLimit, bodyHeightLimit);
         bodyHeightSpin->setMaximum(bodyHeightLimit);
         bodyHeightSpin->setMinimum(-bodyHeightLimit);
 
         double rollLimit = 20;
         rollSpin = this->findChild<QDoubleSpinBox*>("rollSpin");
         rollLabel = this->findChild<QLabel*>("rollLabel");
-        updateLabelTextWithLimit(rollLabel, rollLimit);
+        updateLabelTextWithLimit(rollLabel, -rollLimit, rollLimit);
         rollSpin->setMaximum(rollLimit);
         rollSpin->setMinimum(-rollLimit);
 
         double pitchLimit = 30;
         pitchSpin = this->findChild<QDoubleSpinBox*>("pitchSpin");
         pitchLabel = this->findChild<QLabel*>("pitchLabel");
-        updateLabelTextWithLimit(pitchLabel, pitchLimit);
+        updateLabelTextWithLimit(pitchLabel, -pitchLimit, pitchLimit);
         pitchSpin->setMaximum(pitchLimit);
         pitchSpin->setMinimum(-pitchLimit);
 
         double yawLimit = 30;
         yawSpin = this->findChild<QDoubleSpinBox*>("yawSpin");
         yawLabel = this->findChild<QLabel*>("yawLabel");
-        updateLabelTextWithLimit(yawLabel, yawLimit);
+        updateLabelTextWithLimit(yawLabel, -yawLimit, yawLimit);
         yawSpin->setMaximum(yawLimit);
         yawSpin->setMinimum(-yawLimit);
 
@@ -110,13 +110,14 @@ namespace spot_viz
         connect(setMaxVelButton, SIGNAL(clicked()), this, SLOT(setMaxVel()));
     }
 
-    void ControlPanel::updateLabelTextWithLimit(QLabel* label, double limit) {
+    void ControlPanel::updateLabelTextWithLimit(QLabel* label, double limit_lower, double limit_upper) {
         int precision = 1;
         // Kind of hacky but default to_string returns 6 digit precision which is unnecessary
-        std::string limit_value = std::to_string(limit).substr(0, std::to_string(limit).find(".") + precision + 1);
-        std::string limit_range = " [-" + limit_value + ", " + limit_value + "]";
+        std::string limit_lower_value = std::to_string(limit_lower).substr(0, std::to_string(limit_lower).find(".") + precision + 1);
+        std::string limit_upper_value = std::to_string(limit_upper).substr(0, std::to_string(limit_upper).find(".") + precision + 1);
+        std::string limit_range = " [" + limit_lower_value + ", " + limit_upper_value + "]";
         std::string current_text = label->text().toStdString();
-        label->setText(QString((current_text+ limit_range).c_str()));
+        label->setText(QString((current_text + limit_range).c_str()));
     }
 
     void ControlPanel::setControlButtons() {

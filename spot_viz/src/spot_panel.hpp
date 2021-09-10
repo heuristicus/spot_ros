@@ -39,7 +39,7 @@ class ControlPanel : public rviz::Panel
     void setControlButtons();
     void toggleBodyPoseButtons();
     bool callTriggerService(ros::ServiceClient service, std::string serviceName);
-    void updateLabelTextWithLimit(QLabel* label, double limit);
+    void updateLabelTextWithLimit(QLabel* label, double limit, double limit_lower=0);
     void leaseCallback(const spot_msgs::LeaseArray::ConstPtr &leases);
 
     ros::NodeHandle nh_;
