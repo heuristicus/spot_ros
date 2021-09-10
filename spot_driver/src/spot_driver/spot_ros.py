@@ -6,7 +6,7 @@ from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose
+from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose, PoseStamped
 from nav_msgs.msg import Odometry
 
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
@@ -17,6 +17,7 @@ import actionlib
 import functools
 import bosdyn.geometry
 import tf2_ros
+import tf2_geometry_msgs
 
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray, LeaseResource
@@ -319,7 +320,7 @@ class SpotROS():
     def handle_vel_limit(self, req):
         """
         Handle a velocity_limit service call. This will modify the mobility params to have a limit on velocity that
-        the robot can move during motion commmands. This affects trajectory commands and velocity commands
+        the robot can move during trajectory commmands. Velocities sent to cmd_vel ignore these values
 
         Args:
             req: SetVelocityRequest containing requested velocity limit
@@ -339,6 +340,31 @@ class SpotROS():
         except Exception as e:
             return SetVelocityResponse(False, 'Error:{}'.format(e))
 
+    def trajectory_callback(self, msg):
+        """
+        Handle a callback from the trajectory topic requesting to go to a location
+
+        The trajectory will time out after 5 seconds
+
+        Args:
+            msg: PoseStamped containing desired pose
+
+        Returns:
+        """
+        try:
+            body_to_fixed = self.tf_buffer.lookup_transform(
+                "body", msg.header.frame_id, rospy.Time()
+            )
+        except tf2_ros.LookupException as e:
+            rospy.logerr(str(e))
+            return
+
+        # Goals sent to the spot trajectory controller must be in the body pose
+        goal_pose_body = tf2_geometry_msgs.do_transform_pose(msg, body_to_fixed)
+        goal_pose_body.header.frame_id = "body"
+
+        self._send_trajectory_command(goal_pose_body, rospy.Duration(5))
+
     def handle_trajectory(self, req):
         """ROS actionserver execution handler to handle receiving a request to move to a location"""
         if req.target_pose.header.frame_id != 'body':
@@ -349,18 +375,7 @@ class SpotROS():
             return
 
         cmd_duration = rospy.Duration(req.duration.data.secs, req.duration.data.nsecs)
-        resp = self.spot_wrapper.trajectory_cmd(
-                        goal_x=req.target_pose.pose.position.x,
-                        goal_y=req.target_pose.pose.position.y,
-                        goal_heading=math_helpers.Quat(
-                            w=req.target_pose.pose.orientation.w,
-                            x=req.target_pose.pose.orientation.x,
-                            y=req.target_pose.pose.orientation.y,
-                            z=req.target_pose.pose.orientation.z
-                            ).to_yaw(),
-                        cmd_duration=cmd_duration.to_sec(),
-                        precise_position=req.precise_positioning,
-                        )
+        resp = self._send_trajectory_command(req.target_pose, cmd_duration, req.precise_positioning)
 
         def timeout_cb(trajectory_server, _):
             trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal, timed out"))
@@ -398,6 +413,36 @@ class SpotROS():
             else:
                 self.trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal"))
                 self.trajectory_server.set_aborted(TrajectoryResult(False, "Failed to reach goal"))
+
+    def _send_trajectory_command(self, pose, duration, precise=True):
+        """
+        Send a trajectory command to the robot
+
+        Args:
+            pose: Pose the robot should go to. Must be in the body frame
+            duration: After this duration, the command will time out and the robot will stop
+            precise: If true, the robot will position itself precisely at the target pose, otherwise it will end up
+                     near (within ~0.5m, rotation optional) the requested location
+
+        Returns: (bool, str) tuple indicating whether the command was successfully sent, and a message
+
+        """
+        if pose.header.frame_id != "body":
+            rospy.logerr("Trajectory command poses must be in the body frame")
+            return
+
+        return self.spot_wrapper.trajectory_cmd(
+            goal_x=pose.pose.position.x,
+            goal_y=pose.pose.position.y,
+            goal_heading=math_helpers.Quat(
+                w=pose.pose.orientation.w,
+                x=pose.pose.orientation.x,
+                y=pose.pose.orientation.y,
+                z=pose.pose.orientation.z,
+            ).to_yaw(),
+            cmd_duration=duration.to_sec(),
+            precise_position=precise,
+        )
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
@@ -549,6 +594,9 @@ class SpotROS():
         self.hostname = rospy.get_param('~hostname', 'default_value')
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
 
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
         self.camera_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
         # Static transform broadcaster is super simple and just a latched publisher. Every time we add a new static
         # transform we must republish all static transforms from this source, otherwise the tree will be incomplete.
@@ -622,6 +670,7 @@ class SpotROS():
 
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
+            rospy.Subscriber('go_to_pose', PoseStamped, self.trajectory_callback, queue_size = 1)
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)

@@ -584,6 +584,8 @@ class SpotWrapper():
             precise_position: if set to false, the status STATUS_NEAR_GOAL and STATUS_AT_GOAL will be equivalent. If
             true, the robot must complete its final positioning before it will be considered to have successfully
             reached the goal.
+
+        Returns: (bool, str) tuple indicating whether the command was successfully sent, and a message
         """
         self._at_goal = False
         self._near_goal = False

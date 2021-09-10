@@ -313,7 +313,7 @@ Visualization Manager:
       X std deviation: 0.5
       Y std deviation: 0.5
     - Class: rviz/SetGoal
-      Topic: /move_base_simple/goal
+      Topic: /spot/go_to_pose
     - Class: rviz/PublishPoint
       Single click: true
       Topic: /clicked_point
