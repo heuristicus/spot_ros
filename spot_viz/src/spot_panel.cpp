@@ -38,7 +38,7 @@ namespace spot_viz
         releaseLeaseService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/release");
         powerOnService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/power_on");
         powerOffService_ = nh_.serviceClient<std_srvs::Trigger>("spot/power_off");
-        maxVelocityService_ = nh_.serviceClient<spot_msgs::SetVelocity>("/spot/max_velocity");
+        maxVelocityService_ = nh_.serviceClient<spot_msgs::SetVelocity>("/spot/velocity_limit");
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
 
         leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
@@ -206,18 +206,18 @@ namespace spot_viz
         req.request.velocity_limit.linear.x = linearXSpin->value();
         req.request.velocity_limit.linear.y = linearYSpin->value();
 
-        std::string labelText = "Calling set max velocity service";
+        std::string labelText = "Calling set velocity limit service";
         statusLabel->setText(QString(labelText.c_str()));
         if (maxVelocityService_.call(req)) {
             if (req.response.success) {
-                labelText = "Successfully called set max velocity service";
+                labelText = "Successfully called set velocity limit service";
                 statusLabel->setText(QString(labelText.c_str()));
             } else {
-                labelText = "set max velocity service failed: " + req.response.message;
+                labelText = "set velocity limit service failed: " + req.response.message;
                 statusLabel->setText(QString(labelText.c_str()));
             }
         } else {
-            labelText = "Failed to call set max velocity service" + req.response.message;
+            labelText = "Failed to call set velocity limit service" + req.response.message;
             statusLabel->setText(QString(labelText.c_str()));
         }
     }

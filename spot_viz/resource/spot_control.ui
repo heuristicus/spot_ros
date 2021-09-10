@@ -192,7 +192,7 @@
             <bool>false</bool>
            </property>
            <property name="text">
-            <string>Set Max Velocity</string>
+            <string>Set Velocity Limit</string>
            </property>
           </widget>
          </item>

@@ -316,14 +316,13 @@ class SpotROS():
         except Exception as e:
             return SetLocomotionResponse(False, 'Error:{}'.format(e))
 
-    def handle_max_vel(self, req):
+    def handle_vel_limit(self, req):
         """
-        Handle a max_velocity service call. This will modify the mobility params to have a limit on the maximum
-        velocity that the robot can move during motion commmands. This affects trajectory commands and velocity
-        commands
+        Handle a velocity_limit service call. This will modify the mobility params to have a limit on velocity that
+        the robot can move during motion commmands. This affects trajectory commands and velocity commands
 
         Args:
-            req: SetVelocityRequest containing requested maximum velocity
+            req: SetVelocityRequest containing requested velocity limit
 
         Returns: SetVelocityResponse
         """
@@ -331,7 +330,10 @@ class SpotROS():
             mobility_params = self.spot_wrapper.get_mobility_params()
             mobility_params.vel_limit.CopyFrom(SE2VelocityLimit(max_vel=math_helpers.SE2Velocity(req.velocity_limit.linear.x,
                                                                                                  req.velocity_limit.linear.y,
-                                                                                                 req.velocity_limit.angular.z).to_proto()))
+                                                                                                 req.velocity_limit.angular.z).to_proto(),
+                                                                min_vel=math_helpers.SE2Velocity(-req.velocity_limit.linear.x,
+                                                                                                 -req.velocity_limit.linear.y,
+                                                                                                 -req.velocity_limit.angular.z).to_proto()))
             self.spot_wrapper.set_mobility_params(mobility_params)
             return SetVelocityResponse(True, 'Success')
         except Exception as e:
@@ -636,7 +638,7 @@ class SpotROS():
 
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
-            rospy.Service("max_velocity", SetVelocity, self.handle_max_vel)
+            rospy.Service("velocity_limit", SetVelocity, self.handle_vel_limit)
             rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_behavior_fault)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
