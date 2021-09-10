@@ -39,6 +39,9 @@ namespace spot_viz
         powerOnService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/power_on");
         powerOffService_ = nh_.serviceClient<std_srvs::Trigger>("spot/power_off");
         maxVelocityService_ = nh_.serviceClient<spot_msgs::SetVelocity>("/spot/velocity_limit");
+        hardStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/hard");
+        gentleStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/gentle");
+        releaseStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/release");
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
 
         leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
@@ -52,6 +55,28 @@ namespace spot_viz
         setBodyPoseButton = this->findChild<QPushButton*>("setBodyPoseButton");
         setMaxVelButton = this->findChild<QPushButton*>("setMaxVelButton");
         statusLabel = this->findChild<QLabel*>("statusLabel");
+
+        gentleStopButton = this->findChild<QPushButton*>("gentleStopButton");
+        QPalette pal = gentleStopButton->palette();
+        pal.setColor(QPalette::Button, QColor(255, 165, 0));
+        gentleStopButton->setAutoFillBackground(true);
+        gentleStopButton->setPalette(pal);
+        gentleStopButton->update();
+
+        hardStopButton = this->findChild<QPushButton*>("hardStopButton");
+        pal = hardStopButton->palette();
+        pal.setColor(QPalette::Button, QColor(255, 0, 0));
+        hardStopButton->setAutoFillBackground(true);
+        hardStopButton->setPalette(pal);
+        hardStopButton->update();
+
+        releaseStopButton = this->findChild<QPushButton*>("releaseStopButton");
+        pal = releaseStopButton->palette();
+        pal.setColor(QPalette::Button, QColor(0, 255, 0));
+        releaseStopButton->setAutoFillBackground(true);
+        releaseStopButton->setPalette(pal);
+        releaseStopButton->update();
+
 
         double linearVelocityLimit = 2;
         linearXSpin = this->findChild<QDoubleSpinBox*>("linearXSpin");
@@ -108,6 +133,10 @@ namespace spot_viz
         connect(standButton, SIGNAL(clicked()), this, SLOT(stand()));
         connect(setBodyPoseButton, SIGNAL(clicked()), this, SLOT(sendBodyPose()));
         connect(setMaxVelButton, SIGNAL(clicked()), this, SLOT(setMaxVel()));
+        connect(releaseStopButton, SIGNAL(clicked()), this, SLOT(releaseStop()));
+        connect(hardStopButton, SIGNAL(clicked()), this, SLOT(hardStop()));
+        connect(gentleStopButton, SIGNAL(clicked()), this, SLOT(gentleStop()));
+        
     }
 
     void ControlPanel::updateLabelTextWithLimit(QLabel* label, double limit_lower, double limit_upper) {
@@ -200,6 +229,18 @@ namespace spot_viz
         if (callTriggerService(releaseLeaseService_, "release lease"))
             releaseLeaseButton->setEnabled(false);
     }
+
+    void ControlPanel::hardStop() {
+        callTriggerService(hardStopService_, "hard stop");
+    }
+
+    void ControlPanel::gentleStop() {
+        callTriggerService(gentleStopService_, "gentle stop");
+    }
+
+    void ControlPanel::releaseStop() {
+        callTriggerService(releaseStopService_, "release stop");
+    }    
 
     void ControlPanel::setMaxVel() {
         spot_msgs::SetVelocity req;

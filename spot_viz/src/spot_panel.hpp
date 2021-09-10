@@ -33,6 +33,9 @@ class ControlPanel : public rviz::Panel
     void powerOff();
     void sendBodyPose();
     void setMaxVel();
+    void gentleStop();
+    void hardStop();
+    void releaseStop();
 
     private:
 
@@ -50,6 +53,9 @@ class ControlPanel : public rviz::Panel
     ros::ServiceClient powerOnService_;
     ros::ServiceClient powerOffService_;
     ros::ServiceClient maxVelocityService_;
+    ros::ServiceClient hardStopService_;
+    ros::ServiceClient gentleStopService_;
+    ros::ServiceClient releaseStopService_;
     ros::Publisher bodyPosePub_;
     ros::Subscriber leaseSub_;
 
@@ -61,6 +67,9 @@ class ControlPanel : public rviz::Panel
     QPushButton* sitButton;
     QPushButton* standButton;
     QPushButton* setMaxVelButton;
+    QPushButton* hardStopButton;
+    QPushButton* gentleStopButton;
+    QPushButton* releaseStopButton;
     QLabel* linearXLabel;
     QLabel* linearYLabel;
     QLabel* angularZLabel;
