@@ -340,6 +340,30 @@ class SpotROS():
         except Exception as e:
             return SetVelocityResponse(False, 'Error:{}'.format(e))
 
+    def _transform_pose_to_body_frame(self, pose):
+        """
+        Transform a pose to the body frame
+
+        Args:
+            pose: PoseStamped to transform
+
+        Raises: tf2_ros.LookupException if the transform lookup fails
+
+        Returns: Transformed pose in body frame if given pose is not in the body frame, or the original pose if it is
+        in the body frame
+        """
+        if pose.header.frame_id == "body":
+            return pose
+
+        body_to_fixed = self.tf_buffer.lookup_transform(
+            "body", pose.header.frame_id, rospy.Time()
+        )
+
+        pose_in_body = tf2_geometry_msgs.do_transform_pose(pose, body_to_fixed)
+        pose_in_body.header.frame_id = "body"
+
+        return pose_in_body
+
     def trajectory_callback(self, msg):
         """
         Handle a callback from the trajectory topic requesting to go to a location
@@ -352,30 +376,26 @@ class SpotROS():
         Returns:
         """
         try:
-            body_to_fixed = self.tf_buffer.lookup_transform(
-                "body", msg.header.frame_id, rospy.Time()
-            )
+            self._send_trajectory_command(self._transform_pose_to_body_frame(msg), rospy.Duration(5))
         except tf2_ros.LookupException as e:
             rospy.logerr(str(e))
-            return
-
-        # Goals sent to the spot trajectory controller must be in the body pose
-        goal_pose_body = tf2_geometry_msgs.do_transform_pose(msg, body_to_fixed)
-        goal_pose_body.header.frame_id = "body"
-
-        self._send_trajectory_command(goal_pose_body, rospy.Duration(5))
 
     def handle_trajectory(self, req):
         """ROS actionserver execution handler to handle receiving a request to move to a location"""
+        target_pose = req.target_pose
         if req.target_pose.header.frame_id != 'body':
-            self.trajectory_server.set_aborted(TrajectoryResult(False, 'frame_id of target_pose must be \'body\''))
-            return
+            rospy.logwarn("Pose given was not in the body frame, will transform")
+            try:
+                target_pose = self._transform_pose_to_body_frame(target_pose)
+            except tf2_ros.LookupException as e:
+                self.trajectory_server.set_aborted(TrajectoryResult(False, 'Could not transform pose into body frame'))
+                return
         if req.duration.data.to_sec() <= 0:
             self.trajectory_server.set_aborted(TrajectoryResult(False, 'duration must be larger than 0'))
             return
 
         cmd_duration = rospy.Duration(req.duration.data.secs, req.duration.data.nsecs)
-        resp = self._send_trajectory_command(req.target_pose, cmd_duration, req.precise_positioning)
+        resp = self._send_trajectory_command(target_pose, cmd_duration, req.precise_positioning)
 
         def timeout_cb(trajectory_server, _):
             trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal, timed out"))
