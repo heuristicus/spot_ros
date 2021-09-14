@@ -3,9 +3,9 @@
 geometry_msgs/Pose body_pose
 
 # Alternative specification of the body pose with rpy (in degrees). These values are ignored if the body_pose is set
-uint8 roll
-uint8 pitch
-uint8 yaw
+int8 roll
+int8 pitch
+int8 yaw
 float32 body_height
 ---
 bool success
