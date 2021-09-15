@@ -42,6 +42,7 @@ namespace spot_viz
         hardStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/hard");
         gentleStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/gentle");
         releaseStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/release");
+        stopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/stop");
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
 
         leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
@@ -56,9 +57,16 @@ namespace spot_viz
         setMaxVelButton = this->findChild<QPushButton*>("setMaxVelButton");
         statusLabel = this->findChild<QLabel*>("statusLabel");
 
-        gentleStopButton = this->findChild<QPushButton*>("gentleStopButton");
-        QPalette pal = gentleStopButton->palette();
+        stopButton = this->findChild<QPushButton*>("stopButton");
+        QPalette pal = stopButton->palette();
         pal.setColor(QPalette::Button, QColor(255, 165, 0));
+        stopButton->setAutoFillBackground(true);
+        stopButton->setPalette(pal);
+        stopButton->update();
+
+        gentleStopButton = this->findChild<QPushButton*>("gentleStopButton");
+        pal = gentleStopButton->palette();
+        pal.setColor(QPalette::Button, QColor(255, 0, 255));
         gentleStopButton->setAutoFillBackground(true);
         gentleStopButton->setPalette(pal);
         gentleStopButton->update();
@@ -136,6 +144,7 @@ namespace spot_viz
         connect(releaseStopButton, SIGNAL(clicked()), this, SLOT(releaseStop()));
         connect(hardStopButton, SIGNAL(clicked()), this, SLOT(hardStop()));
         connect(gentleStopButton, SIGNAL(clicked()), this, SLOT(gentleStop()));
+        connect(stopButton, SIGNAL(clicked()), this, SLOT(stop()));
         
     }
 
@@ -228,6 +237,10 @@ namespace spot_viz
     void ControlPanel::releaseLease() {
         if (callTriggerService(releaseLeaseService_, "release lease"))
             releaseLeaseButton->setEnabled(false);
+    }
+
+    void ControlPanel::stop() {
+        callTriggerService(stopService_, "stop");
     }
 
     void ControlPanel::hardStop() {

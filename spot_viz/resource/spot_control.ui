@@ -68,10 +68,10 @@
       </font>
      </property>
      <property name="toolTip">
-      <string>Soft stop, stops whatever the robot is doing</string>
+      <string>Gentle e-stop, stops whatever the robot is doing and then sits down</string>
      </property>
      <property name="text">
-      <string>Stop</string>
+      <string>Gentle E-stop</string>
      </property>
     </widget>
    </item>
@@ -81,7 +81,41 @@
       <string>Release the emergency stop</string>
      </property>
      <property name="text">
-      <string>Release Stop</string>
+      <string>Release E-stop</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer_4">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QPushButton" name="stopButton">
+     <property name="baseSize">
+      <size>
+       <width>0</width>
+       <height>300</height>
+      </size>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>25</pointsize>
+      </font>
+     </property>
+     <property name="toolTip">
+      <string>Stop any action the robot is taking but do not sit down or kill motor power</string>
+     </property>
+     <property name="text">
+      <string>Stop Action</string>
      </property>
     </widget>
    </item>

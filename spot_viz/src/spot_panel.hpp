@@ -36,6 +36,7 @@ class ControlPanel : public rviz::Panel
     void gentleStop();
     void hardStop();
     void releaseStop();
+    void stop();
 
     private:
 
@@ -56,6 +57,7 @@ class ControlPanel : public rviz::Panel
     ros::ServiceClient hardStopService_;
     ros::ServiceClient gentleStopService_;
     ros::ServiceClient releaseStopService_;
+    ros::ServiceClient stopService_;
     ros::Publisher bodyPosePub_;
     ros::Subscriber leaseSub_;
 
@@ -70,6 +72,7 @@ class ControlPanel : public rviz::Panel
     QPushButton* hardStopButton;
     QPushButton* gentleStopButton;
     QPushButton* releaseStopButton;
+    QPushButton* stopButton;
     QLabel* linearXLabel;
     QLabel* linearYLabel;
     QLabel* angularZLabel;
