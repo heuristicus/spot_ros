@@ -249,6 +249,13 @@ class SpotROS():
     def handle_stop(self, req):
         """ROS service handler for the stop service"""
         resp = self.spot_wrapper.stop()
+        message = "Spot stop service was called"
+        if self.navigate_as.is_active():
+            self.navigate_as.set_preempted(NavigateToResult(success=False, message=message))
+        if self.trajectory_server.is_active():
+            self.trajectory_server.set_preempted(TrajectoryResult(success=False, message=message))
+        if self.body_pose_as.is_active():
+            self.body_pose_as.set_preempted(PoseBodyResult(success=False, message=message))
         return TriggerResponse(resp[0], resp[1])
 
     def handle_self_right(self, req):
