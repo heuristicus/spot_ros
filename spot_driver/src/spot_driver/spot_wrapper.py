@@ -31,15 +31,12 @@ import bosdyn.api.robot_state_pb2 as robot_state_proto
 from bosdyn.api import basic_command_pb2
 from google.protobuf.timestamp_pb2 import Timestamp
 
-front_image_sources = ['frontleft_fisheye_image',
-                       'frontright_fisheye_image', 'frontleft_depth', 'frontright_depth']
+front_image_sources = ['frontleft_fisheye_image', 'frontright_fisheye_image', 'frontleft_depth', 'frontright_depth']
 """List of image sources for front image periodic query"""
-side_image_sources = ['left_fisheye_image',
-                      'right_fisheye_image', 'left_depth', 'right_depth']
+side_image_sources = ['left_fisheye_image', 'right_fisheye_image', 'left_depth', 'right_depth']
 """List of image sources for side image periodic query"""
 rear_image_sources = ['back_fisheye_image', 'back_depth']
 """List of image sources for rear image periodic query"""
-
 
 class AsyncRobotState(AsyncPeriodicQuery):
     """Class to get robot state at regular intervals.  get_robot_state_async query sent to the robot at every tick.  Callback registered to defined callback function.
@@ -50,10 +47,9 @@ class AsyncRobotState(AsyncPeriodicQuery):
             rate: Rate (Hz) to trigger the query
             callback: Callback function to call when the results of the query are available
     """
-
     def __init__(self, client, logger, rate, callback):
         super(AsyncRobotState, self).__init__("robot-state", client, logger,
-                                              period_sec=1.0/max(rate, 1.0))
+                                           period_sec=1.0/max(rate, 1.0))
         self._callback = None
         if rate > 0.0:
             self._callback = callback
@@ -64,7 +60,6 @@ class AsyncRobotState(AsyncPeriodicQuery):
             callback_future.add_done_callback(self._callback)
             return callback_future
 
-
 class AsyncMetrics(AsyncPeriodicQuery):
     """Class to get robot metrics at regular intervals.  get_robot_metrics_async query sent to the robot at every tick.  Callback registered to defined callback function.
 
@@ -74,10 +69,9 @@ class AsyncMetrics(AsyncPeriodicQuery):
             rate: Rate (Hz) to trigger the query
             callback: Callback function to call when the results of the query are available
     """
-
     def __init__(self, client, logger, rate, callback):
         super(AsyncMetrics, self).__init__("robot-metrics", client, logger,
-                                           period_sec=1.0/max(rate, 1.0))
+                                        period_sec=1.0/max(rate, 1.0))
         self._callback = None
         if rate > 0.0:
             self._callback = callback
@@ -88,7 +82,6 @@ class AsyncMetrics(AsyncPeriodicQuery):
             callback_future.add_done_callback(self._callback)
             return callback_future
 
-
 class AsyncLease(AsyncPeriodicQuery):
     """Class to get lease state at regular intervals.  list_leases_async query sent to the robot at every tick.  Callback registered to defined callback function.
 
@@ -98,7 +91,6 @@ class AsyncLease(AsyncPeriodicQuery):
             rate: Rate (Hz) to trigger the query
             callback: Callback function to call when the results of the query are available
     """
-
     def __init__(self, client, logger, rate, callback):
         super(AsyncLease, self).__init__("lease", client, logger,
                                          period_sec=1.0/max(rate, 1.0))
@@ -112,7 +104,6 @@ class AsyncLease(AsyncPeriodicQuery):
             callback_future.add_done_callback(self._callback)
             return callback_future
 
-
 class AsyncImageService(AsyncPeriodicQuery):
     """Class to get images at regular intervals.  get_image_from_sources_async query sent to the robot at every tick.  Callback registered to defined callback function.
 
@@ -122,10 +113,9 @@ class AsyncImageService(AsyncPeriodicQuery):
             rate: Rate (Hz) to trigger the query
             callback: Callback function to call when the results of the query are available
     """
-
     def __init__(self, client, logger, rate, callback, image_requests):
         super(AsyncImageService, self).__init__("robot_image_service", client, logger,
-                                                period_sec=1.0/max(rate, 1.0))
+                                             period_sec=1.0/max(rate, 1.0))
         self._callback = None
         if rate > 0.0:
             self._callback = callback
@@ -133,11 +123,9 @@ class AsyncImageService(AsyncPeriodicQuery):
 
     def _start_query(self):
         if self._callback:
-            callback_future = self._client.get_image_async(
-                self._image_requests)
+            callback_future = self._client.get_image_async(self._image_requests)
             callback_future.add_done_callback(self._callback)
             return callback_future
-
 
 class AsyncIdle(AsyncPeriodicQuery):
     """Class to check if the robot is moving, and if not, command a stand with the set mobility parameters
@@ -148,10 +136,9 @@ class AsyncIdle(AsyncPeriodicQuery):
             rate: Rate (Hz) to trigger the query
             spot_wrapper: A handle to the wrapper library
     """
-
     def __init__(self, client, logger, rate, spot_wrapper):
         super(AsyncIdle, self).__init__("idle", client, logger,
-                                        period_sec=1.0/rate)
+                                     period_sec=1.0/rate)
 
         self._spot_wrapper = spot_wrapper
 
@@ -159,8 +146,7 @@ class AsyncIdle(AsyncPeriodicQuery):
         # TODO: fix this method after rebasing
         if self._spot_wrapper._last_stand_command != None:
             try:
-                response = self._client.robot_command_feedback(
-                    self._spot_wrapper._last_stand_command)
+                response = self._client.robot_command_feedback(self._spot_wrapper._last_stand_command)
                 self._spot_wrapper._is_sitting = False
                 if (response.feedback.synchronized_feedback.mobility_command_feedback.stand_feedback.status ==
                         basic_command_pb2.StandCommand.Feedback.STATUS_IS_STANDING):
@@ -169,8 +155,7 @@ class AsyncIdle(AsyncPeriodicQuery):
                 else:
                     self._spot_wrapper._is_standing = False
             except (ResponseError, RpcError) as e:
-                self._logger.error(
-                    "Error when getting robot command feedback: %s", e)
+                self._logger.error("Error when getting robot command feedback: %s", e)
                 self._spot_wrapper._last_stand_command = None
 
         if self._spot_wrapper._last_sit_command != None:
@@ -184,8 +169,7 @@ class AsyncIdle(AsyncPeriodicQuery):
                 else:
                     self._spot_wrapper._is_sitting = False
             except (ResponseError, RpcError) as e:
-                self._logger.error(
-                    "Error when getting robot command feedback: %s", e)
+                self._logger.error("Error when getting robot command feedback: %s", e)
                 self._spot_wrapper._last_sit_command = None
 
         is_moving = False
@@ -225,11 +209,9 @@ class AsyncIdle(AsyncPeriodicQuery):
         if self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving:
             self._spot_wrapper.stand(False)
 
-
 class SpotWrapper():
     """Generic wrapper class to encompass release 1.1.4 API features as well as maintaining leases automatically"""
-
-    def __init__(self, username, password, hostname, logger, rates={}, callbacks={}):
+    def __init__(self, username, password, hostname, logger, rates = {}, callbacks = {}):
         self._username = username
         self._password = password
         self._hostname = hostname
@@ -283,23 +265,15 @@ class SpotWrapper():
         if self._robot:
             # Clients
             try:
-                self._robot_state_client = self._robot.ensure_client(
-                    RobotStateClient.default_service_name)
-                self._robot_command_client = self._robot.ensure_client(
-                    RobotCommandClient.default_service_name)
-                self._graph_nav_client = self._robot.ensure_client(
-                    GraphNavClient.default_service_name)
-                self._recording_client = self._robot.ensure_client(
-                    GraphNavRecordingServiceClient.default_service_name)
-                self._power_client = self._robot.ensure_client(
-                    PowerClient.default_service_name)
-                self._lease_client = self._robot.ensure_client(
-                    LeaseClient.default_service_name)
+                self._robot_state_client = self._robot.ensure_client(RobotStateClient.default_service_name)
+                self._robot_command_client = self._robot.ensure_client(RobotCommandClient.default_service_name)
+                self._graph_nav_client = self._robot.ensure_client(GraphNavClient.default_service_name)
+                self._recording_client = self._robot.ensure_client(GraphNavRecordingServiceClient.default_service_name)
+                self._power_client = self._robot.ensure_client(PowerClient.default_service_name)
+                self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
                 self._lease_wallet = self._lease_client.lease_wallet
-                self._image_client = self._robot.ensure_client(
-                    ImageClient.default_service_name)
-                self._estop_client = self._robot.ensure_client(
-                    EstopClient.default_service_name)
+                self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
+                self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
             except Exception as e:
                 self._logger.error("Unable to create client service: %s", e)
                 self._valid = False
@@ -307,27 +281,20 @@ class SpotWrapper():
 
             # Store the most recent knowledge of the state of the robot based on rpc calls.
             self._current_graph = None
-            self._current_edges = dict()  # maps to_waypoint to list(from_waypoint)
+            self._current_edges = dict()  #maps to_waypoint to list(from_waypoint)
             self._current_waypoint_snapshots = dict()  # maps id to waypoint snapshot
             self._current_edge_snapshots = dict()  # maps id to edge snapshot
             self._current_annotation_name_to_wp_id = dict()
 
             # Async Tasks
             self._async_task_list = []
-            self._robot_state_task = AsyncRobotState(self._robot_state_client, self._logger, max(
-                0.0, self._rates.get("robot_state", 0.0)), self._callbacks.get("robot_state", lambda: None))
-            self._robot_metrics_task = AsyncMetrics(self._robot_state_client, self._logger, max(
-                0.0, self._rates.get("metrics", 0.0)), self._callbacks.get("metrics", lambda: None))
-            self._lease_task = AsyncLease(self._lease_client, self._logger, max(
-                0.0, self._rates.get("lease", 0.0)), self._callbacks.get("lease", lambda: None))
-            self._front_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get(
-                "front_image", 0.0)), self._callbacks.get("front_image", lambda: None), self._front_image_requests)
-            self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get(
-                "side_image", 0.0)), self._callbacks.get("side_image", lambda: None), self._side_image_requests)
-            self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get(
-                "rear_image", 0.0)), self._callbacks.get("rear_image", lambda: None), self._rear_image_requests)
-            self._idle_task = AsyncIdle(
-                self._robot_command_client, self._logger, 10.0, self)
+            self._robot_state_task = AsyncRobotState(self._robot_state_client, self._logger, max(0.0, self._rates.get("robot_state", 0.0)), self._callbacks.get("robot_state", lambda: None))
+            self._robot_metrics_task = AsyncMetrics(self._robot_state_client, self._logger, max(0.0, self._rates.get("metrics", 0.0)), self._callbacks.get("metrics", lambda: None))
+            self._lease_task = AsyncLease(self._lease_client, self._logger, max(0.0, self._rates.get("lease", 0.0)), self._callbacks.get("lease", lambda: None))
+            self._front_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("front_image", 0.0)), self._callbacks.get("front_image", lambda: None), self._front_image_requests)
+            self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("side_image", 0.0)), self._callbacks.get("side_image", lambda: None), self._side_image_requests)
+            self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda: None), self._rear_image_requests)
+            self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
 
             self._estop_endpoint = None
 
@@ -449,8 +416,7 @@ class SpotWrapper():
             self.resetEStop()
             return True, "Success"
         except (ResponseError, RpcError) as err:
-            self._logger.error(
-                "Failed to initialize robot communication: %s", err)
+            self._logger.error("Failed to initialize robot communication: %s", err)
             return False, str(err)
 
     def updateTasks(self):
@@ -463,8 +429,7 @@ class SpotWrapper():
     def resetEStop(self):
         """Get keepalive for eStop"""
         self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
-        # Set this endpoint as the robot's sole estop.
-        self._estop_endpoint.force_simple_setup()
+        self._estop_endpoint.force_simple_setup()  # Set this endpoint as the robot's sole estop.
         self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
 
     def assertEStop(self, severe=True):
@@ -489,8 +454,7 @@ class SpotWrapper():
             self._estop_keepalive.allow()
             return True, "Success"
         except Exception as e:
-            self._logger.error('Error: {}'.format(e))
-            return False, "Error: {}".format(e)
+            return False, "Error"
 
 
     def releaseEStop(self):
@@ -559,16 +523,14 @@ class SpotWrapper():
 
     def stand(self, monitor_command=True):
         """If the e-stop is enabled, and the motor power is enabled, stand the robot up."""
-        response = self._robot_command(
-            RobotCommandBuilder.synchro_stand_command(params=self._mobility_params))
+        response = self._robot_command(RobotCommandBuilder.synchro_stand_command(params=self._mobility_params))
         if monitor_command:
             self._last_stand_command = response[2]
         return response[0], response[1]
 
     def safe_power_off(self):
         """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
-        response = self._robot_command(
-            RobotCommandBuilder.safe_power_off_command())
+        response = self._robot_command(RobotCommandBuilder.safe_power_off_command())
         return response[0], response[1]
 
     def clear_behavior_fault(self, id):
@@ -585,8 +547,7 @@ class SpotWrapper():
             power.power_on(self._power_client)
             return True, "Success"
         except Exception as e:
-            self._logger.error('Error: {}'.format(e))
-            return False, "Error: {}".format(e)
+            return False, str(e)
 
     def set_mobility_params(self, mobility_params):
         """Set Params for mobility and movement
@@ -610,7 +571,7 @@ class SpotWrapper():
             v_rot: Angular velocity around the Z axis in radians
             cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
         """
-        end_time = time.time() + cmd_duration
+        end_time=time.time() + cmd_duration
         response = self._robot_command(RobotCommandBuilder.synchro_velocity_command(
                                       v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params),
                                       end_time_secs=end_time, timesync_endpoint=self._robot.time_sync.endpoint)
@@ -669,62 +630,13 @@ class SpotWrapper():
             self._last_trajectory_command = response[2]
         return response[0], response[1]
 
-    def trajectory_cmd(self, goal_x, goal_y, goal_heading, frame_name='odom', velocity_for_duration=0.5):
-        """Send a trajectory motion command to the robot.
-
-        Args:
-            goal_x: Position X coordinate in meters
-            goal_y: Position Y coordinate in meters
-            goal_heading: Pose heading in radians
-            cmd_duration: Time-to-live for the command in seconds.
-            frame_name: frame_name to be used to calc the target position. 'odom' or 'vision'
-        """
-        self._at_goal = False
-        self._logger.info("got command duration of {}".format(cmd_duration))
-        end_time = time.time() + cmd_duration
-        if frame_name == 'vision':
-            vision_tform_body = frame_helpers.get_vision_tform_body(
-                self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot)
-            body_tform_goal = math_helpers.SE3Pose(
-                x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading))
-            vision_tform_goal = vision_tform_body * body_tform_goal
-            response = self._robot_command(
-                RobotCommandBuilder.trajectory_command(
-                    goal_x=vision_tform_goal.x,
-                    goal_y=vision_tform_goal.y,
-                    goal_heading=vision_tform_goal.rot.to_yaw(),
-                    frame_name=frame_helpers.VISION_FRAME_NAME,
-                    params=self._mobility_params),
-                end_time_secs=end_time
-            )
-        elif frame_name == 'odom':
-            odom_tform_body = frame_helpers.get_odom_tform_body(
-                self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot)
-            body_tform_goal = math_helpers.SE3Pose(
-                x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading))
-            odom_tform_goal = odom_tform_body * body_tform_goal
-            response = self._robot_command(
-                RobotCommandBuilder.trajectory_command(
-                    goal_x=odom_tform_goal.x,
-                    goal_y=odom_tform_goal.y,
-                    goal_heading=odom_tform_goal.rot.to_yaw(),
-                    frame_name=frame_helpers.ODOM_FRAME_NAME,
-                    params=self._mobility_params),
-                end_time_secs=end_time
-            )
-        else:
-            raise ValueError('frame_name must be \'vision\' or \'odom\'')
-        if response[0]:
-            self._last_trajectory_command = response[2]
-        return response[0], response[1]
-
     def list_graph(self):
         """List waypoint ids of garph_nav
         Args:
         """
         ids, eds = self._list_graph_waypoint_and_edge_ids()
         # skip waypoint_ for v2.2.1, skip waypiont for < v2.2
-        return [v for k, v in sorted(ids.items(), key=lambda id: int(id[0].replace('waypoint_', '')))]
+        return [v for k, v in sorted(ids.items(), key=lambda id : int(id[0].replace('waypoint_','')))]
 
     def clear_graph(self):
         try:
@@ -782,21 +694,18 @@ class SpotWrapper():
         resp = self._start_navigate_to(id_navigate_to)
         return resp
 
-    # copy from spot-sdk/python/examples/graph_nav_command_line/graph_nav_command_line.py
+    ## copy from spot-sdk/python/examples/graph_nav_command_line/graph_nav_command_line.py
     def _get_localization_state(self, *args):
         """Get the current localization and state of the robot."""
         state = self._graph_nav_client.get_localization_state()
         self._logger.info('Got localization: \n%s' % str(state.localization))
-        odom_tform_body = get_odom_tform_body(
-            state.robot_kinematics.transforms_snapshot)
-        self._logger.info(
-            'Got robot state in kinematic odometry frame: \n%s' % str(odom_tform_body))
+        odom_tform_body = get_odom_tform_body(state.robot_kinematics.transforms_snapshot)
+        self._logger.info('Got robot state in kinematic odometry frame: \n%s' % str(odom_tform_body))
         return state
 
     def _set_initial_localization_fiducial(self, *args):
         """Trigger localization when near a fiducial."""
-        current_odom_tform_body = get_odom_tform_body(
-            self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot).to_proto()
+        current_odom_tform_body = get_odom_tform_body(self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot).to_proto()
         # Create an empty instance for initial localization since we are asking it to localize
         # based on the nearest fiducial.
         localization = nav_pb2.Localization()
@@ -805,14 +714,12 @@ class SpotWrapper():
 
     def _set_initial_localization_waypoint(self, waypoint_id):
         """Trigger localization to a waypoint."""
-        destination_waypoint = graph_nav_util.find_unique_waypoint_id(
-            waypoint_id, self._current_graph, self._current_annotation_name_to_wp_id)
+        destination_waypoint = graph_nav_util.find_unique_waypoint_id(waypoint_id, self._current_graph, self._current_annotation_name_to_wp_id)
         if not destination_waypoint:
             return False, 'Failed to find the unique waypoint id.'
 
         robot_state = self._robot_state_client.get_robot_state()
-        current_odom_tform_body = get_odom_tform_body(
-            robot_state.kinematic_state.transforms_snapshot).to_proto()
+        current_odom_tform_body = get_odom_tform_body(robot_state.kinematic_state.transforms_snapshot).to_proto()
         # Create an initial localization to the specified waypoint as the identity.
         localization = nav_pb2.Localization()
         localization.waypoint_id = destination_waypoint
@@ -820,8 +727,8 @@ class SpotWrapper():
         self._graph_nav_client.set_localization(
             initial_guess_localization=localization,
             # It's hard to get the pose perfect, search +/-20 deg and +/-20cm (0.2m).
-            max_distance=0.2,
-            max_yaw=20.0 * math.pi / 180.0,
+            max_distance = 0.2,
+            max_yaw = 20.0 * math.pi / 180.0,
             fiducial_init=graph_nav_pb2.SetLocalizationRequest.FIDUCIAL_INIT_NO_FIDUCIAL,
             ko_tform_body=current_odom_tform_body)
 
@@ -833,7 +740,7 @@ class SpotWrapper():
         # Download current graph
         graph = self._graph_nav_client.download_graph()
         if graph is None:
-            self._logger.warn("Empty graph.")
+            self._logger.error("Empty graph.")
             return
         self._current_graph = graph
 
@@ -843,6 +750,7 @@ class SpotWrapper():
         self._current_annotation_name_to_wp_id, self._current_edges = graph_nav_util.update_waypoints_and_edges(
             graph, localization_id, self._logger)
         return self._current_annotation_name_to_wp_id, self._current_edges
+
 
     def _upload_graph_and_snapshots(self, upload_filepath):
         """Upload the graph and snapshots to the robot."""
@@ -962,8 +870,7 @@ class SpotWrapper():
                 edge_ids_list.append(edge_id)
             else:
                 all_edges_found = False
-                self._logger.error(
-                    "Failed to find an edge between waypoints: ", start_wp, " and ", end_wp)
+                self._logger.error("Failed to find an edge between waypoints: ", start_wp, " and ", end_wp)
                 self._logger.error(
                     "List the graph's waypoints and edges to ensure pairs of waypoints has an edge."
                 )
@@ -981,16 +888,14 @@ class SpotWrapper():
             self._lease_keepalive.shutdown()
 
             # Navigate a specific route.
-            route = self._graph_nav_client.build_route(
-                waypoint_ids, edge_ids_list)
+            route = self._graph_nav_client.build_route(waypoint_ids, edge_ids_list)
             is_finished = False
             while not is_finished:
                 # Issue the route command about twice a second such that it is easy to terminate the
                 # navigation command (with estop or killing the program).
                 nav_route_command_id = self._graph_nav_client.navigate_route(
                     route, cmd_duration=1.0, leases=[sublease.lease_proto])
-                # Sleep for half a second to allow for command execution.
-                time.sleep(.5)
+                time.sleep(.5)  # Sleep for half a second to allow for command execution.
                 # Poll the robot for feedback to determine if the route is complete. Then sit
                 # the robot down once it is finished.
                 is_finished = self._check_success(nav_route_command_id)
@@ -1012,12 +917,10 @@ class SpotWrapper():
             # Successfully completed the navigation commands!
             return True
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_LOST:
-            self._logger.error(
-                "Robot got lost when navigating the route, the robot will now sit down.")
+            self._logger.error("Robot got lost when navigating the route, the robot will now sit down.")
             return True
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_STUCK:
-            self._logger.error(
-                "Robot got stuck when navigating the route, the robot will now sit down.")
+            self._logger.error("Robot got stuck when navigating the route, the robot will now sit down.")
             return True
         elif status.status == graph_nav_pb2.NavigationFeedbackResponse.STATUS_ROBOT_IMPAIRED:
             self._logger.error("Robot is impaired.")

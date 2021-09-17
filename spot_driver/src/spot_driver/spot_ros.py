@@ -304,7 +304,7 @@ class SpotROS():
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
             mobility_params.stair_hint = req.data
-            self.spot_wrapper.set_mobility_params(mobility_params)
+            self.spot_wrapper.set_mobility_params( mobility_params )
             return SetBoolResponse(True, 'Success')
         except Exception as e:
             return SetBoolResponse(False, 'Error:{}'.format(e))
@@ -314,7 +314,7 @@ class SpotROS():
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
             mobility_params.locomotion_hint = req.locomotion_mode
-            self.spot_wrapper.set_mobility_params(mobility_params)
+            self.spot_wrapper.set_mobility_params( mobility_params )
             return SetLocomotionResponse(True, 'Success')
         except Exception as e:
             return SetLocomotionResponse(False, 'Error:{}'.format(e))
@@ -480,7 +480,7 @@ class SpotROS():
     def handle_navigate_to(self, msg):
         """ROS service handler to run mission of the robot.  The robot will replay a mission"""
         # create thread to periodically publish feedback
-        feedback_thread = threading.Thread(target=self.handle_navigate_to_feedback, args=())
+        feedback_thread = threading.Thread(target = self.handle_navigate_to_feedback, args=())
         preemption_thread = threading.Thread(target=self.handle_navigate_to_preemption, args=())
         self.run_navigate_to = True
         feedback_thread.start()
@@ -556,7 +556,7 @@ class SpotROS():
         # Spot has 2 types of odometries: 'odom' and 'vision'
         # The former one is kinematic odometry and the second one is a combined odometry of vision and kinematics
         # These params enables to change which odometry frame is a parent of body frame and to change tf names of each odometry frames.
-        self.mode_parent_odom_tf = rospy.get_param('~mode_parent_odom_tf', 'odom')  # 'vision' or 'odom'
+        self.mode_parent_odom_tf = rospy.get_param('~mode_parent_odom_tf', 'odom') # 'vision' or 'odom'
         self.tf_name_kinematic_odom = rospy.get_param('~tf_name_kinematic_odom', 'odom')
         self.tf_name_raw_kinematic = 'odom'
         self.tf_name_vision_odom = rospy.get_param('~tf_name_vision_odom', 'vision')
@@ -617,8 +617,8 @@ class SpotROS():
 
             self.mobility_params_pub = rospy.Publisher('status/mobility_params', MobilityParams, queue_size=10)
 
-            rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size=1)
-            rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size=1)
+            rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
+            rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
