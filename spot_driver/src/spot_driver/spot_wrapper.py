@@ -782,7 +782,7 @@ class SpotWrapper():
                                                        graph=self._current_graph)
         # Upload the snapshots to the robot.
         for index, waypoint_snapshot_id in enumerate(response.unknown_waypoint_snapshot_ids):
-            waypoint_snapshot - self._current_waypoint_snapshots[waypoint_snapshot_id]
+            waypoint_snapshot = self._current_waypoint_snapshots[waypoint_snapshot_id]
             self._graph_nav_client.upload_waypoint_snapshot(waypoint_snapshot)
             self._logger.debug("Uploaded waypont snapshot {}/{} {}".format(index+1,len(self._current_waypoint_snapshots),waypoint_snapshot.id))
         for index, edge_snapshot_id in enumerate(response.unknown_edge_snapshot_ids):
@@ -810,20 +810,29 @@ class SpotWrapper():
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
             waypoint_id,
             self._current_graph,
-            self._current_annotation_name_to_wp_id)
+            self._current_annotation_name_to_wp_id,
+            self._logger)
         if not destination_waypoint:
             # Failed to find the appropriate unique waypoint id for the navigation command.
             return
         else:
             self._logger.info('navigate to {}'.format(destination_waypoint))
 
+        self._lease = self._lease_wallet.advance()
+        sublease = self._lease.create_sublease()
+        self._lease_keepalive.shutdown()
         self._navigate_to_valid = True
-        nav_to_cmd_id = -1
+        nav_to_cmd_id = None
         while self._navigate_to_valid:
             # Sleep for half a second to allow for command execution.
-            time.sleep(.5)
-            nav_to_cmd_id = self._graph_nav_client.navigate_to(
-                destination_waypoint, 1.0)
+            time.sleep(3.0)
+            try:
+                nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 2.5,
+                                                                   leases=[sublease.lease_proto],
+                                                                   command_id=nav_to_cmd_id)
+            except ResponseError as e:
+                self._logger.error("Error while navigating {}".format(e))
+                break
             if self._check_success(nav_to_cmd_id):
                 break
 
