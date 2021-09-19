@@ -204,6 +204,9 @@ class AsyncIdle(AsyncPeriodicQuery):
                     "Error when getting robot command feedback: %s", e)
                 self._spot_wrapper._last_trajectory_command = None
 
+        if self._spot_wrapper._last_navigate_to_command != None:
+            is_moving = True
+
         self._spot_wrapper._is_moving = is_moving
 
         if self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving:
@@ -232,6 +235,7 @@ class SpotWrapper():
         self._last_trajectory_command = None
         self._last_trajectory_command_precise = None
         self._last_velocity_command_time = None
+        self._last_navigate_to_command = None
 
         self._front_image_requests = []
         for source in front_image_sources:
@@ -821,19 +825,22 @@ class SpotWrapper():
         self._lease = self._lease_wallet.advance()
         sublease = self._lease.create_sublease()
         self._lease_keepalive.shutdown()
+
         self._navigate_to_valid = True
         nav_to_cmd_id = None
         while self._navigate_to_valid:
             # Sleep for half a second to allow for command execution.
-            time.sleep(3.0)
+            time.sleep(0.5)
             try:
-                nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 2.5,
+                nav_to_cmd_id = self._graph_nav_client.navigate_to(destination_waypoint, 1.0,
                                                                    leases=[sublease.lease_proto],
                                                                    command_id=nav_to_cmd_id)
+                self._last_navigate_to_command = nav_to_cmd_id
             except ResponseError as e:
                 self._logger.error("Error while navigating {}".format(e))
                 break
             if self._check_success(nav_to_cmd_id):
+                self._last_navigate_to_command = None
                 break
 
         self._lease = self._lease_wallet.advance()
