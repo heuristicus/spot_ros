@@ -420,6 +420,53 @@ class SpotROS():
                 self.trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal"))
                 self.trajectory_server.set_aborted(TrajectoryResult(False, "Failed to reach goal"))
 
+    def handle_arm_trajectory(self, req):
+        """ROS actionserver execution handler to handle receiving a request to move the arm to a location"""
+        if req.target_pose.header.frame_id != 'body':
+            self.arm_trajectory_server.set_aborted(TrajectoryResult(False, 'frame_id of target_pose must be \'body\''))
+            return
+        if req.duration.data.to_sec() <= 0:
+            self.arm_trajectory_server.set_aborted(TrajectoryResult(False, 'duration must be larger than 0'))
+            return
+
+        cmd_duration = rospy.Duration(req.duration.data.secs, req.duration.data.nsecs)
+        resp = self.spot_wrapper.arm_trajectory_cmd(
+            req.target_pose.pose.position,
+            req.target_pose.pose.orientation,
+            cmd_duration=cmd_duration.to_sec()
+        )
+
+        def timeout_cb(arm_trajectory_server, _):
+            arm_trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal, timed out"))
+            arm_trajectory_server.set_aborted(TrajectoryResult(False, "Failed to reach goal, timed out"))
+
+        # Abort the actionserver if cmd_duration is exceeded - the driver stops but does not provide feedback to
+        # indicate this so we monitor it ourselves
+        cmd_timeout = rospy.Timer(cmd_duration, functools.partial(timeout_cb, self.arm_trajectory_server), oneshot=True)
+
+        # The trajectory command is non-blocking but we need to keep this function up in order to interrupt if a
+        # preempt is requested and to return success if/when the robot reaches the goal. Also check the is_active to
+        # monitor whether the timeout_cb has already aborted the command
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown() and not self.arm_trajectory_server.is_preempt_requested() and not self.spot_wrapper.arm_at_goal and self.arm_trajectory_server.is_active():
+            self.trajectory_server.publish_feedback(TrajectoryFeedback("Moving to goal"))
+            rate.sleep()
+
+        # If still active after exiting the loop, the command did not time out
+        if self.arm_trajectory_server.is_active():
+            cmd_timeout.shutdown()
+            if self.arm_trajectory_server.is_preempt_requested():
+                self.arm_trajectory_server.publish_feedback(TrajectoryFeedback("Preempted"))
+                self.arm_trajectory_server.set_preempted()
+                self.spot_wrapper.stop()
+
+            if self.spot_wrapper.arm_at_goal:
+                self.arm_trajectory_server.publish_feedback(TrajectoryFeedback("Reached goal"))
+                self.arm_trajectory_server.set_succeeded(TrajectoryResult(resp[0], resp[1]))
+            else:
+                self.arm_trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal"))
+                self.arm_trajectory_server.set_aborted(TrajectoryResult(False, "Failed to reach goal"))
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
@@ -629,6 +676,11 @@ class SpotROS():
                                                                   execute_cb=self.handle_trajectory,
                                                                   auto_start=False)
             self.trajectory_server.start()
+
+            self.arm_trajectory_server = actionlib.SimpleActionServer("arm/trajectory", TrajectoryAction,
+                                                                  execute_cb=self.handle_arm_trajectory,
+                                                                  auto_start=False)
+            self.arm_trajectory_server.start()
 
             rospy.on_shutdown(self.shutdown)
 
