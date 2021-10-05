@@ -718,7 +718,7 @@ class SpotWrapper():
 
     def _set_initial_localization_waypoint(self, waypoint_id):
         """Trigger localization to a waypoint."""
-        destination_waypoint = graph_nav_util.find_unique_waypoint_id(waypoint_id, self._current_graph, self._current_annotation_name_to_wp_id)
+        destination_waypoint = graph_nav_util.find_unique_waypoint_id(waypoint_id, self._current_graph, self._current_annotation_name_to_wp_id, self._logger)
         if not destination_waypoint:
             return False, 'Failed to find the unique waypoint id.'
 
