@@ -12,6 +12,7 @@
 #include <tf/transform_datatypes.h>
 #include <spot_msgs/SetVelocity.h>
 #include <spot_msgs/LeaseArray.h>
+#include <spot_msgs/EStopState.h>
 #include <string.h>
 
 
@@ -46,6 +47,7 @@ namespace spot_viz
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
 
         leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
+        estopSub_ = nh_.subscribe("/spot/status/estop", 1, &ControlPanel::estopCallback, this);
 
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
         releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
@@ -72,6 +74,7 @@ namespace spot_viz
         gentleStopButton->update();
 
         hardStopButton = this->findChild<QPushButton*>("hardStopButton");
+        hardStopButton->setText(QString::fromUtf8("\u26A0 Kill Motors"));
         pal = hardStopButton->palette();
         pal.setColor(QPalette::Button, QColor(255, 0, 0));
         hardStopButton->setAutoFillBackground(true);
@@ -145,7 +148,7 @@ namespace spot_viz
         connect(hardStopButton, SIGNAL(clicked()), this, SLOT(hardStop()));
         connect(gentleStopButton, SIGNAL(clicked()), this, SLOT(gentleStop()));
         connect(stopButton, SIGNAL(clicked()), this, SLOT(stop()));
-        
+
     }
 
     void ControlPanel::updateLabelTextWithLimit(QLabel* label, double limit_lower, double limit_upper) {
@@ -167,6 +170,10 @@ namespace spot_viz
         standButton->setEnabled(haveLease);
         setBodyPoseButton->setEnabled(haveLease);
         setMaxVelButton->setEnabled(haveLease);
+        releaseStopButton->setEnabled(haveLease && isEStopped);
+        hardStopButton->setEnabled(haveLease);
+        gentleStopButton->setEnabled(haveLease);
+        stopButton->setEnabled(haveLease);
     }
 
     bool ControlPanel::callTriggerService(ros::ServiceClient service, std::string serviceName) {
@@ -213,6 +220,23 @@ namespace spot_viz
         }
     }
 
+    void ControlPanel::estopCallback(const spot_msgs::EStopStateArray::ConstPtr &estops) {
+        // Check to see if any of the estops is active, and set the state of the release
+        // estop button accordingly if the state has changed
+        bool msg_is_estopped = false;
+        for (int i=estops->estop_states.size()-1; i>=0; i--) {
+            const spot_msgs::EStopState &estop = estops->estop_states[i];
+            if (estop.state == spot_msgs::EStopState::STATE_ESTOPPED) {
+                msg_is_estopped = true;
+                break;
+            }
+        }
+        if (msg_is_estopped != isEStopped) {
+            isEStopped = msg_is_estopped;
+            setControlButtons();
+        }
+    }
+
     void ControlPanel::sit() {
         callTriggerService(sitService_, "sit");
     }
@@ -253,7 +277,7 @@ namespace spot_viz
 
     void ControlPanel::releaseStop() {
         callTriggerService(releaseStopService_, "release stop");
-    }    
+    }
 
     void ControlPanel::setMaxVel() {
         spot_msgs::SetVelocity req;
