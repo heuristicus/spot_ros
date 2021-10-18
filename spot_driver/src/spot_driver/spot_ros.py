@@ -412,11 +412,23 @@ class SpotROS():
         # indicate this so we monitor it ourselves
         cmd_timeout = rospy.Timer(cmd_duration, functools.partial(timeout_cb, self.trajectory_server), oneshot=True)
 
+        # Sleep to allow some feedback to come through from the trajectory command
+        rospy.sleep(0.25)
+        if self.spot_wrapper._trajectory_status_unknown:
+            rospy.logerr("Sent trajectory request to spot but received unknown feedback. Resending command. This will only be attempted once")
+            # If we receive an unknown result from the trajectory, something went wrong internally (not
+            # catastrophically). We need to resend the command, because getting status unknown happens right when
+            # the command is sent. It's unclear right now why this happens
+            resp = self._send_trajectory_command(target_pose, cmd_duration, req.precise_positioning)
+            cmd_timeout.shutdown()
+            cmd_timeout = rospy.Timer(cmd_duration, functools.partial(timeout_cb, self.trajectory_server),
+                                      oneshot=True)
+
         # The trajectory command is non-blocking but we need to keep this function up in order to interrupt if a
         # preempt is requested and to return success if/when the robot reaches the goal. Also check the is_active to
         # monitor whether the timeout_cb has already aborted the command
         rate = rospy.Rate(10)
-        while not rospy.is_shutdown() and not self.trajectory_server.is_preempt_requested() and not self.spot_wrapper.at_goal and self.trajectory_server.is_active():
+        while not rospy.is_shutdown() and not self.trajectory_server.is_preempt_requested() and not self.spot_wrapper.at_goal and self.trajectory_server.is_active() and not self.spot_wrapper._trajectory_status_unknown:
             if self.spot_wrapper.near_goal:
                 if self.spot_wrapper._last_trajectory_command_precise:
                     self.trajectory_server.publish_feedback(TrajectoryFeedback("Near goal, performing final adjustments"))

@@ -193,7 +193,11 @@ class AsyncIdle(AsyncPeriodicQuery):
                 elif status == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL:
                     is_moving = True
                     self._spot_wrapper._near_goal = True
+                elif status == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_UNKNOWN:
+                    self._spot_wrapper._trajectory_status_unknown = True
+                    self._spot_wrapper._last_trajectory_command = None
                 else:
+                    self._logger.error("Received trajectory command status outside of expected range, value is {}".format(status))
                     self._spot_wrapper._last_trajectory_command = None
             except (ResponseError, RpcError) as e:
                 self._logger.error("Error when getting robot command feedback: %s", e)
@@ -222,6 +226,7 @@ class SpotWrapper():
         self._is_moving = False
         self._at_goal = False
         self._near_goal = False
+        self._trajectory_status_unknown = False
         self._last_stand_command = None
         self._last_sit_command = None
         self._last_trajectory_command = None
@@ -589,6 +594,7 @@ class SpotWrapper():
         """
         self._at_goal = False
         self._near_goal = False
+        self._trajectory_status_unknown = False
         self._last_trajectory_command_precise = precise_position
         self._logger.info("got command duration of {}".format(cmd_duration))
         end_time=time.time() + cmd_duration
