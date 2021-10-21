@@ -496,6 +496,7 @@ class SpotROS():
         self.password = rospy.get_param('~password', 'default_value')
         self.hostname = rospy.get_param('~hostname', 'default_value')
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
+        self.estop_timeout = rospy.get_param('~estop_timeout', 9.0)
 
         self.camera_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
         # Static transform broadcaster is super simple and just a latched publisher. Every time we add a new static
@@ -519,7 +520,7 @@ class SpotROS():
         self.logger = logging.getLogger('rosout')
 
         rospy.loginfo("Starting ROS driver for Spot")
-        self.spot_wrapper = SpotWrapper(self.username, self.password, self.hostname, self.logger, self.rates, self.callbacks)
+        self.spot_wrapper = SpotWrapper(self.username, self.password, self.hostname, self.logger, self.estop_timeout, self.rates, self.callbacks)
 
         if self.spot_wrapper.is_valid:
             # Images #

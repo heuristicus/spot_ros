@@ -206,13 +206,14 @@ class AsyncIdle(AsyncPeriodicQuery):
 
 class SpotWrapper():
     """Generic wrapper class to encompass release 1.1.4 API features as well as maintaining leases automatically"""
-    def __init__(self, username, password, hostname, logger, rates = {}, callbacks = {}):
+    def __init__(self, username, password, hostname, logger, estop_timeout=9.0, rates = {}, callbacks = {}):
         self._username = username
         self._password = password
         self._hostname = hostname
         self._logger = logger
         self._rates = rates
         self._callbacks = callbacks
+        self._estop_timeout = estop_timeout
         self._keep_alive = True
         self._valid = True
 
@@ -422,7 +423,7 @@ class SpotWrapper():
 
     def resetEStop(self):
         """Get keepalive for eStop"""
-        self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', 9.0)
+        self._estop_endpoint = EstopEndpoint(self._estop_client, 'ros', self._estop_timeout)
         self._estop_endpoint.force_simple_setup()  # Set this endpoint as the robot's sole estop.
         self._estop_keepalive = EstopKeepAlive(self._estop_endpoint)
 
