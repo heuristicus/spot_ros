@@ -1,0 +1,4 @@
+uint32 dock_id # dock fiducials id
+---
+bool success   # indicate successful run of triggered service
+string message # informational, e.g. for error messages
