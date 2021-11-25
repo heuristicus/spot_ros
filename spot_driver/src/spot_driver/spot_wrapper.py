@@ -12,6 +12,7 @@ from bosdyn.client.frame_helpers import get_odom_tform_body
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
 from bosdyn.client.image import ImageClient, build_image_request
+from bosdyn.client.docking import blocking_dock_robot, blocking_undock
 from bosdyn.api import image_pb2
 from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
@@ -20,6 +21,7 @@ from bosdyn.client.estop import EstopClient, EstopEndpoint, EstopKeepAlive
 from bosdyn.client import power
 from bosdyn.client import frame_helpers
 from bosdyn.client import math_helpers
+from bosdyn.client import robot_command
 from bosdyn.client.exceptions import InternalServerError
 
 from . import graph_nav_util
@@ -975,3 +977,25 @@ class SpotWrapper():
                     # This edge matches the pair of waypoints! Add it the edge list and continue.
                     return map_pb2.Edge.Id(from_waypoint=waypoint1, to_waypoint=waypoint2)
         return None
+
+    def dock(self, dock_id):
+        "Dock the robot to dockid"
+        try:
+            with LeaseKeepAlive(self._lease_client):
+                # make sure we're powered on and standing
+                self._robot.power_on()
+                robot_command.blocking_stand(self._robot_command_client)
+            # Dock the robot
+            blocking_dock_robot(self._robot, dock_id)
+            return True, "Success"
+        except Exception as e:
+            return False, str(e)
+
+    def undock(self, timeout=20):
+        "Power motor on and undock the robot from the station"
+        try:
+            # Dock the robot
+            blocking_undock(self._robot ,timeout)
+            return True, "Success"
+        except Exception as e:
+            return False, str(e)
