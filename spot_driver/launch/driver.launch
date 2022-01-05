@@ -3,6 +3,7 @@
   <arg name="password" default="dummypassword" />
   <arg name="hostname" default="192.168.50.3" />
   <arg name="estop_timeout" default="9.0"/>
+  <arg name="autonomy_enabled" default="true"/>
 
   <include file="$(find spot_description)/launch/description.launch" />
   <include file="$(find spot_driver)/launch/control.launch" />
@@ -14,6 +15,7 @@
     <param name="password" value="$(arg password)" />
     <param name="hostname" value="$(arg hostname)" />
     <param name="estop_timeout" value="$(arg estop_timeout)"/>
+    <param name="autonomy_enabled" value="$(arg autonomy_enabled)"/>
     <remap from="joint_states" to="/joint_states"/>
     <remap from="tf" to="/tf"/>
   </node>

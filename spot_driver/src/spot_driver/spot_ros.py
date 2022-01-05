@@ -382,12 +382,19 @@ class SpotROS():
 
         Returns:
         """
+        if not self.autonomy_enabled:
+            rospy.logerr("Trajectory topic received a message but autonomy is not enabled.")
+            return
         try:
             self._send_trajectory_command(self._transform_pose_to_body_frame(msg), rospy.Duration(5))
         except tf2_ros.LookupException as e:
             rospy.logerr(str(e))
 
     def handle_trajectory(self, req):
+        if not self.autonomy_enabled:
+            rospy.logerr("Trajectory service was called but autonomy is not enabled.")
+            self.trajectory_server.set_aborted(TrajectoryResult(False, 'Autonomy is not enabled.'))
+            return
         """ROS actionserver execution handler to handle receiving a request to move to a location"""
         target_pose = req.target_pose
         if req.target_pose.header.frame_id != 'body':
@@ -466,6 +473,10 @@ class SpotROS():
         Returns: (bool, str) tuple indicating whether the command was successfully sent, and a message
 
         """
+        if not self.autonomy_enabled:
+            rospy.logerr("Send trajectory was called but autonomy is not enabled.")
+            return
+
         if pose.header.frame_id != "body":
             rospy.logerr("Trajectory command poses must be in the body frame")
             return
@@ -485,6 +496,10 @@ class SpotROS():
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
+        if not self.autonomy_enabled:
+            rospy.logerr("cmd_vel was received but autonomy is not enabled.")
+            return
+
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
 
     def bodyPoseCallback(self, data):
@@ -568,6 +583,11 @@ class SpotROS():
 
     def handle_navigate_to(self, msg):
         """ROS service handler to run mission of the robot.  The robot will replay a mission"""
+        if not self.autonomy_enabled:
+            rospy.logerr("Navigate to was requested but autonomy is not enabled.")
+            self.navigate_as.set_aborted(NavigateToResult(False, "Autonomy is not enabled"))
+            return
+
         # create thread to periodically publish feedback
         feedback_thraed = threading.Thread(target = self.handle_navigate_to_feedback, args = ())
         self.run_navigate_to = True
@@ -633,6 +653,7 @@ class SpotROS():
         self.hostname = rospy.get_param('~hostname', 'default_value')
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
         self.estop_timeout = rospy.get_param('~estop_timeout', 9.0)
+        self.autonomy_enabled = rospy.get_param('~autonomy_enabled', True)
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
