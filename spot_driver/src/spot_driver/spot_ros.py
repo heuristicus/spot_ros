@@ -735,7 +735,6 @@ class SpotROS():
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
-            rospy.Service("stop", Trigger, self.handle_stop)
             rospy.Service("self_right", Trigger, self.handle_self_right)
             rospy.Service("sit", Trigger, self.handle_sit)
             rospy.Service("stand", Trigger, self.handle_stand)
@@ -767,6 +766,10 @@ class SpotROS():
                                                              execute_cb=self.handle_body_pose,
                                                              auto_start=False)
             self.body_pose_as.start()
+
+            # Stop service calls other services so initialise it after them to prevent crashes which can happen if
+            # the service is immediately called
+            rospy.Service("stop", Trigger, self.handle_stop)
 
             rospy.on_shutdown(self.shutdown)
 
