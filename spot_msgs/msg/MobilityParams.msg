@@ -1,3 +1,4 @@
 geometry_msgs/Pose body_control
 uint32 locomotion_hint
 bool stair_hint
+geometry_msgs/Twist velocity_limit

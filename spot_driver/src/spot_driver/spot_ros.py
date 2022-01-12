@@ -326,26 +326,45 @@ class SpotROS():
 
     def handle_vel_limit(self, req):
         """
-        Handle a velocity_limit service call. This will modify the mobility params to have a limit on velocity that
-        the robot can move during trajectory commmands. Velocities sent to cmd_vel ignore these values
+        Handle a velocity_limit service call.
 
         Args:
             req: SetVelocityRequest containing requested velocity limit
 
         Returns: SetVelocityResponse
         """
+        success, message = self.set_velocity_limits(req.velocity_limit.linear.x,
+                                                    req.velocity_limit.linear.y,
+                                                    req.velocity_limit.angular.z)
+        return SetVelocityResponse(success, message)
+
+    def set_velocity_limits(self, max_linear_x, max_linear_y, max_angular_z):
+        """
+        Modify the mobility params to have a limit on the robot's velocity during trajectory commands.
+        Velocities sent to cmd_vel ignore these values
+
+        Passing 0 to any of the values will use spot's internal limits
+
+        Args:
+            max_linear_x: Maximum forwards/backwards velocity
+            max_linear_y: Maximum lateral velocity
+            max_angular_z: Maximum rotation velocity
+
+        Returns: (bool, str) boolean indicating whether the call was successful, along with a message
+
+        """
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
-            mobility_params.vel_limit.CopyFrom(SE2VelocityLimit(max_vel=math_helpers.SE2Velocity(req.velocity_limit.linear.x,
-                                                                                                 req.velocity_limit.linear.y,
-                                                                                                 req.velocity_limit.angular.z).to_proto(),
-                                                                min_vel=math_helpers.SE2Velocity(-req.velocity_limit.linear.x,
-                                                                                                 -req.velocity_limit.linear.y,
-                                                                                                 -req.velocity_limit.angular.z).to_proto()))
+            mobility_params.vel_limit.CopyFrom(SE2VelocityLimit(max_vel=math_helpers.SE2Velocity(max_linear_x,
+                                                                                                 max_linear_y,
+                                                                                                 max_angular_z).to_proto(),
+                                                                min_vel=math_helpers.SE2Velocity(-max_linear_x,
+                                                                                                 -max_linear_y,
+                                                                                                 -max_angular_z).to_proto()))
             self.spot_wrapper.set_mobility_params(mobility_params)
-            return SetVelocityResponse(True, 'Success')
+            return True, 'Success'
         except Exception as e:
-            return SetVelocityResponse(False, 'Error:{}'.format(e))
+            return False, 'Error:{}'.format(e)
 
     def _transform_pose_to_body_frame(self, pose):
         """
@@ -773,6 +792,11 @@ class SpotROS():
 
             rospy.on_shutdown(self.shutdown)
 
+            max_linear_x = rospy.get_param('~max_linear_velocity_x', 0)
+            max_linear_y = rospy.get_param('~max_linear_velocity_y', 0)
+            max_angular_z = rospy.get_param('~max_angular_velocity_z', 0)
+            self.set_velocity_limits(max_linear_x, max_linear_y, max_angular_z)
+
             self.auto_claim = rospy.get_param('~auto_claim', False)
             self.auto_power_on = rospy.get_param('~auto_power_on', False)
             self.auto_stand = rospy.get_param('~auto_stand', False)
@@ -819,6 +843,14 @@ class SpotROS():
                             mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.w
                     mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
                     mobility_params_msg.stair_hint = mobility_params.stair_hint
+                    # The velocity limit values can be set independently so make sure each of them exists before setting
+                    if hasattr(mobility_params, "vel_limit"):
+                        if hasattr(mobility_params.vel_limit.max_vel.linear, "x"):
+                            mobility_params_msg.velocity_limit.linear.x = mobility_params.vel_limit.max_vel.linear.x
+                        if hasattr(mobility_params.vel_limit.max_vel.linear, "y"):
+                            mobility_params_msg.velocity_limit.linear.y = mobility_params.vel_limit.max_vel.linear.y
+                        if hasattr(mobility_params.vel_limit.max_vel, "angular"):
+                            mobility_params_msg.velocity_limit.angular.z = mobility_params.vel_limit.max_vel.angular
                 except Exception as e:
                     rospy.logerr('Error:{}'.format(e))
                     pass

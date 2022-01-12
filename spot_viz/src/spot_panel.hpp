@@ -12,6 +12,7 @@
 #include <QDoubleSpinBox>
 #include <spot_msgs/LeaseArray.h>
 #include <spot_msgs/EStopStateArray.h>
+#include <spot_msgs/MobilityParams.h>
 
 
 namespace spot_viz
@@ -48,6 +49,7 @@ class ControlPanel : public rviz::Panel
     void updateLabelTextWithLimit(QLabel* label, double limit_lower, double limit_upper);
     void leaseCallback(const spot_msgs::LeaseArray::ConstPtr &leases);
     void estopCallback(const spot_msgs::EStopStateArray::ConstPtr &estops);
+    void mobilityParamsCallback(const spot_msgs::MobilityParams::ConstPtr &params);
 
     ros::NodeHandle nh_;
     ros::ServiceClient sitService_;
@@ -64,6 +66,7 @@ class ControlPanel : public rviz::Panel
     ros::Publisher bodyPosePub_;
     ros::Subscriber leaseSub_;
     ros::Subscriber estopSub_;
+    ros::Subscriber mobilityParamsSub_;
 
     QPushButton* claimLeaseButton;
     QPushButton* releaseLeaseButton;
@@ -92,6 +95,8 @@ class ControlPanel : public rviz::Panel
     QDoubleSpinBox* rollSpin;
     QDoubleSpinBox* pitchSpin;
     QDoubleSpinBox* yawSpin;
+
+    spot_msgs::MobilityParams _lastMobilityParams;
 
     bool haveLease;
     bool isEStopped;

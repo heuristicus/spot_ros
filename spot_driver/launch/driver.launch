@@ -4,6 +4,11 @@
   <arg name="hostname" default="192.168.50.3" />
   <arg name="estop_timeout" default="9.0"/>
   <arg name="autonomy_enabled" default="true"/>
+  <arg name="estop_timeout" default="9.0"/>
+  <!-- In m/s. 0 applies spot's internal limits -->
+  <arg name="max_linear_velocity_x" default="0"/>
+  <arg name="max_linear_velocity_y" default="0"/>
+  <arg name="max_angular_velocity_z" default="0"/>
 
   <include file="$(find spot_description)/launch/description.launch" />
   <include file="$(find spot_driver)/launch/control.launch" />
@@ -16,6 +21,10 @@
     <param name="hostname" value="$(arg hostname)" />
     <param name="estop_timeout" value="$(arg estop_timeout)"/>
     <param name="autonomy_enabled" value="$(arg autonomy_enabled)"/>
+    <param name="estop_timeout" value="$(arg estop_timeout)"/>
+    <param name="max_linear_velocity_x" value="$(arg max_linear_velocity_x)"/>
+    <param name="max_linear_velocity_y" value="$(arg max_linear_velocity_y)"/>
+    <param name="max_angular_velocity_z" value="$(arg max_angular_velocity_z)"/>
     <remap from="joint_states" to="/joint_states"/>
     <remap from="tf" to="/tf"/>
   </node>

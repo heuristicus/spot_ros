@@ -48,6 +48,7 @@ namespace spot_viz
 
         leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
         estopSub_ = nh_.subscribe("/spot/status/estop", 1, &ControlPanel::estopCallback, this);
+        mobilityParamsSub_ = nh_.subscribe("/spot/status/mobility_params", 1, &ControlPanel::mobilityParamsCallback, this);
 
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
         releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
@@ -235,6 +236,19 @@ namespace spot_viz
             isEStopped = msg_is_estopped;
             setControlButtons();
         }
+    }
+
+    void ControlPanel::mobilityParamsCallback(const spot_msgs::MobilityParams::ConstPtr &params) {
+        if (*params == _lastMobilityParams) {
+            // If we don't check this, the user will never be able to modify values since they will constantly reset
+            return;
+        } else {
+            linearXSpin->setValue(params->velocity_limit.linear.x);
+            linearYSpin->setValue(params->velocity_limit.linear.y);
+            angularZSpin->setValue(params->velocity_limit.angular.z);
+        }
+
+        _lastMobilityParams = *params;
     }
 
     void ControlPanel::sit() {
