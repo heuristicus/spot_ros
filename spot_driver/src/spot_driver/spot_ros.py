@@ -353,6 +353,9 @@ class SpotROS():
         Returns: (bool, str) boolean indicating whether the call was successful, along with a message
 
         """
+        if any(map(lambda x: 0 < x < 0.15, [max_linear_x, max_linear_y, max_angular_z])):
+            return False, 'Error: One of the values provided to velocity limits was below 0.15. Values in the range (' \
+                          '0,0.15) can cause unexpected behaviour of the trajectory command.'
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
             mobility_params.vel_limit.CopyFrom(SE2VelocityLimit(max_vel=math_helpers.SE2Velocity(max_linear_x,
