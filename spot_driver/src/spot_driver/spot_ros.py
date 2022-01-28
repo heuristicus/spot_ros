@@ -393,6 +393,41 @@ class SpotROS():
 
         return pose_in_body
 
+    def robot_allowed_to_move(self):
+        """
+        Check if the robot is allowed to move. This means checking both that autonomy is enabled, which can only be
+        set when the driver is started, and also that motion is allowed, the state of which can change while the
+        driver is running
+
+        Returns: True if the robot is allowed to move, false otherwise
+
+        """
+        if not self.allow_motion:
+            rospy.logwarn("Spot is not currently allowed to move. Use the allow_motion service to allow the robot to "
+                          "move.")
+        if not self.autonomy_enabled:
+            rospy.logwarn("Spot is not allowed to be autonomous because this instance of the driver was started with "
+                          "it disabled. Set autonomy_enabled to true in the launch file to enable it.")
+
+        return self.allow_motion and self.autonomy_enabled
+
+    def handle_allow_motion(self, req):
+        """
+        Handle a call to set whether motion is allowed or not
+
+        When motion is not allowed, any service call or topic which can move the robot will return without doing
+        anything
+
+        Returns: (bool, str) True if successful, along with a message
+
+        """
+        self.allow_motion = req.data
+        if not self.allow_motion:
+            # Always send a stop command if disallowing motion, in case the robot is moving when it is sent
+            self.spot_wrapper.stop()
+        return True, "Spot motion was {}".format("enabled" if req.data else "disabled")
+
+
     def trajectory_callback(self, msg):
         """
         Handle a callback from the trajectory topic requesting to go to a location
@@ -404,20 +439,22 @@ class SpotROS():
 
         Returns:
         """
-        if not self.autonomy_enabled:
-            rospy.logerr("Trajectory topic received a message but autonomy is not enabled.")
+        if not self.robot_allowed_to_move():
+            rospy.logerr("Trajectory topic received a message but the robot is not allowed to move.")
             return
+
         try:
             self._send_trajectory_command(self._transform_pose_to_body_frame(msg), rospy.Duration(5))
         except tf2_ros.LookupException as e:
             rospy.logerr(str(e))
 
     def handle_trajectory(self, req):
-        if not self.autonomy_enabled:
-            rospy.logerr("Trajectory service was called but autonomy is not enabled.")
-            self.trajectory_server.set_aborted(TrajectoryResult(False, 'Autonomy is not enabled.'))
-            return
         """ROS actionserver execution handler to handle receiving a request to move to a location"""
+        if not self.robot_allowed_to_move():
+            rospy.logerr("Trajectory service was called but robot is not allowed to move")
+            self.trajectory_server.set_aborted(TrajectoryResult(False, 'Robot is not allowed to move.'))
+            return
+
         target_pose = req.target_pose
         if req.target_pose.header.frame_id != 'body':
             rospy.logwarn("Pose given was not in the body frame, will transform")
@@ -495,8 +532,8 @@ class SpotROS():
         Returns: (bool, str) tuple indicating whether the command was successfully sent, and a message
 
         """
-        if not self.autonomy_enabled:
-            rospy.logerr("Send trajectory was called but autonomy is not enabled.")
+        if not self.robot_allowed_to_move():
+            rospy.logerr("send trajectory was called but motion is not enabled.")
             return
 
         if pose.header.frame_id != "body":
@@ -518,14 +555,18 @@ class SpotROS():
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
-        if not self.autonomy_enabled:
-            rospy.logerr("cmd_vel was received but autonomy is not enabled.")
+        if not self.robot_allowed_to_move():
+            rospy.logerr("cmd_vel received a message but motion is not enabled.")
             return
 
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
 
     def bodyPoseCallback(self, data):
         """Callback for cmd_vel command"""
+        if not self.robot_allowed_to_move():
+            rospy.logerr("body pose received a message but motion is not enabled.")
+            return
+
         self._set_body_pose(data)
 
     def handle_body_pose(self, goal):
@@ -538,6 +579,11 @@ class SpotROS():
         Returns:
 
         """
+        # We can change the body pose if autonomy is not allowed
+        if not self.allow_motion:
+            rospy.logerr("body pose actionserver was called but motion is not enabled.")
+            return
+
         # If the body_pose is empty, we use the rpy + height components instead
         if goal.body_pose == Pose():
             # If the rpy+body height are all zero then we set the body to neutral pose
@@ -605,8 +651,8 @@ class SpotROS():
 
     def handle_navigate_to(self, msg):
         """ROS service handler to run mission of the robot.  The robot will replay a mission"""
-        if not self.autonomy_enabled:
-            rospy.logerr("Navigate to was requested but autonomy is not enabled.")
+        if not self.robot_allowed_to_move():
+            rospy.logerr("navigate_to was requested but robot is not allowed to move.")
             self.navigate_as.set_aborted(NavigateToResult(False, "Autonomy is not enabled"))
             return
 
@@ -676,6 +722,7 @@ class SpotROS():
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
         self.estop_timeout = rospy.get_param('~estop_timeout', 9.0)
         self.autonomy_enabled = rospy.get_param('~autonomy_enabled', True)
+        self.allow_motion = rospy.get_param('~allow_motion', True)
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -766,6 +813,8 @@ class SpotROS():
             rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
             rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
             rospy.Service("estop/release", Trigger, self.handle_estop_disengage)
+
+            rospy.Service("allow_motion", SetBool, self.handle_allow_motion)
 
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
