@@ -10,12 +10,14 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QDoubleSpinBox>
+#include <QComboBox>
 #include <spot_msgs/LeaseArray.h>
 #include <spot_msgs/EStopStateArray.h>
 #include <spot_msgs/MobilityParams.h>
 
 #include <spot_msgs/BatteryStateArray.h>
 #include <spot_msgs/PowerState.h>
+
 
 namespace spot_viz
 {
@@ -42,6 +44,8 @@ class ControlPanel : public rviz::Panel
     void hardStop();
     void releaseStop();
     void stop();
+    void setGait();
+    void setSwingHeight();
 
     private:
 
@@ -67,6 +71,8 @@ class ControlPanel : public rviz::Panel
     ros::ServiceClient gentleStopService_;
     ros::ServiceClient releaseStopService_;
     ros::ServiceClient stopService_;
+    ros::ServiceClient gaitService_;
+    ros::ServiceClient swingHeightService_;
     ros::Publisher bodyPosePub_;
     ros::Subscriber leaseSub_;
     ros::Subscriber estopSub_;
@@ -86,6 +92,9 @@ class ControlPanel : public rviz::Panel
     QPushButton* gentleStopButton;
     QPushButton* releaseStopButton;
     QPushButton* stopButton;
+    QPushButton* setGaitButton;
+    QPushButton* setSwingHeightButton;
+
     QLabel* linearXLabel;
     QLabel* linearYLabel;
     QLabel* angularZLabel;
@@ -98,6 +107,9 @@ class ControlPanel : public rviz::Panel
     QLabel* batteryStateLabel;
     QLabel* motorStateLabel;
     QLabel* batteryTempLabel;
+
+    QComboBox* gaitComboBox;
+    QComboBox* swingHeightComboBox;
 
     QDoubleSpinBox* linearXSpin;
     QDoubleSpinBox* linearYSpin;

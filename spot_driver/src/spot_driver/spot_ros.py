@@ -37,6 +37,7 @@ from spot_msgs.srv import ListGraph, ListGraphResponse
 from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
 from spot_msgs.srv import SetVelocity, SetVelocityResponse
+from spot_msgs.srv import SetSwingHeight, SetSwingHeightResponse
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
@@ -316,13 +317,31 @@ class SpotROS():
 
     def handle_locomotion_mode(self, req):
         """ROS service handler to set locomotion mode"""
+        if req.locomotion_mode in [0, 9] or req.locomotion_mode > 10:
+            msg = "Attempted to set locomotion mode to {}, which is an invalid value.".format(req.locomotion_mode)
+            rospy.logerr(msg)
+            return SetLocomotionResponse(False, msg)
         try:
             mobility_params = self.spot_wrapper.get_mobility_params()
             mobility_params.locomotion_hint = req.locomotion_mode
-            self.spot_wrapper.set_mobility_params( mobility_params )
+            self.spot_wrapper.set_mobility_params(mobility_params)
             return SetLocomotionResponse(True, 'Success')
         except Exception as e:
             return SetLocomotionResponse(False, 'Error:{}'.format(e))
+
+    def handle_swing_height(self, req):
+        """ROS service handler to set the step swing height"""
+        if req.step_height == 0 or req.step_height > 3:
+            msg = "Attempted to set step swing height to {}, which is an invalid value.".format(req.swing_height)
+            rospy.logerr(msg)
+            return SetSwingHeightResponse(False, msg)
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params.swing_height = req.swing_height
+            self.spot_wrapper.set_mobility_params(mobility_params)
+            return SetSwingHeightResponse(True, 'Success')
+        except Exception as e:
+            return SetSwingHeightResponse(False, 'Error:{}'.format(e))
 
     def handle_vel_limit(self, req):
         """
@@ -426,7 +445,6 @@ class SpotROS():
             # Always send a stop command if disallowing motion, in case the robot is moving when it is sent
             self.spot_wrapper.stop()
         return True, "Spot motion was {}".format("enabled" if req.data else "disabled")
-
 
     def trajectory_callback(self, msg):
         """
@@ -818,6 +836,7 @@ class SpotROS():
 
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
+            rospy.Service("step_height", SetSwingHeight, self.handle_swing_height)
             rospy.Service("velocity_limit", SetVelocity, self.handle_vel_limit)
             rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_behavior_fault)
 
@@ -895,6 +914,7 @@ class SpotROS():
                             mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.w
                     mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
                     mobility_params_msg.stair_hint = mobility_params.stair_hint
+                    mobility_params_msg.swing_height = mobility_params.swing_height
                     # The velocity limit values can be set independently so make sure each of them exists before setting
                     if hasattr(mobility_params, "vel_limit"):
                         if hasattr(mobility_params.vel_limit.max_vel.linear, "x"):

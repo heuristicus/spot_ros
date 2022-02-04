@@ -14,6 +14,8 @@
 #include <spot_msgs/SetVelocity.h>
 #include <spot_msgs/LeaseArray.h>
 #include <spot_msgs/EStopState.h>
+#include <spot_msgs/SetSwingHeight.h>
+#include <spot_msgs/SetLocomotion.h>
 #include <string.h>
 
 
@@ -45,6 +47,9 @@ namespace spot_viz
         gentleStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/gentle");
         releaseStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/release");
         stopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/stop");
+        gaitService_ = nh_.serviceClient<spot_msgs::SetLocomotion>("/spot/locomotion_mode");
+        swingHeightService_ = nh_.serviceClient<spot_msgs::SetSwingHeight>("/spot/locomotion_mode");
+
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
 
         leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
@@ -66,7 +71,24 @@ namespace spot_viz
         batteryStateLabel = this->findChild<QLabel*>("batteryStateLabel");
         motorStateLabel = this->findChild<QLabel*>("motorStateLabel");
         batteryTempLabel = this->findChild<QLabel*>("batteryTempLabel");
+        setGaitButton = this->findChild<QPushButton*>("setGaitButton");
+        setSwingHeightButton = this->findChild<QPushButton*>("setSwingHeightButton");
+        gaitComboBox = this->findChild<QComboBox*>("gaitComboBox");
+        swingHeightComboBox = this->findChild<QComboBox*>("swingHeightComboBox");
 
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_AMBLE, "Amble");
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_AUTO, "Auto");
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_CRAWL, "Crawl");
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_HOP, "Hop");
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_JOG, "Jog");
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_SPEED_SELECT_AMBLE, "Speed sel amble");
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_SPEED_SELECT_CRAWL, "Speed sel crawl");
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_SPEED_SELECT_TROT, "Speed sel trot");
+        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_TROT, "Trot");
+
+        swingHeightComboBox->insertItem(spot_msgs::SetSwingHeight::Request::SWING_HEIGHT_LOW, "Low");
+        swingHeightComboBox->insertItem(spot_msgs::SetSwingHeight::Request::SWING_HEIGHT_MEDIUM, "Medium");
+        swingHeightComboBox->insertItem(spot_msgs::SetSwingHeight::Request::SWING_HEIGHT_HIGH, "High");
 
         stopButton = this->findChild<QPushButton*>("stopButton");
         QPalette pal = stopButton->palette();
@@ -157,6 +179,8 @@ namespace spot_viz
         connect(hardStopButton, SIGNAL(clicked()), this, SLOT(hardStop()));
         connect(gentleStopButton, SIGNAL(clicked()), this, SLOT(gentleStop()));
         connect(stopButton, SIGNAL(clicked()), this, SLOT(stop()));
+        connect(setGaitButton, SIGNAL(clicked()), this, SLOT(setGait()));
+        connect(setSwingHeightButton, SIGNAL(clicked()), this, SLOT(setSwingHeight()));
 
     }
 
@@ -183,6 +207,8 @@ namespace spot_viz
         hardStopButton->setEnabled(haveLease);
         gentleStopButton->setEnabled(haveLease);
         stopButton->setEnabled(haveLease);
+        setGaitButton->setEnabled(haveLease);
+        setSwingHeightButton->setEnabled(haveLease);
     }
 
     bool ControlPanel::callTriggerService(ros::ServiceClient service, std::string serviceName) {
@@ -250,11 +276,13 @@ namespace spot_viz
         if (*params == _lastMobilityParams) {
             // If we don't check this, the user will never be able to modify values since they will constantly reset
             return;
-        } else {
-            linearXSpin->setValue(params->velocity_limit.linear.x);
-            linearYSpin->setValue(params->velocity_limit.linear.y);
-            angularZSpin->setValue(params->velocity_limit.angular.z);
         }
+
+        linearXSpin->setValue(params->velocity_limit.linear.x);
+        linearYSpin->setValue(params->velocity_limit.linear.y);
+        angularZSpin->setValue(params->velocity_limit.angular.z);
+        gaitComboBox->setCurrentIndex(params->locomotion_hint);
+        swingHeightComboBox->setCurrentIndex(params->swing_height);
 
         _lastMobilityParams = *params;
     }
@@ -432,6 +460,42 @@ namespace spot_viz
         p.orientation.z = q.getZ();
         p.orientation.w = q.getW();
         bodyPosePub_.publish(p);
+    }
+
+    void ControlPanel::setGait() {
+        spot_msgs::SetLocomotion req;
+        req.request.locomotion_mode = gaitComboBox->currentIndex();
+        std::string labelText = "Calling set gait";
+        if (gaitService_.call(req)) {
+            if (req.response.success) {
+                labelText = "Successfully called set gait service";
+                statusLabel->setText(QString(labelText.c_str()));
+            } else {
+                labelText = "set gait failed: " + req.response.message;
+                statusLabel->setText(QString(labelText.c_str()));
+            }
+        } else {
+            labelText = "Failed to call gait service" + req.response.message;
+            statusLabel->setText(QString(labelText.c_str()));
+        }
+    }
+
+    void ControlPanel::setSwingHeight() {
+        spot_msgs::SetSwingHeight req;
+        req.request.swing_height = swingHeightComboBox->currentIndex();
+        std::string labelText = "Calling set swing height";
+        if (swingHeightService_.call(req)) {
+            if (req.response.success) {
+                labelText = "Successfully called set swing height service";
+                statusLabel->setText(QString(labelText.c_str()));
+            } else {
+                labelText = "set swing height failed: " + req.response.message;
+                statusLabel->setText(QString(labelText.c_str()));
+            }
+        } else {
+            labelText = "Failed to swing height service" + req.response.message;
+            statusLabel->setText(QString(labelText.c_str()));
+        }
     }
 
     void ControlPanel::save(rviz::Config config) const
