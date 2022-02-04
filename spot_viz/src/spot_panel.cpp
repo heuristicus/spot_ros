@@ -1,5 +1,6 @@
 #include "spot_panel.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <QFile>
 #include <QUiLoader>
@@ -49,6 +50,8 @@ namespace spot_viz
         leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
         estopSub_ = nh_.subscribe("/spot/status/estop", 1, &ControlPanel::estopCallback, this);
         mobilityParamsSub_ = nh_.subscribe("/spot/status/mobility_params", 1, &ControlPanel::mobilityParamsCallback, this);
+        batterySub_ = nh_.subscribe("/spot/status/battery_states", 1, &ControlPanel::batteryCallback, this);
+        powerSub_ = nh_.subscribe("/spot/status/power_state", 1, &ControlPanel::powerCallback, this);
 
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
         releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
@@ -59,6 +62,11 @@ namespace spot_viz
         setBodyPoseButton = this->findChild<QPushButton*>("setBodyPoseButton");
         setMaxVelButton = this->findChild<QPushButton*>("setMaxVelButton");
         statusLabel = this->findChild<QLabel*>("statusLabel");
+        estimatedRuntimeLabel = this->findChild<QLabel*>("estimatedRuntimeLabel");
+        batteryStateLabel = this->findChild<QLabel*>("batteryStateLabel");
+        motorStateLabel = this->findChild<QLabel*>("motorStateLabel");
+        batteryTempLabel = this->findChild<QLabel*>("batteryTempLabel");
+
 
         stopButton = this->findChild<QPushButton*>("stopButton");
         QPalette pal = stopButton->palette();
@@ -249,6 +257,104 @@ namespace spot_viz
         }
 
         _lastMobilityParams = *params;
+    }
+
+    void ControlPanel::batteryCallback(const spot_msgs::BatteryStateArray::ConstPtr &battery) {
+        spot_msgs::BatteryState battState = battery->battery_states[0];
+        std::string estRuntime = "Estimated runtime: " + std::to_string(battState.estimated_runtime.sec/60) + " min";
+        estimatedRuntimeLabel->setText(QString(estRuntime.c_str()));
+
+        auto temps = battState.temperatures;
+        if (!temps.empty()) {
+            auto minmax = std::minmax_element(temps.begin(), temps.end());
+            float total = std::accumulate(temps.begin(), temps.end(), 0);
+            // Don't care about float values here
+            int tempMin = *minmax.first;
+            int tempMax = *minmax.second;
+            int tempAvg = total / temps.size();
+            std::string battTemp = "Battery temp: min " + std::to_string(tempMin) + ", max " + std::to_string(tempMax) + ", avg " + std::to_string(tempAvg);
+            batteryTempLabel->setText(QString(battTemp.c_str()));
+        } else {
+            batteryTempLabel->setText(QString("Battery temp: No battery"));
+        }
+
+
+        std::string status;
+        switch (battState.status)
+        {
+        case spot_msgs::BatteryState::STATUS_UNKNOWN:
+            status = "Unknown";
+            break;
+        case spot_msgs::BatteryState::STATUS_MISSING:
+            status = "Missing";
+            break;
+        case spot_msgs::BatteryState::STATUS_CHARGING:
+            status = "Charging";
+            break;
+        case spot_msgs::BatteryState::STATUS_DISCHARGING:
+            status = "Discharging";
+            break;
+        case spot_msgs::BatteryState::STATUS_BOOTING:
+            status = "Booting";
+            break;
+        default:
+            status = "Invalid";
+            break;
+        }
+        std::string battStatusStr;
+        if (battState.status == spot_msgs::BatteryState::STATUS_CHARGING || battState.status == spot_msgs::BatteryState::STATUS_DISCHARGING) {
+            // TODO: use std::format in c++20 rather than this nastiness
+            std::stringstream stream;
+            stream << std::fixed << std::setprecision(0) << battState.charge_percentage;
+            std::string pct = stream.str() + "%";
+            stream.str("");
+            stream.clear();
+            stream << std::fixed << std::setprecision(1) << battState.voltage;
+            std::string volt = stream.str() + "V";
+            stream.str("");
+            stream.clear();
+            stream << battState.current;
+            std::string amp = stream.str() + "A";
+            battStatusStr = "Battery state: " + status + ", " + pct + ", " + volt + ", " + amp;
+        } else {
+            battStatusStr = "Battery state: " + status;
+        }
+        batteryStateLabel->setText(QString(battStatusStr.c_str()));
+    }
+
+    void ControlPanel::powerCallback(const spot_msgs::PowerState::ConstPtr &power) {
+        std::string state;
+        switch (power->motor_power_state)
+        {
+        case spot_msgs::PowerState::STATE_POWERING_ON:
+            state = "Powering on";
+            powerOnButton->setEnabled(false);
+            break;
+        case spot_msgs::PowerState::STATE_POWERING_OFF:
+            state = "Powering off";
+            powerOffButton->setEnabled(false);
+            break;
+        case spot_msgs::PowerState::STATE_ON:
+            state = "On";
+            powerOnButton->setEnabled(false);
+            powerOffButton->setEnabled(true);
+            break;
+        case spot_msgs::PowerState::STATE_OFF:
+            state = "Off";
+            powerOnButton->setEnabled(true);
+            powerOffButton->setEnabled(false);
+            break;
+        case spot_msgs::PowerState::STATE_ERROR:
+            state = "Error";
+            break;
+        case spot_msgs::PowerState::STATE_UNKNOWN:
+            state = "Unknown";
+            break;
+        default:
+            "Invalid";
+        }
+        std::string motorState = "Motor state: " + state;
+        motorStateLabel->setText(QString(motorState.c_str()));
     }
 
     void ControlPanel::sit() {

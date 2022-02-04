@@ -14,6 +14,8 @@
 #include <spot_msgs/EStopStateArray.h>
 #include <spot_msgs/MobilityParams.h>
 
+#include <spot_msgs/BatteryStateArray.h>
+#include <spot_msgs/PowerState.h>
 
 namespace spot_viz
 {
@@ -50,6 +52,8 @@ class ControlPanel : public rviz::Panel
     void leaseCallback(const spot_msgs::LeaseArray::ConstPtr &leases);
     void estopCallback(const spot_msgs::EStopStateArray::ConstPtr &estops);
     void mobilityParamsCallback(const spot_msgs::MobilityParams::ConstPtr &params);
+    void batteryCallback(const spot_msgs::BatteryStateArray::ConstPtr &battery);
+    void powerCallback(const spot_msgs::PowerState::ConstPtr &power);
 
     ros::NodeHandle nh_;
     ros::ServiceClient sitService_;
@@ -67,6 +71,8 @@ class ControlPanel : public rviz::Panel
     ros::Subscriber leaseSub_;
     ros::Subscriber estopSub_;
     ros::Subscriber mobilityParamsSub_;
+    ros::Subscriber batterySub_;
+    ros::Subscriber powerSub_;
 
     QPushButton* claimLeaseButton;
     QPushButton* releaseLeaseButton;
@@ -88,6 +94,11 @@ class ControlPanel : public rviz::Panel
     QLabel* rollLabel;
     QLabel* pitchLabel;
     QLabel* yawLabel;
+    QLabel* estimatedRuntimeLabel;
+    QLabel* batteryStateLabel;
+    QLabel* motorStateLabel;
+    QLabel* batteryTempLabel;
+
     QDoubleSpinBox* linearXSpin;
     QDoubleSpinBox* linearYSpin;
     QDoubleSpinBox* angularZSpin;
