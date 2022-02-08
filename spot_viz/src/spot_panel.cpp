@@ -10,12 +10,13 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Twist.h>
 #include <QDoubleValidator>
+#include <QStandardItemModel>
 #include <tf/transform_datatypes.h>
 #include <spot_msgs/SetVelocity.h>
 #include <spot_msgs/LeaseArray.h>
 #include <spot_msgs/EStopState.h>
-#include <spot_msgs/SetSwingHeight.h>
-#include <spot_msgs/SetLocomotion.h>
+#include <spot_msgs/SetObstacleParams.h>
+#include <spot_msgs/SetTerrainParams.h>
 #include <string.h>
 
 
@@ -48,7 +49,9 @@ namespace spot_viz
         releaseStopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/estop/release");
         stopService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/stop");
         gaitService_ = nh_.serviceClient<spot_msgs::SetLocomotion>("/spot/locomotion_mode");
-        swingHeightService_ = nh_.serviceClient<spot_msgs::SetSwingHeight>("/spot/locomotion_mode");
+        swingHeightService_ = nh_.serviceClient<spot_msgs::SetSwingHeight>("/spot/swing_height");
+        terrainParamsService_ = nh_.serviceClient<spot_msgs::SetTerrainParams>("/spot/terrain_params");
+        obstacleParamsService_ = nh_.serviceClient<spot_msgs::SetObstacleParams>("/spot/obstacle_params");
 
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
 
@@ -66,30 +69,51 @@ namespace spot_viz
         sitButton = this->findChild<QPushButton*>("sitButton");
         setBodyPoseButton = this->findChild<QPushButton*>("setBodyPoseButton");
         setMaxVelButton = this->findChild<QPushButton*>("setMaxVelButton");
+        setGaitButton = this->findChild<QPushButton*>("setGaitButton");
+        setSwingHeightButton = this->findChild<QPushButton*>("setSwingHeightButton");
+        setObstaclePaddingButton = this->findChild<QPushButton*>("setObstaclePaddingButton");
+        setGratedSurfacesButton = this->findChild<QPushButton*>("setGratedSurfacesButton");
+        setFrictionButton = this->findChild<QPushButton*>("setFrictionButton");
+
         statusLabel = this->findChild<QLabel*>("statusLabel");
         estimatedRuntimeLabel = this->findChild<QLabel*>("estimatedRuntimeLabel");
         batteryStateLabel = this->findChild<QLabel*>("batteryStateLabel");
         motorStateLabel = this->findChild<QLabel*>("motorStateLabel");
         batteryTempLabel = this->findChild<QLabel*>("batteryTempLabel");
-        setGaitButton = this->findChild<QPushButton*>("setGaitButton");
-        setSwingHeightButton = this->findChild<QPushButton*>("setSwingHeightButton");
+
         gaitComboBox = this->findChild<QComboBox*>("gaitComboBox");
         swingHeightComboBox = this->findChild<QComboBox*>("swingHeightComboBox");
+        gratedSurfacesComboBox = this->findChild<QComboBox*>("gratedSurfacesComboBox");
 
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_AMBLE, "Amble");
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_AUTO, "Auto");
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_CRAWL, "Crawl");
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_HOP, "Hop");
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_JOG, "Jog");
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_SPEED_SELECT_AMBLE, "Speed sel amble");
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_SPEED_SELECT_CRAWL, "Speed sel crawl");
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_SPEED_SELECT_TROT, "Speed sel trot");
-        gaitComboBox->insertItem(spot_msgs::SetLocomotion::Request::HINT_TROT, "Trot");
+        obstaclePaddingSpin = this->findChild<QDoubleSpinBox*>("obstaclePaddingSpin");
+        frictionSpin = this->findChild<QDoubleSpinBox*>("frictionSpin");
 
-        swingHeightComboBox->insertItem(spot_msgs::SetSwingHeight::Request::SWING_HEIGHT_LOW, "Low");
-        swingHeightComboBox->insertItem(spot_msgs::SetSwingHeight::Request::SWING_HEIGHT_MEDIUM, "Medium");
-        swingHeightComboBox->insertItem(spot_msgs::SetSwingHeight::Request::SWING_HEIGHT_HIGH, "High");
 
+        setupComboBoxes();
+        setupStopButtons();
+        setupSpinBoxes();
+
+
+        connect(claimLeaseButton, SIGNAL(clicked()), this, SLOT(claimLease()));
+        connect(releaseLeaseButton, SIGNAL(clicked()), this, SLOT(releaseLease()));
+        connect(powerOnButton, SIGNAL(clicked()), this, SLOT(powerOn()));
+        connect(powerOffButton, SIGNAL(clicked()), this, SLOT(powerOff()));
+        connect(sitButton, SIGNAL(clicked()), this, SLOT(sit()));
+        connect(standButton, SIGNAL(clicked()), this, SLOT(stand()));
+        connect(setBodyPoseButton, SIGNAL(clicked()), this, SLOT(sendBodyPose()));
+        connect(setMaxVelButton, SIGNAL(clicked()), this, SLOT(setMaxVel()));
+        connect(releaseStopButton, SIGNAL(clicked()), this, SLOT(releaseStop()));
+        connect(hardStopButton, SIGNAL(clicked()), this, SLOT(hardStop()));
+        connect(gentleStopButton, SIGNAL(clicked()), this, SLOT(gentleStop()));
+        connect(stopButton, SIGNAL(clicked()), this, SLOT(stop()));
+        connect(setGaitButton, SIGNAL(clicked()), this, SLOT(setGait()));
+        connect(setSwingHeightButton, SIGNAL(clicked()), this, SLOT(setSwingHeight()));
+        connect(setObstaclePaddingButton, SIGNAL(clicked()), this, SLOT(setObstacleParams()));
+        connect(setGratedSurfacesButton, SIGNAL(clicked()), this, SLOT(setTerrainParams()));
+        connect(setFrictionButton, SIGNAL(clicked()), this, SLOT(setTerrainParams()));
+    }
+
+    void ControlPanel::setupStopButtons() {
         stopButton = this->findChild<QPushButton*>("stopButton");
         QPalette pal = stopButton->palette();
         pal.setColor(QPalette::Button, QColor(255, 165, 0));
@@ -118,8 +142,35 @@ namespace spot_viz
         releaseStopButton->setAutoFillBackground(true);
         releaseStopButton->setPalette(pal);
         releaseStopButton->update();
+    }
 
+    void ControlPanel::setupComboBoxes() {
+        // Iterate over the map for this combobox and add items. By default items in the
+        // map are in ascending order by key
+        for (const auto& item : gaitMap) {
+            gaitComboBox->addItem(QString(item.second.c_str()));
+        }
+        // Disable the unknown entry in the combobox so that it cannot be selected and sent to the service
+        QStandardItemModel* model = qobject_cast<QStandardItemModel *>(gaitComboBox->model());
+        QStandardItem* item = model->item(0);
+        item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
 
+        for (const auto& item : swingHeightMap) {
+            swingHeightComboBox->addItem(QString(item.second.c_str()));
+        }
+        model = qobject_cast<QStandardItemModel *>(swingHeightComboBox->model());
+        item = model->item(0);
+        item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+
+        for (const auto& item : gratedSurfacesMap) {
+            gratedSurfacesComboBox->addItem(QString(item.second.c_str()));
+        }
+        model = qobject_cast<QStandardItemModel *>(gratedSurfacesComboBox->model());
+        item = model->item(0);
+        item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+    }
+
+    void ControlPanel::setupSpinBoxes() {
         double linearVelocityLimit = 2;
         linearXSpin = this->findChild<QDoubleSpinBox*>("linearXSpin");
         linearXLabel = this->findChild<QLabel*>("linearXLabel");
@@ -166,22 +217,6 @@ namespace spot_viz
         updateLabelTextWithLimit(yawLabel, -yawLimit, yawLimit);
         yawSpin->setMaximum(yawLimit);
         yawSpin->setMinimum(-yawLimit);
-
-        connect(claimLeaseButton, SIGNAL(clicked()), this, SLOT(claimLease()));
-        connect(releaseLeaseButton, SIGNAL(clicked()), this, SLOT(releaseLease()));
-        connect(powerOnButton, SIGNAL(clicked()), this, SLOT(powerOn()));
-        connect(powerOffButton, SIGNAL(clicked()), this, SLOT(powerOff()));
-        connect(sitButton, SIGNAL(clicked()), this, SLOT(sit()));
-        connect(standButton, SIGNAL(clicked()), this, SLOT(stand()));
-        connect(setBodyPoseButton, SIGNAL(clicked()), this, SLOT(sendBodyPose()));
-        connect(setMaxVelButton, SIGNAL(clicked()), this, SLOT(setMaxVel()));
-        connect(releaseStopButton, SIGNAL(clicked()), this, SLOT(releaseStop()));
-        connect(hardStopButton, SIGNAL(clicked()), this, SLOT(hardStop()));
-        connect(gentleStopButton, SIGNAL(clicked()), this, SLOT(gentleStop()));
-        connect(stopButton, SIGNAL(clicked()), this, SLOT(stop()));
-        connect(setGaitButton, SIGNAL(clicked()), this, SLOT(setGait()));
-        connect(setSwingHeightButton, SIGNAL(clicked()), this, SLOT(setSwingHeight()));
-
     }
 
     void ControlPanel::updateLabelTextWithLimit(QLabel* label, double limit_lower, double limit_upper) {
@@ -209,35 +244,69 @@ namespace spot_viz
         stopButton->setEnabled(haveLease);
         setGaitButton->setEnabled(haveLease);
         setSwingHeightButton->setEnabled(haveLease);
+        setObstaclePaddingButton->setEnabled(haveLease);
+        setFrictionButton->setEnabled(haveLease);
+        setGratedSurfacesButton->setEnabled(haveLease);
     }
 
+    /**
+     * @brief Call a ros std_msgs/Trigger service
+     *
+     * Modifies the status label text depending on the result
+     *
+     * @param service Service to call
+     * @param serviceName Name of the service to use in labels
+     * @return true if successfully called
+     * @return false otherwise
+     */
     bool ControlPanel::callTriggerService(ros::ServiceClient service, std::string serviceName) {
         std_srvs::Trigger req;
+        return callCustomTriggerService(service, serviceName, req);
+    }
+
+    template <typename T>
+    /**
+     * @brief Call an arbitrary service which has a response type of bool, str
+     *
+     * Modifies the status label text depending on the result
+     *
+     * @param service Service to call
+     * @param serviceName Name of the service to use in labels
+     * @param serviceRequest Request to make to the service
+     * @return true if successfully called
+     * @return false otherwise
+     */
+    bool ControlPanel::callCustomTriggerService(ros::ServiceClient service, std::string serviceName, T serviceRequest) {
         std::string labelText = "Calling " + serviceName + " service";
         statusLabel->setText(QString(labelText.c_str()));
-        if (service.call(req)) {
-            if (req.response.success) {
+        if (service.call(serviceRequest)) {
+            if (serviceRequest.response.success) {
                 labelText = "Successfully called " + serviceName + " service";
                 statusLabel->setText(QString(labelText.c_str()));
                 return true;
             } else {
-                labelText = serviceName + " service failed: " + req.response.message;
+                labelText = serviceName + " service failed: " + serviceRequest.response.message;
                 statusLabel->setText(QString(labelText.c_str()));
                 return false;
             }
         } else {
-            labelText = "Failed to call " + serviceName + " service" + req.response.message;
+            labelText = "Failed to call " + serviceName + " service" + serviceRequest.response.message;
             statusLabel->setText(QString(labelText.c_str()));
             return false;
         }
     }
 
+    /**
+     * @brief Check held leases and enable or disable buttons accordingly
+     *
+     * check to see if the body is already owned by the ROS node
+     * the resource will be "body" and the lease_owner.client_name will begin with "ros_spot"
+     * if the claim exists, treat this as a successful click of the Claim button
+     * if the claim does not exist, treat this as a click of the Release button
+     *
+     * @param leases
+     */
     void ControlPanel::leaseCallback(const spot_msgs::LeaseArray::ConstPtr &leases) {
-        // check to see if the body is already owned by the ROS node
-        // the resource will be "body" and the lease_owner.client_name will begin with "ros_spot"
-        // if the claim exists, treat this as a successful click of the Claim button
-        // if the claim does not exist, treat this as a click of the Release button
-
         bool msg_has_lease = false;
         for (int i=leases->resources.size()-1; i>=0; i--) {
             const spot_msgs::LeaseResource &resource = leases->resources[i];
@@ -255,9 +324,12 @@ namespace spot_viz
         }
     }
 
+    /**
+     * @brief Check estop state and disable control buttons if estopped
+     *
+     * @param estops
+     */
     void ControlPanel::estopCallback(const spot_msgs::EStopStateArray::ConstPtr &estops) {
-        // Check to see if any of the estops is active, and set the state of the release
-        // estop button accordingly if the state has changed
         bool msg_is_estopped = false;
         for (int i=estops->estop_states.size()-1; i>=0; i--) {
             const spot_msgs::EStopState &estop = estops->estop_states[i];
@@ -281,8 +353,24 @@ namespace spot_viz
         linearXSpin->setValue(params->velocity_limit.linear.x);
         linearYSpin->setValue(params->velocity_limit.linear.y);
         angularZSpin->setValue(params->velocity_limit.angular.z);
-        gaitComboBox->setCurrentIndex(params->locomotion_hint);
-        swingHeightComboBox->setCurrentIndex(params->swing_height);
+
+        // Set the combo box values depending on whether there is a nonzero value coming from the params. If there isn't,
+        // set the value based on what it is when using the controller
+        if (params->locomotion_hint > 0) {
+            gaitComboBox->setCurrentIndex(gaitComboBox->findText(gaitMap.at(params->locomotion_hint).c_str()));
+        } else {
+            gaitComboBox->setCurrentIndex(gaitComboBox->findText(gaitMap.at(spot_msgs::SetLocomotion::Request::HINT_AUTO).c_str()));
+        }
+        if (params->swing_height > 0) {
+            swingHeightComboBox->setCurrentIndex(swingHeightComboBox->findText(swingHeightMap.at(params->swing_height).c_str()));
+        } else {
+            swingHeightComboBox->setCurrentIndex(swingHeightComboBox->findText(swingHeightMap.at(spot_msgs::SetSwingHeight::Request::SWING_HEIGHT_MEDIUM).c_str()));
+        }
+        if (params->terrain_params.grated_surfaces_mode > 0) {
+            gratedSurfacesComboBox->setCurrentIndex(gratedSurfacesComboBox->findText(gratedSurfacesMap.at(params->terrain_params.grated_surfaces_mode).c_str()));
+        } else {
+            gratedSurfacesComboBox->setCurrentIndex(gratedSurfacesComboBox->findText(gratedSurfacesMap.at(spot_msgs::TerrainParams::GRATED_SURFACES_MODE_AUTO).c_str()));
+        }
 
         _lastMobilityParams = *params;
     }
@@ -306,7 +394,6 @@ namespace spot_viz
             batteryTempLabel->setText(QString("Battery temp: No battery"));
         }
 
-
         std::string status;
         switch (battState.status)
         {
@@ -329,6 +416,7 @@ namespace spot_viz
             status = "Invalid";
             break;
         }
+
         std::string battStatusStr;
         if (battState.status == spot_msgs::BatteryState::STATUS_CHARGING || battState.status == spot_msgs::BatteryState::STATUS_DISCHARGING) {
             // TODO: use std::format in c++20 rather than this nastiness
@@ -369,7 +457,7 @@ namespace spot_viz
             break;
         case spot_msgs::PowerState::STATE_OFF:
             state = "Off";
-            powerOnButton->setEnabled(true);
+            powerOnButton->setEnabled(true && haveLease);
             powerOffButton->setEnabled(false);
             break;
         case spot_msgs::PowerState::STATE_ERROR:
@@ -432,21 +520,7 @@ namespace spot_viz
         req.request.velocity_limit.angular.z = angularZSpin->value();
         req.request.velocity_limit.linear.x = linearXSpin->value();
         req.request.velocity_limit.linear.y = linearYSpin->value();
-
-        std::string labelText = "Calling set velocity limit service";
-        statusLabel->setText(QString(labelText.c_str()));
-        if (maxVelocityService_.call(req)) {
-            if (req.response.success) {
-                labelText = "Successfully called set velocity limit service";
-                statusLabel->setText(QString(labelText.c_str()));
-            } else {
-                labelText = "set velocity limit service failed: " + req.response.message;
-                statusLabel->setText(QString(labelText.c_str()));
-            }
-        } else {
-            labelText = "Failed to call set velocity limit service" + req.response.message;
-            statusLabel->setText(QString(labelText.c_str()));
-        }
+        callCustomTriggerService(maxVelocityService_, "set velocity limits", req);
     }
 
     void ControlPanel::sendBodyPose() {
@@ -462,40 +536,46 @@ namespace spot_viz
         bodyPosePub_.publish(p);
     }
 
+    /**
+     * @brief Get the message constant integer that corresponds to the currently selected combobox item
+     *
+     * @param comboBox Combobox whose selection should be checked
+     * @param comboBoxMap Mapping from message constants to text in the combobox
+     * @return int > 0 indicating the map constant, or -1 if it couldn't be found
+     */
+    int comboBoxSelectionToMessageConstantInt(QComboBox* comboBox, const std::map<uint, std::string>& comboBoxMap) {
+        std::string selectionText = comboBox->currentText().toStdString();
+        for (const auto& item : comboBoxMap) {
+            if (selectionText == item.second) {
+                return item.first;
+            }
+        }
+        return -1;
+    }
+
     void ControlPanel::setGait() {
         spot_msgs::SetLocomotion req;
-        req.request.locomotion_mode = gaitComboBox->currentIndex();
-        std::string labelText = "Calling set gait";
-        if (gaitService_.call(req)) {
-            if (req.response.success) {
-                labelText = "Successfully called set gait service";
-                statusLabel->setText(QString(labelText.c_str()));
-            } else {
-                labelText = "set gait failed: " + req.response.message;
-                statusLabel->setText(QString(labelText.c_str()));
-            }
-        } else {
-            labelText = "Failed to call gait service" + req.response.message;
-            statusLabel->setText(QString(labelText.c_str()));
-        }
+        req.request.locomotion_mode = comboBoxSelectionToMessageConstantInt(gaitComboBox, gaitMap);
+        callCustomTriggerService(gaitService_, "set gait", req);
     }
 
     void ControlPanel::setSwingHeight() {
         spot_msgs::SetSwingHeight req;
-        req.request.swing_height = swingHeightComboBox->currentIndex();
-        std::string labelText = "Calling set swing height";
-        if (swingHeightService_.call(req)) {
-            if (req.response.success) {
-                labelText = "Successfully called set swing height service";
-                statusLabel->setText(QString(labelText.c_str()));
-            } else {
-                labelText = "set swing height failed: " + req.response.message;
-                statusLabel->setText(QString(labelText.c_str()));
-            }
-        } else {
-            labelText = "Failed to swing height service" + req.response.message;
-            statusLabel->setText(QString(labelText.c_str()));
-        }
+        req.request.swing_height = comboBoxSelectionToMessageConstantInt(swingHeightComboBox, swingHeightMap);
+        callCustomTriggerService(swingHeightService_, "set swing height", req);
+    }
+
+    void ControlPanel::setTerrainParams() {
+        spot_msgs::SetTerrainParams req;
+        req.request.terrain_params.grated_surfaces_mode = comboBoxSelectionToMessageConstantInt(gratedSurfacesComboBox, gratedSurfacesMap);
+        req.request.terrain_params.ground_mu_hint = frictionSpin->value();
+        callCustomTriggerService(terrainParamsService_, "set terrain params", req);
+    }
+
+    void ControlPanel::setObstacleParams() {
+        spot_msgs::SetObstacleParams req;
+        req.request.obstacle_params.obstacle_avoidance_padding = obstaclePaddingSpin->value();
+        callCustomTriggerService(obstacleParamsService_, "set obstacle params", req);
     }
 
     void ControlPanel::save(rviz::Config config) const

@@ -32,6 +32,8 @@ add_message_files(
   LeaseResource.msg
   PowerState.msg
   SystemFaultState.msg
+  ObstacleParams.msg
+  TerrainParams.msg
 )
 
 add_service_files(
@@ -41,6 +43,8 @@ add_service_files(
   SetSwingHeight.srv
   SetVelocity.srv
   ClearBehaviorFault.srv
+  SetObstacleParams.srv
+  SetTerrainParams.srv
 )
 
 add_action_files(

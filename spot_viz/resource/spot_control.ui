@@ -235,65 +235,34 @@
          <item>
           <layout class="QVBoxLayout" name="motionTabLayout">
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <layout class="QHBoxLayout" name="obstaclePaddingLayout">
              <item>
-              <widget class="QLabel" name="gaitLabel">
+              <widget class="QLabel" name="obstaclePaddingLabel">
                <property name="text">
-                <string>Gait</string>
+                <string>Obstacle padding</string>
+               </property>
+               <property name="buddy">
+                <cstring>obstaclePaddingSpin</cstring>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QComboBox" name="gaitComboBox">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
+              <widget class="QDoubleSpinBox" name="obstaclePaddingSpin">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="maximum">
+                <double>0.500000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="setGaitButton">
+              <widget class="QPushButton" name="setObstaclePaddingButton">
                <property name="enabled">
                 <bool>false</bool>
-               </property>
-               <property name="text">
-                <string>Set</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="swingHeightLayout">
-             <item>
-              <widget class="QLabel" name="swingHeightLabel">
-               <property name="text">
-                <string>Swing height</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="swingHeightComboBox">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="setSwingHeightButton">
-               <property name="enabled">
-                <bool>false</bool>
-               </property>
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
                </property>
                <property name="text">
                 <string>Set</string>
@@ -321,6 +290,9 @@
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
+                 <property name="buddy">
+                  <cstring>angularZSpin</cstring>
+                 </property>
                 </widget>
                </item>
                <item row="3" column="0">
@@ -331,6 +303,9 @@
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
+                 <property name="buddy">
+                  <cstring>linearYSpin</cstring>
+                 </property>
                 </widget>
                </item>
                <item row="1" column="0">
@@ -340,6 +315,9 @@
                  </property>
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                 </property>
+                 <property name="buddy">
+                  <cstring>linearXSpin</cstring>
                  </property>
                 </widget>
                </item>
@@ -382,6 +360,159 @@
                </property>
                <property name="text">
                 <string>Set Velocity Limit</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="advancedMotionTab">
+        <attribute name="title">
+         <string>Adv. Motion</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="verticalLayout_6">
+         <item>
+          <layout class="QVBoxLayout" name="advancedMotionLayout">
+           <item>
+            <layout class="QGridLayout" name="gridLayout_2">
+             <item row="2" column="1">
+              <widget class="QComboBox" name="gratedSurfacesComboBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="2">
+              <widget class="QPushButton" name="setGratedSurfacesButton">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>Set</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="swingHeightLabel">
+               <property name="text">
+                <string>Swing height</string>
+               </property>
+               <property name="buddy">
+                <cstring>swingHeightComboBox</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="2">
+              <widget class="QPushButton" name="setSwingHeightButton">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>Set</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="gaitComboBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QPushButton" name="setGaitButton">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>Set</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="gaitLabel">
+               <property name="text">
+                <string>Gait</string>
+               </property>
+               <property name="buddy">
+                <cstring>gaitComboBox</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QComboBox" name="swingHeightComboBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="gratedSurfacesLabel">
+               <property name="text">
+                <string>Grated surface mode</string>
+               </property>
+               <property name="buddy">
+                <cstring>gratedSurfacesComboBox</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="frictionLabel">
+               <property name="text">
+                <string>Ground mu</string>
+               </property>
+               <property name="buddy">
+                <cstring>frictionSpin</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QDoubleSpinBox" name="frictionSpin">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimum">
+                <double>0.200000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>0.800000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.600000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="2">
+              <widget class="QPushButton" name="setFrictionButton">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>Set</string>
                </property>
               </widget>
              </item>
@@ -515,6 +646,30 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>gentleStopButton</tabstop>
+  <tabstop>hardStopButton</tabstop>
+  <tabstop>releaseStopButton</tabstop>
+  <tabstop>stopButton</tabstop>
+  <tabstop>claimLeaseButton</tabstop>
+  <tabstop>releaseLeaseButton</tabstop>
+  <tabstop>powerOnButton</tabstop>
+  <tabstop>powerOffButton</tabstop>
+  <tabstop>sitButton</tabstop>
+  <tabstop>standButton</tabstop>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>obstaclePaddingSpin</tabstop>
+  <tabstop>setObstaclePaddingButton</tabstop>
+  <tabstop>linearXSpin</tabstop>
+  <tabstop>linearYSpin</tabstop>
+  <tabstop>angularZSpin</tabstop>
+  <tabstop>setMaxVelButton</tabstop>
+  <tabstop>bodyHeightSpin</tabstop>
+  <tabstop>rollSpin</tabstop>
+  <tabstop>pitchSpin</tabstop>
+  <tabstop>yawSpin</tabstop>
+  <tabstop>setBodyPoseButton</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

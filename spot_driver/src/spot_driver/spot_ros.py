@@ -13,6 +13,7 @@ from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.api import geometry_pb2, trajectory_pb2
 from bosdyn.api.geometry_pb2 import Quaternion, SE2VelocityLimit
 from bosdyn.client import math_helpers
+from google.protobuf.wrappers_pb2 import DoubleValue
 import actionlib
 import functools
 import bosdyn.geometry
@@ -30,11 +31,13 @@ from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import PoseBodyAction, PoseBodyResult
 from spot_msgs.msg import Feedback
-from spot_msgs.msg import MobilityParams
+from spot_msgs.msg import MobilityParams, ObstacleParams, TerrainParams
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
 from spot_msgs.msg import TrajectoryAction, TrajectoryResult, TrajectoryFeedback
 from spot_msgs.srv import ListGraph, ListGraphResponse
 from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
+from spot_msgs.srv import SetTerrainParams, SetTerrainParamsResponse
+from spot_msgs.srv import SetObstacleParams, SetObstacleParamsResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
 from spot_msgs.srv import SetVelocity, SetVelocityResponse
 from spot_msgs.srv import SetSwingHeight, SetSwingHeightResponse
@@ -331,7 +334,7 @@ class SpotROS():
 
     def handle_swing_height(self, req):
         """ROS service handler to set the step swing height"""
-        if req.step_height == 0 or req.step_height > 3:
+        if req.swing_height == 0 or req.swing_height > 3:
             msg = "Attempted to set step swing height to {}, which is an invalid value.".format(req.swing_height)
             rospy.logerr(msg)
             return SetSwingHeightResponse(False, msg)
@@ -445,6 +448,77 @@ class SpotROS():
             # Always send a stop command if disallowing motion, in case the robot is moving when it is sent
             self.spot_wrapper.stop()
         return True, "Spot motion was {}".format("enabled" if req.data else "disabled")
+
+    def handle_obstacle_params(self, req):
+        """
+        Handle a call to set the obstacle params part of mobility params. The previous values are always overwritten.
+
+        Args:
+            req:
+
+        Returns: (bool, str) True if successful, along with a message
+
+        """
+        mobility_params = self.spot_wrapper.get_mobility_params()
+        obstacle_params = spot_command_pb2.ObstacleParams()
+        # Currently only the obstacle setting that we allow is the padding. The previous value is always overwritten
+        # Clamp to the range [0, 0.5] as on the controller
+        if req.obstacle_params.obstacle_avoidance_padding < 0:
+            rospy.logwarn("Received padding value of {}, clamping to 0".format(
+                    req.obstacle_params.obstacle_avoidance_padding))
+            req.obstacle_params.obstacle_avoidance_padding = 0
+        if req.obstacle_params.obstacle_avoidance_padding > 0.5:
+            rospy.logwarn("Received padding value of {}, clamping to 0.5".format(
+                    req.obstacle_params.obstacle_avoidance_padding))
+            req.obstacle_params.obstacle_avoidance_padding = 0.5
+
+        disable_notallowed = ""
+        if any([req.obstacle_params.disable_vision_foot_obstacle_avoidance,
+                req.obstacle_params.disable_vision_foot_constraint_avoidance,
+                req.obstacle_params.disable_vision_body_obstacle_avoidance,
+                req.obstacle_params.disable_vision_foot_obstacle_body_assist,
+                req.obstacle_params.disable_vision_negative_obstacles,
+                ]):
+            disable_notallowed = " Disabling any of the obstacle avoidance components is not currently allowed."
+            rospy.logerr("At least one of the disable settings on obstacle params was true." + disable_notallowed)
+
+        obstacle_params.obstacle_avoidance_padding = req.obstacle_params.obstacle_avoidance_padding
+
+        mobility_params.obstacle_params.CopyFrom(obstacle_params)
+        self.spot_wrapper.set_mobility_params(mobility_params)
+        return True, "Successfully set obstacle params" + disable_notallowed
+
+    def handle_terrain_params(self, req):
+        """
+        Handle a call to set the terrain params part of mobility params. The previous values are always overwritten
+
+        Args:
+            req:
+
+        Returns: (bool, str) True if successful, along with a message
+
+        """
+        mobility_params = self.spot_wrapper.get_mobility_params()
+
+        # We always overwrite the previous settings of these values. Reject if not within recommended limits (as on
+        # the controller)
+        if 0.2 <= req.terrain_params.ground_mu_hint <= 0.8:
+            # For some reason assignment to ground_mu_hint is not allowed once the terrain params are initialised
+            # Must initialise with the protobuf type DoubleValue for initialisation to work
+            terrain_params = spot_command_pb2.TerrainParams(ground_mu_hint=DoubleValue(value=req.terrain_params.ground_mu_hint))
+        else:
+            return False, "Failed to set terrain params, ground_mu_hint of {} is not in the range [0.4, 0.8]".format(
+                    req.terrain_params.ground_mu_hint)
+
+        if req.terrain_params.grated_surfaces_mode in [1, 2, 3]:
+            terrain_params.grated_surfaces_mode = req.terrain_params.grated_surfaces_mode
+        else:
+            return False, "Failed to set terrain params, grated_surfaces_mode {} was not one of [1, 2, 3]".format(
+                    req.terrain_params.grated_surfaces_mode)
+
+        mobility_params.terrain_params.CopyFrom(terrain_params)
+        self.spot_wrapper.set_mobility_params(mobility_params)
+        return True, "Successfully set terrain params"
 
     def trajectory_callback(self, msg):
         """
@@ -836,9 +910,11 @@ class SpotROS():
 
             rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
-            rospy.Service("step_height", SetSwingHeight, self.handle_swing_height)
+            rospy.Service("swing_height", SetSwingHeight, self.handle_swing_height)
             rospy.Service("velocity_limit", SetVelocity, self.handle_vel_limit)
             rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_behavior_fault)
+            rospy.Service("terrain_params", SetTerrainParams, self.handle_terrain_params)
+            rospy.Service("obstacle_params", SetObstacleParams, self.handle_obstacle_params)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 
@@ -915,8 +991,29 @@ class SpotROS():
                     mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
                     mobility_params_msg.stair_hint = mobility_params.stair_hint
                     mobility_params_msg.swing_height = mobility_params.swing_height
+                    mobility_params_msg.obstacle_params.obstacle_avoidance_padding = \
+                        mobility_params.obstacle_params.obstacle_avoidance_padding
+                    mobility_params_msg.obstacle_params.disable_vision_foot_obstacle_avoidance = \
+                        mobility_params.obstacle_params.disable_vision_foot_obstacle_avoidance
+                    mobility_params_msg.obstacle_params.disable_vision_foot_constraint_avoidance = \
+                        mobility_params.obstacle_params.disable_vision_foot_constraint_avoidance
+                    mobility_params_msg.obstacle_params.disable_vision_body_obstacle_avoidance = \
+                        mobility_params.obstacle_params.disable_vision_body_obstacle_avoidance
+                    mobility_params_msg.obstacle_params.disable_vision_foot_obstacle_body_assist = \
+                        mobility_params.obstacle_params.disable_vision_foot_obstacle_body_assist
+                    mobility_params_msg.obstacle_params.disable_vision_negative_obstacles = \
+                        mobility_params.obstacle_params.disable_vision_negative_obstacles
+                    if mobility_params.HasField("terrain_params"):
+                        if mobility_params.terrain_params.HasField("ground_mu_hint"):
+                            mobility_params_msg.terrain_params.ground_mu_hint = \
+                                mobility_params.terrain_params.ground_mu_hint
+                            # hasfield does not work on grated surfaces mode
+                        if hasattr(mobility_params.terrain_params, "grated_surfaces_mode"):
+                            mobility_params_msg.terrain_params.grated_surfaces_mode = \
+                                mobility_params.terrain_params.grated_surfaces_mode
+
                     # The velocity limit values can be set independently so make sure each of them exists before setting
-                    if hasattr(mobility_params, "vel_limit"):
+                    if mobility_params.HasField("vel_limit"):
                         if hasattr(mobility_params.vel_limit.max_vel.linear, "x"):
                             mobility_params_msg.velocity_limit.linear.x = mobility_params.vel_limit.max_vel.linear.x
                         if hasattr(mobility_params.vel_limit.max_vel.linear, "y"):
