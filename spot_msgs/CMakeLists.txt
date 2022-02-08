@@ -40,6 +40,8 @@ add_service_files(
   SetLocomotion.srv
   SetVelocity.srv
   ClearBehaviorFault.srv
+  ArmJointMovement.srv
+  ConstrainedArmJointMovement.srv
 )
 
 add_action_files(
