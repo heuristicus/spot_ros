@@ -42,6 +42,7 @@ add_service_files(
   ClearBehaviorFault.srv
   ArmJointMovement.srv
   ConstrainedArmJointMovement.srv
+  GripperAngleMove.srv
 )
 
 add_action_files(
