@@ -928,6 +928,34 @@ class SpotWrapper():
             return False, "Exception occured while gripper was moving"
 
         return True, "Closed gripper successfully"
+    
+    
+    def gripper_angle_open(self, gripper_ang):
+        if not self._robot.has_arm():
+            return False, "Spot with an arm is required for this service"
+        
+        try:
+            self._logger.info("Spot is powering on")
+            self._robot.power_on(timeout_sec=20)
+            assert self._robot.is_powered_on(), "Spot failed to power on"
+            self._logger.info("Spot is powered on")
+            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
+            self._logger.info("Spot is standing")
+
+            time.sleep(2.0)
+
+            # Open gripper at an angle
+            command = RobotCommandBuilder.claw_gripper_open_angle_command(gripper_ang)
+
+            # Command issue with RobotCommandClient
+            self._robot_command_client.robot_command(command)
+            self._logger.info("Command gripper open angle sent")
+            time.sleep(2.0)
+
+        except Exception as e:
+            return False, "Exception occured while gripper was moving"
+
+        return True, "Opened gripper successfully"
    
             
     ###################################################################
