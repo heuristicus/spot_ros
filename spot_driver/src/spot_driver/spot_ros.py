@@ -496,6 +496,16 @@ class SpotROS():
         """ROS service handler to send joint movement to the arm to execute"""        
         resp = self.spot_wrapper.arm_joint_move(joint_targets = srv_data.joint_target)
         return ArmJointMovementResponse(resp[0], resp[1])
+    
+    def handle_gripper_open(self, srv_data):
+        """ROS service handler to open the gripper"""
+        resp = self.spot_wrapper.gripper_open()
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_gripper_close(self, srv_data):
+        """ROS service handler to close the gripper"""
+        resp = self.spot_wrapper.gripper_close()
+        return TriggerResponse(resp[0], resp[1])    
 
     ##################################################################
     
@@ -614,6 +624,8 @@ class SpotROS():
             # Arm Services #########################################
             rospy.Service("arm_stow", Trigger, self.handle_arm_stow)
             rospy.Service("arm_unstow", Trigger, self.handle_arm_unstow)
+            rospy.Service("gripper_open", Trigger, self.handle_gripper_open)
+            rospy.Service("gripper_close", Trigger, self.handle_gripper_close)
             rospy.Service("arm_joint_move", ArmJointMovement, self.handle_arm_joint_move)
             #########################################################
 
