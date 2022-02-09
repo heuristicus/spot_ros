@@ -12,6 +12,7 @@ from bosdyn.client.frame_helpers import get_odom_tform_body
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
 from bosdyn.client.image import ImageClient, build_image_request
+from bosdyn.client.point_cloud import PointCloudClient, build_pc_request
 from bosdyn.api import image_pb2
 from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
@@ -34,6 +35,10 @@ side_image_sources = ['left_fisheye_image', 'right_fisheye_image', 'left_depth',
 """List of image sources for side image periodic query"""
 rear_image_sources = ['back_fisheye_image', 'back_depth']
 """List of image sources for rear image periodic query"""
+VELODYNE_SERVICE_NAME='velodyne-point-cloud'
+"""Service name for getting pointcloud of VLP16 connected to Spot Core"""
+pointcloud_sources = ['velodyne-point-cloud']
+"""List of pointcloud sources"""
 
 class AsyncRobotState(AsyncPeriodicQuery):
     """Class to get robot state at regular intervals.  get_robot_state_async query sent to the robot at every tick.  Callback registered to defined callback function.
@@ -121,6 +126,29 @@ class AsyncImageService(AsyncPeriodicQuery):
     def _start_query(self):
         if self._callback:
             callback_future = self._client.get_image_async(self._image_requests)
+            callback_future.add_done_callback(self._callback)
+            return callback_future
+
+class AsyncPointCloudService(AsyncPeriodicQuery):
+    """Class to get point cloud at regular intervals.  get_point_cloud_from_sources_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            callback: Callback function to call when the results of the query are available
+    """
+    def __init__(self, client, logger, rate, callback, pointcloud_requests):
+        super(AsyncPointCloudService, self).__init__("robot_pointcloud_service", client, logger,
+                                             period_sec=1.0/max(rate, 1.0))
+        self._callback = None
+        if rate > 0.0:
+            self._callback = callback
+        self._pointcloud_requests = pointcloud_requests
+
+    def _start_query(self):
+        if self._callback:
+            callback_future = self._client.get_point_cloud_async(self._pointcloud_requests)
             callback_future.add_done_callback(self._callback)
             return callback_future
 
@@ -241,6 +269,10 @@ class SpotWrapper():
         for source in rear_image_sources:
             self._rear_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
 
+        self._pointcloud_requests = []
+        for source in pointcloud_sources:
+            self._pointcloud_requests.append(build_pc_request(source))
+
         try:
             self._sdk = create_standard_sdk('ros_spot')
         except Exception as e:
@@ -268,6 +300,7 @@ class SpotWrapper():
                 self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
                 self._lease_wallet = self._lease_client.lease_wallet
                 self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
+                self._pointcloud_client = self._robot.ensure_client(VELODYNE_SERVICE_NAME) # TODO: use rosparam to decide whether establish this client
                 self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
             except Exception as e:
                 self._logger.error("Unable to create client service: %s", e)
@@ -289,12 +322,13 @@ class SpotWrapper():
             self._front_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("front_image", 0.0)), self._callbacks.get("front_image", lambda:None), self._front_image_requests)
             self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("side_image", 0.0)), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
             self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
+            self._pointcloud_task = AsyncPointCloudService(self._pointcloud_client, self._logger, max(0.0, self._rates.get("pointcloud", 0.0)), self._callbacks.get("pointcloud", lambda:None), self._pointcloud_requests)
             self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
 
             self._estop_endpoint = None
 
             self._async_tasks = AsyncTasks(
-                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
+                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._pointcloud_task, self._idle_task])
 
             self._robot_id = None
             self._lease = None
@@ -344,6 +378,11 @@ class SpotWrapper():
         """Return latest proto from the _rear_image_task"""
         return self._rear_image_task.proto
 
+    @property
+    def pointclouds(self):
+        """Return latest proto from the _pointcloud_task"""
+        return self._pointcloud_task.proto
+    
     @property
     def is_standing(self):
         """Return boolean of standing state"""
