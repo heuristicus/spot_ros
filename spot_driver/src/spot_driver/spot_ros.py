@@ -36,6 +36,8 @@ from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
 from spot_msgs.srv import SetVelocity, SetVelocityResponse
 from spot_msgs.srv import ArmJointMovement, ArmJointMovementResponse, ArmJointMovementRequest
+from spot_msgs.srv import GripperAngleMove, GripperAngleMoveResponse, GripperAngleMoveRequest
+
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
@@ -506,6 +508,11 @@ class SpotROS():
         """ROS service handler to close the gripper"""
         resp = self.spot_wrapper.gripper_close()
         return TriggerResponse(resp[0], resp[1])    
+    
+    def handle_gripper_angle_open(self, srv_data: GripperAngleMoveRequest):
+        """ROS service handler to open the gripper at an angle"""
+        resp = self.spot_wrapper.gripper_angle_open(gripper_ang = srv_data.gripper_angle)
+        return GripperAngleMoveResponse(resp[0], resp[1])
 
     ##################################################################
     
@@ -626,6 +633,7 @@ class SpotROS():
             rospy.Service("arm_unstow", Trigger, self.handle_arm_unstow)
             rospy.Service("gripper_open", Trigger, self.handle_gripper_open)
             rospy.Service("gripper_close", Trigger, self.handle_gripper_close)
+            rospy.Service("gripper_angle_open", GripperAngleMove, self.handle_gripper_angle_open)
             rospy.Service("arm_joint_move", ArmJointMovement, self.handle_arm_joint_move)
             #########################################################
 
