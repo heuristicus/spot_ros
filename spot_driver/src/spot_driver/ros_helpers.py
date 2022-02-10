@@ -206,13 +206,13 @@ def GetPointCloudMsg(data, spot_wrapper):
             count = 1
         point_cloud_msg.fields = fields
         point_cloud_msg.is_bigendian = False
+        point_cloud_np = np.frombuffer(data.point_cloud.data, dtype=np.uint8)
         point_cloud_msg.point_step = 12 # float32 XYZ
-        point_cloud_msg.row_step = point_cloud_msg.point_step * point_cloud_msg.width
-        point_cloud_msg.data = np.frombuffer(data.point_cloud.data, dtype=np.float32).tolist()
+        point_cloud_msg.row_step = point_cloud_np.size
+        point_cloud_msg.data = point_cloud_np.tolist()
         point_cloud_msg.is_dense = True
     else:
         rospy.logwarn("Not supported point cloud data type.")
-
     return point_cloud_msg
 
 def GetJointStatesFromState(state, spot_wrapper):
