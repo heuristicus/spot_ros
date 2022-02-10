@@ -192,13 +192,13 @@ def GetPointCloudMsg(data, spot_wrapper):
     """
     point_cloud_msg = PointCloud2()
     local_time = spot_wrapper.robotToLocalTime(data.point_cloud.source.acquisition_time)
-    point_cloud_msg.stamp = rospy.Time(local_time.seconds, local_time.nanos)
+    point_cloud_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     point_cloud_msg.header.frame_id = data.point_cloud.source.frame_name_sensor
     if data.point_cloud.encoding == point_cloud_pb2.PointCloud.ENCODING_XYZ_32F:
         point_cloud_msg.height = 1
-        point_cloud_msg.width = num_points * 3
+        point_cloud_msg.width = data.point_cloud.num_points * 3
         fields = []
-        for i, ax in enumerate('x', 'y', 'z'):
+        for i, ax in enumerate(('x', 'y', 'z')):
             field = PointField()
             name = ax
             offset = i * 4
@@ -207,7 +207,7 @@ def GetPointCloudMsg(data, spot_wrapper):
         point_cloud_msg.fields = fields
         point_cloud_msg.is_bigendian = False
         point_cloud_msg.point_step = 12 # float32 XYZ
-        point_cloud_msg.row_step = point_step * point_cloud_msg.width
+        point_cloud_msg.row_step = point_cloud_msg.point_step * point_cloud_msg.width
         point_cloud_msg.data = np.frombuffer(data.point_cloud.data, dtype=np.float32).tolist()
         point_cloud_msg.is_dense = True
     else:
