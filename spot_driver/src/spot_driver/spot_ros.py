@@ -247,6 +247,8 @@ class SpotROS():
             point_cloud_msg = GetPointCloudMsg(data[0], self.spot_wrapper)
             self.point_cloud_pub.publish(point_cloud_msg)
 
+            self.populate_lidar_static_transforms(data[0])
+
     def handle_claim(self, req):
         """ROS service handler for the claim service"""
         resp = self.spot_wrapper.claim()
