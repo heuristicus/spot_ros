@@ -244,7 +244,7 @@ class SpotROS():
         """
         data = self.spot_wrapper.point_clouds
         if data:
-            point_cloud_msg = GetPointCloudMsg(data[0], self.spot_wrapper):
+            point_cloud_msg = GetPointCloudMsg(data[0], self.spot_wrapper)
             self.point_cloud_pub.publish(point_cloud_msg)
 
     def handle_claim(self, req):

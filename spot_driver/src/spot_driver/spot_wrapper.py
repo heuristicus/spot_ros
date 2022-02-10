@@ -322,7 +322,7 @@ class SpotWrapper():
             self._front_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("front_image", 0.0)), self._callbacks.get("front_image", lambda:None), self._front_image_requests)
             self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("side_image", 0.0)), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
             self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
-            self._pointcloud_task = AsyncPointCloudService(self._pointcloud_client, self._logger, max(0.0, self._rates.get("pointcloud", 0.0)), self._callbacks.get("pointcloud", lambda:None), self._pointcloud_requests)
+            self._point_cloud_task = AsyncPointCloudService(self._point_cloud_client, self._logger, max(0.0, self._rates.get("point_cloud", 0.0)), self._callbacks.get("point_cloud", lambda:None), self._point_cloud_requests)
             self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
 
             self._estop_endpoint = None

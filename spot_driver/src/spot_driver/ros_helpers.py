@@ -178,6 +178,40 @@ def getImageMsg(data, spot_wrapper):
 
     return image_msg, camera_info_msg
 
+def GetPointCloudMsg(data, spot_wrapper):
+    """Takes the imag and  camera data and populates the necessary ROS messages
+
+    Args:
+        data: PointCloud proto (PointCloudResponse)
+        spot_wrapper: A SpotWrapper object
+    Returns:
+           PointCloud: message of the point cloud (PointCloud2)
+    """
+    point_cloud_msg = PointCloud2()
+    local_time = spot_wrapper.robotToLocalTime(data.point_cloud.source.acquisition_time)
+    point_cloud_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
+    point_cloud_msg.header.frame_id = data.point_cloud.source.frame_name_sensor
+    if data.point_cloud.encoding == point_cloud_pb2.PointCloud.ENCODING_XYZ_32F:
+        point_cloud_msg.height = 1
+        point_cloud_msg.width = data.point_cloud.num_points * 3
+        fields = []
+        for i, ax in enumerate(('x', 'y', 'z')):
+            field = PointField()
+            name = ax
+            offset = i * 4
+            datatype = 7 # FLOAT32
+            count = 1
+        point_cloud_msg.fields = fields
+        point_cloud_msg.is_bigendian = False
+        point_cloud_msg.point_step = 12 # float32 XYZ
+        point_cloud_msg.row_step = point_cloud_msg.point_step * point_cloud_msg.width
+        point_cloud_msg.data = np.frombuffer(data.point_cloud.data, dtype=np.float32).tolist()
+        point_cloud_msg.is_dense = True
+    else:
+        rospy.logwarn("Not supported point cloud data type.")
+
+    return point_cloud_msg
+
 def GetJointStatesFromState(state, spot_wrapper):
     """Maps joint state data from robot state proto to ROS JointState message
 
