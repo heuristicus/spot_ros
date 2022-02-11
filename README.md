@@ -1,3 +1,9 @@
+# Added ROS Driver for Arm
+
+Services added to control joints of the arm and the gripper.
+https://github.com/estherRay/spot_ros/blob/master/spot_arm.mp4
+
+
 # Spot ROS Driver
 
 ![CP Spot](cp_spot.jpg)
