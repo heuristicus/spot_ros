@@ -482,7 +482,7 @@ class SpotROS():
             if frame_name in excluded_frames:
                 continue
             parent_frame = image_data.shot.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name
-            existing_transforms = [(transform.header.frame_id, transform.child_frame_id) for transform in self.camera_static_transforms]
+            existing_transforms = [(transform.header.frame_id, transform.child_frame_id) for transform in self.sensors_static_transforms]
             if (parent_frame, frame_name) in existing_transforms:
                 # We already extracted this transform
                 continue
@@ -492,8 +492,8 @@ class SpotROS():
             tf_time = rospy.Time(local_time.seconds, local_time.nanos)
             static_tf = populateTransformStamped(tf_time, transform.parent_frame_name, frame_name,
                                                  transform.parent_tform_child)
-            self.camera_static_transforms.append(static_tf)
-            self.camera_static_transform_broadcaster.sendTransform(self.camera_static_transforms)
+            self.sensors_static_transforms.append(static_tf)
+            self.sensors_static_transform_broadcaster.sendTransform(self.sensors_static_transforms)
 
     def populate_lidar_static_transforms(self, point_cloud_data):
         """Check data received from one of the point cloud tasks and use the transform snapshot to extract the lidar frame
@@ -512,7 +512,7 @@ class SpotROS():
             if frame_name in excluded_frames:
                 continue
             parent_frame = point_cloud_data.point_cloud.source.transforms_snapshot.child_to_parent_edge_map.get(frame_name).parent_frame_name
-            existing_transforms = [(transform.header.frame_id, transform.child_frame_id) for transform in self.lidar_static_transforms]
+            existing_transforms = [(transform.header.frame_id, transform.child_frame_id) for transform in self.sensors_static_transforms]
             if (parent_frame, frame_name) in existing_transforms:
                 # We already extracted this transform
                 continue
@@ -522,8 +522,8 @@ class SpotROS():
             tf_time = rospy.Time(local_time.seconds, local_time.nanos)
             static_tf = populateTransformStamped(tf_time, transform.parent_frame_name, frame_name,
                                                  transform.parent_tform_child)
-            self.lidar_static_transforms.append(static_tf)
-            self.lidar_static_transform_broadcaster.sendTransform(self.lidar_static_transforms)
+            self.sensors_static_transforms.append(static_tf)
+            self.sensors_static_transform_broadcaster.sendTransform(self.sensors_static_transforms)
 
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
@@ -543,14 +543,12 @@ class SpotROS():
         self.motion_deadzone = rospy.get_param('~deadzone', 0.05)
         self.estop_timeout = rospy.get_param('~estop_timeout', 9.0)
 
-        self.camera_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
-        self.lidar_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        self.sensors_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
         # Static transform broadcaster is super simple and just a latched publisher. Every time we add a new static
         # transform we must republish all static transforms from this source, otherwise the tree will be incomplete.
         # We keep a list of all the static transforms we already have so they can be republished, and so we can check
         # which ones we already have
-        self.camera_static_transforms = []
-        self.lidar_static_transforms = []
+        self.sensors_static_transforms = []
 
         # Spot has 2 types of odometries: 'odom' and 'vision'
         # The former one is kinematic odometry and the second one is a combined odometry of vision and kinematics
