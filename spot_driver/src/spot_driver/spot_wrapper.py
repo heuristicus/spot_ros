@@ -300,7 +300,7 @@ class SpotWrapper():
                 self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
                 self._lease_wallet = self._lease_client.lease_wallet
                 self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
-                self._pointcloud_client = self._robot.ensure_client(VELODYNE_SERVICE_NAME) # TODO: use rosparam to decide whether establish this client
+                self._point_cloud_client = self._robot.ensure_client(VELODYNE_SERVICE_NAME)
                 self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
             except Exception as e:
                 self._logger.error("Unable to create client service: %s", e)
