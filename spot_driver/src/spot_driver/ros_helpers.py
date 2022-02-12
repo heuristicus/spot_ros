@@ -42,6 +42,7 @@ friendly_joint_names["hr.hx"] = "rear_right_hip_x"
 friendly_joint_names["hr.hy"] = "rear_right_hip_y"
 friendly_joint_names["hr.kn"] = "rear_right_knee"
 
+
 class DefaultCameraInfo(CameraInfo):
     """Blank class extending CameraInfo ROS topic that defaults most parameters"""
     def __init__(self):
@@ -196,19 +197,19 @@ def GetPointCloudMsg(data, spot_wrapper):
     point_cloud_msg.header.frame_id = data.point_cloud.source.frame_name_sensor
     if data.point_cloud.encoding == point_cloud_pb2.PointCloud.ENCODING_XYZ_32F:
         point_cloud_msg.height = 1
-        point_cloud_msg.width = data.point_cloud.num_points * 3
-        fields = []
+        point_cloud_msg.width = data.point_cloud.num_points
+        point_cloud_msg.fields = []
         for i, ax in enumerate(('x', 'y', 'z')):
             field = PointField()
-            name = ax
-            offset = i * 4
-            datatype = 7 # FLOAT32
-            count = 1
-        point_cloud_msg.fields = fields
+            field.name = ax
+            field.offset = i * 4
+            field.datatype = 7 # FLOAT32
+            field.count = 1
+            point_cloud_msg.fields.append(field)
         point_cloud_msg.is_bigendian = False
         point_cloud_np = np.frombuffer(data.point_cloud.data, dtype=np.uint8)
         point_cloud_msg.point_step = 12 # float32 XYZ
-        point_cloud_msg.row_step = point_cloud_np.size
+        point_cloud_msg.row_step = point_cloud_msg.width * point_cloud_msg.point_step
         point_cloud_msg.data = point_cloud_np.tolist()
         point_cloud_msg.is_dense = True
     else:
