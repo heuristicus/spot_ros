@@ -147,8 +147,8 @@ class AsyncPointCloudService(AsyncPeriodicQuery):
         self._pointcloud_requests = pointcloud_requests
 
     def _start_query(self):
-        if self._callback:
-            callback_future = self._client.get_point_cloud_async(self._pointcloud_requests)
+        if self._callback and self._point_cloud_requests:
+            callback_future = self._client.get_point_cloud_async(self._point_cloud_requests)
             callback_future.add_done_callback(self._callback)
             return callback_future
 
@@ -300,12 +300,16 @@ class SpotWrapper():
                 self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
                 self._lease_wallet = self._lease_client.lease_wallet
                 self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
-                self._point_cloud_client = self._robot.ensure_client(VELODYNE_SERVICE_NAME)
                 self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
             except Exception as e:
                 self._logger.error("Unable to create client service: %s", e)
                 self._valid = False
                 return
+            try:
+                self._point_cloud_client = self._robot.ensure_client(VELODYNE_SERVICE_NAME)
+            except Exception as e:
+                self._point_cloud_client = None
+                rospy.logwarn("No point cloud services are available.")
 
             # Store the most recent knowledge of the state of the robot based on rpc calls.
             self._current_graph = None
