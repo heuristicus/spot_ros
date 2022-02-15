@@ -250,8 +250,14 @@ class SpotROS():
         resp = self.spot_wrapper.release()
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_locked_stop(self, req):
+        """Stop the current motion of the robot and disallow any further motion until the allow motion service is
+        called"""
+        self.allow_motion = False
+        return self.handle_stop(req)
+
     def handle_stop(self, req):
-        """ROS service handler for the stop service"""
+        """ROS service handler for the stop service. Interrupts the currently active motion"""
         resp = self.spot_wrapper.stop()
         message = "Spot stop service was called"
         if self.navigate_as.is_active():
@@ -885,6 +891,7 @@ class SpotROS():
             self.battery_pub = rospy.Publisher('status/battery_states', BatteryStateArray, queue_size=10)
             self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
             self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
+            self.motion_allowed_pub = rospy.Publisher('status/motion_allowed', Bool, queue_size=10)
 
             self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
 
@@ -936,6 +943,7 @@ class SpotROS():
             # Stop service calls other services so initialise it after them to prevent crashes which can happen if
             # the service is immediately called
             rospy.Service("stop", Trigger, self.handle_stop)
+            rospy.Service("locked_stop", Trigger, self.handle_locked_stop)
 
             rospy.on_shutdown(self.shutdown)
 
@@ -1024,4 +1032,5 @@ class SpotROS():
                     rospy.logerr('Error:{}'.format(e))
                     pass
                 self.mobility_params_pub.publish(mobility_params_msg)
+                self.motion_allowed_pub.publish(self.allow_motion)
                 rate.sleep()
