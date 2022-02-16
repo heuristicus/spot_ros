@@ -203,14 +203,14 @@ def GetPointCloudMsg(data, spot_wrapper):
             field = PointField()
             field.name = ax
             field.offset = i * 4
-            field.datatype = 7 # FLOAT32
+            field.datatype = PointField.FLOAT32
             field.count = 1
             point_cloud_msg.fields.append(field)
         point_cloud_msg.is_bigendian = False
         point_cloud_np = np.frombuffer(data.point_cloud.data, dtype=np.uint8)
         point_cloud_msg.point_step = 12 # float32 XYZ
         point_cloud_msg.row_step = point_cloud_msg.width * point_cloud_msg.point_step
-        point_cloud_msg.data = point_cloud_np.tolist()
+        point_cloud_msg.data = point_cloud_np.tobytes()
         point_cloud_msg.is_dense = True
     else:
         rospy.logwarn("Not supported point cloud data type.")
