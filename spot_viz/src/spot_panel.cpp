@@ -7,6 +7,7 @@
 #include <QVBoxLayout>
 #include <ros/package.h>
 #include <std_srvs/Trigger.h>
+#include <std_srvs/SetBool.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Twist.h>
 #include <QDoubleValidator>
@@ -36,6 +37,7 @@ namespace spot_viz
         this->setLayout(topLayout);
         topLayout->addWidget(ui);
         haveLease = false;
+        motionAllowed = false;
 
         sitService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/sit");
         standService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/stand");
@@ -52,14 +54,8 @@ namespace spot_viz
         swingHeightService_ = nh_.serviceClient<spot_msgs::SetSwingHeight>("/spot/swing_height");
         terrainParamsService_ = nh_.serviceClient<spot_msgs::SetTerrainParams>("/spot/terrain_params");
         obstacleParamsService_ = nh_.serviceClient<spot_msgs::SetObstacleParams>("/spot/obstacle_params");
-
+        allowMotionService_ = nh_.serviceClient<std_srvs::SetBool>("/spot/allow_motion");
         bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
-
-        leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
-        estopSub_ = nh_.subscribe("/spot/status/estop", 1, &ControlPanel::estopCallback, this);
-        mobilityParamsSub_ = nh_.subscribe("/spot/status/mobility_params", 1, &ControlPanel::mobilityParamsCallback, this);
-        batterySub_ = nh_.subscribe("/spot/status/battery_states", 1, &ControlPanel::batteryCallback, this);
-        powerSub_ = nh_.subscribe("/spot/status/power_state", 1, &ControlPanel::powerCallback, this);
 
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
         releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
@@ -74,6 +70,7 @@ namespace spot_viz
         setObstaclePaddingButton = this->findChild<QPushButton*>("setObstaclePaddingButton");
         setGratedSurfacesButton = this->findChild<QPushButton*>("setGratedSurfacesButton");
         setFrictionButton = this->findChild<QPushButton*>("setFrictionButton");
+        allowMotionButton = this->findChild<QPushButton*>("allowMotionButton");
 
         statusLabel = this->findChild<QLabel*>("statusLabel");
         estimatedRuntimeLabel = this->findChild<QLabel*>("estimatedRuntimeLabel");
@@ -88,11 +85,17 @@ namespace spot_viz
         obstaclePaddingSpin = this->findChild<QDoubleSpinBox*>("obstaclePaddingSpin");
         frictionSpin = this->findChild<QDoubleSpinBox*>("frictionSpin");
 
+        // Subscribe to things after everything is set up to avoid crashes when things aren't initialised
+        leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
+        estopSub_ = nh_.subscribe("/spot/status/estop", 1, &ControlPanel::estopCallback, this);
+        mobilityParamsSub_ = nh_.subscribe("/spot/status/mobility_params", 1, &ControlPanel::mobilityParamsCallback, this);
+        batterySub_ = nh_.subscribe("/spot/status/battery_states", 1, &ControlPanel::batteryCallback, this);
+        powerSub_ = nh_.subscribe("/spot/status/power_state", 1, &ControlPanel::powerCallback, this);
+        motionAllowedSub_ = nh_.subscribe("/spot/status/motion_allowed", 1, &ControlPanel::motionAllowedCallback, this);
 
         setupComboBoxes();
         setupStopButtons();
         setupSpinBoxes();
-
 
         connect(claimLeaseButton, SIGNAL(clicked()), this, SLOT(claimLease()));
         connect(releaseLeaseButton, SIGNAL(clicked()), this, SLOT(releaseLease()));
@@ -111,6 +114,7 @@ namespace spot_viz
         connect(setObstaclePaddingButton, SIGNAL(clicked()), this, SLOT(setObstacleParams()));
         connect(setGratedSurfacesButton, SIGNAL(clicked()), this, SLOT(setTerrainParams()));
         connect(setFrictionButton, SIGNAL(clicked()), this, SLOT(setTerrainParams()));
+        connect(allowMotionButton, SIGNAL(clicked()), this, SLOT(allowMotion()));
     }
 
     void ControlPanel::setupStopButtons() {
@@ -247,6 +251,7 @@ namespace spot_viz
         setObstaclePaddingButton->setEnabled(haveLease);
         setFrictionButton->setEnabled(haveLease);
         setGratedSurfacesButton->setEnabled(haveLease);
+        allowMotionButton->setEnabled(haveLease);
     }
 
     /**
@@ -473,6 +478,21 @@ namespace spot_viz
         motorStateLabel->setText(QString(motorState.c_str()));
     }
 
+    void ControlPanel::motionAllowedCallback(const std_msgs::Bool &motion_allowed) {
+        motionAllowed = motion_allowed.data;
+        if (!motion_allowed.data) {
+            stopButton->setText("Motion is disallowed");
+            stopButton->setEnabled(false);
+            allowMotionButton->setText("Allow motion");
+        } else {
+            stopButton->setText("Stop");
+            if (haveLease) {
+                stopButton->setEnabled(true);
+            }
+            allowMotionButton->setText("Disallow motion");
+        }
+    }
+
     void ControlPanel::sit() {
         callTriggerService(sitService_, "sit");
     }
@@ -501,6 +521,12 @@ namespace spot_viz
 
     void ControlPanel::stop() {
         callTriggerService(stopService_, "stop");
+    }
+
+    void ControlPanel::allowMotion() {
+        std_srvs::SetBool req;
+        req.request.data = !motionAllowed;
+        callCustomTriggerService(allowMotionService_, "set motion allowed", req);
     }
 
     void ControlPanel::hardStop() {

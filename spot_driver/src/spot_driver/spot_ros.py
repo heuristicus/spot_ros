@@ -270,16 +270,24 @@ class SpotROS():
 
     def handle_self_right(self, req):
         """ROS service handler for the self-right service"""
+        if not self.robot_allowed_to_move():
+            return TriggerResponse(False, "Robot motion is not allowed")
+
         resp = self.spot_wrapper.self_right()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_sit(self, req):
         """ROS service handler for the sit service"""
+        if not self.robot_allowed_to_move():
+            return TriggerResponse(False, "Robot motion is not allowed")
+
         resp = self.spot_wrapper.sit()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_stand(self, req):
         """ROS service handler for the stand service"""
+        if not self.robot_allowed_to_move():
+            return TriggerResponse(False, "Robot motion is not allowed")
         resp = self.spot_wrapper.stand()
         return TriggerResponse(resp[0], resp[1])
 
@@ -450,6 +458,7 @@ class SpotROS():
 
         """
         self.allow_motion = req.data
+        rospy.loginfo("Robot motion is now {}", "allowed" if self.allow_motion else "disallowed")
         if not self.allow_motion:
             # Always send a stop command if disallowing motion, in case the robot is moving when it is sent
             self.spot_wrapper.stop()

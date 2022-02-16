@@ -113,11 +113,24 @@
         <string>Stop any action the robot is taking but do not sit down or kill motor power</string>
        </property>
        <property name="text">
-        <string>Stop Action</string>
+        <string>Stop</string>
        </property>
       </widget>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QPushButton" name="allowMotionButton">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="toolTip">
+      <string>Allow or disallow motion of the robot</string>
+     </property>
+     <property name="text">
+      <string>Disallow motion</string>
+     </property>
+    </widget>
    </item>
    <item>
     <layout class="QVBoxLayout" name="verticalLayout">
@@ -225,7 +238,7 @@
      <item>
       <widget class="QTabWidget" name="tabWidget">
        <property name="currentIndex">
-        <number>0</number>
+        <number>2</number>
        </property>
        <widget class="QWidget" name="motionTab">
         <attribute name="title">
@@ -647,10 +660,9 @@
   </layout>
  </widget>
  <tabstops>
-  <tabstop>gentleStopButton</tabstop>
-  <tabstop>hardStopButton</tabstop>
   <tabstop>releaseStopButton</tabstop>
   <tabstop>stopButton</tabstop>
+  <tabstop>allowMotionButton</tabstop>
   <tabstop>claimLeaseButton</tabstop>
   <tabstop>releaseLeaseButton</tabstop>
   <tabstop>powerOnButton</tabstop>
@@ -664,11 +676,21 @@
   <tabstop>linearYSpin</tabstop>
   <tabstop>angularZSpin</tabstop>
   <tabstop>setMaxVelButton</tabstop>
+  <tabstop>gaitComboBox</tabstop>
+  <tabstop>setGaitButton</tabstop>
+  <tabstop>swingHeightComboBox</tabstop>
+  <tabstop>setSwingHeightButton</tabstop>
+  <tabstop>gratedSurfacesComboBox</tabstop>
+  <tabstop>setGratedSurfacesButton</tabstop>
+  <tabstop>frictionSpin</tabstop>
+  <tabstop>setFrictionButton</tabstop>
   <tabstop>bodyHeightSpin</tabstop>
   <tabstop>rollSpin</tabstop>
   <tabstop>pitchSpin</tabstop>
   <tabstop>yawSpin</tabstop>
   <tabstop>setBodyPoseButton</tabstop>
+  <tabstop>gentleStopButton</tabstop>
+  <tabstop>hardStopButton</tabstop>
  </tabstops>
  <resources/>
  <connections/>

@@ -12,11 +12,12 @@
 #include <QLabel>
 #include <QDoubleSpinBox>
 #include <QComboBox>
-#include <spot_msgs/LeaseArray.h>
+#include <std_msgs/Bool.h>
 #include <spot_msgs/EStopStateArray.h>
 #include <spot_msgs/MobilityParams.h>
 #include <spot_msgs/TerrainParams.h>
 #include <spot_msgs/SetSwingHeight.h>
+#include <spot_msgs/LeaseArray.h>
 #include <spot_msgs/SetLocomotion.h>
 #include <spot_msgs/BatteryStateArray.h>
 #include <spot_msgs/PowerState.h>
@@ -51,6 +52,7 @@ class ControlPanel : public rviz::Panel
     void setSwingHeight();
     void setTerrainParams();
     void setObstacleParams();
+    void allowMotion();
 
     private:
 
@@ -98,6 +100,7 @@ class ControlPanel : public rviz::Panel
     void mobilityParamsCallback(const spot_msgs::MobilityParams::ConstPtr &params);
     void batteryCallback(const spot_msgs::BatteryStateArray::ConstPtr &battery);
     void powerCallback(const spot_msgs::PowerState::ConstPtr &power);
+    void motionAllowedCallback(const std_msgs::Bool &motion_allowed);
 
     ros::NodeHandle nh_;
     ros::ServiceClient sitService_;
@@ -115,12 +118,15 @@ class ControlPanel : public rviz::Panel
     ros::ServiceClient swingHeightService_;
     ros::ServiceClient terrainParamsService_;
     ros::ServiceClient obstacleParamsService_;
+    ros::ServiceClient allowMotionService_;
+
     ros::Publisher bodyPosePub_;
     ros::Subscriber leaseSub_;
     ros::Subscriber estopSub_;
     ros::Subscriber mobilityParamsSub_;
     ros::Subscriber batterySub_;
     ros::Subscriber powerSub_;
+    ros::Subscriber motionAllowedSub_;
 
     QPushButton* claimLeaseButton;
     QPushButton* releaseLeaseButton;
@@ -139,6 +145,7 @@ class ControlPanel : public rviz::Panel
     QPushButton* setObstaclePaddingButton;
     QPushButton* setGratedSurfacesButton;
     QPushButton* setFrictionButton;
+    QPushButton* allowMotionButton;
 
     QLabel* linearXLabel;
     QLabel* linearYLabel;
@@ -171,6 +178,7 @@ class ControlPanel : public rviz::Panel
 
     bool haveLease;
     bool isEStopped;
+    bool motionAllowed;
 };
 
 } // end namespace spot_viz
