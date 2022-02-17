@@ -270,7 +270,7 @@ class SpotROS():
 
     def handle_self_right(self, req):
         """ROS service handler for the self-right service"""
-        if not self.robot_allowed_to_move():
+        if not self.robot_allowed_to_move(autonomous_command=False):
             return TriggerResponse(False, "Robot motion is not allowed")
 
         resp = self.spot_wrapper.self_right()
@@ -278,7 +278,7 @@ class SpotROS():
 
     def handle_sit(self, req):
         """ROS service handler for the sit service"""
-        if not self.robot_allowed_to_move():
+        if not self.robot_allowed_to_move(autonomous_command=False):
             return TriggerResponse(False, "Robot motion is not allowed")
 
         resp = self.spot_wrapper.sit()
@@ -286,7 +286,7 @@ class SpotROS():
 
     def handle_stand(self, req):
         """ROS service handler for the stand service"""
-        if not self.robot_allowed_to_move():
+        if not self.robot_allowed_to_move(autonomous_command=False):
             return TriggerResponse(False, "Robot motion is not allowed")
         resp = self.spot_wrapper.stand()
         return TriggerResponse(resp[0], resp[1])
@@ -429,11 +429,14 @@ class SpotROS():
 
         return pose_in_body
 
-    def robot_allowed_to_move(self):
+    def robot_allowed_to_move(self, autonomous_command=True):
         """
         Check if the robot is allowed to move. This means checking both that autonomy is enabled, which can only be
         set when the driver is started, and also that motion is allowed, the state of which can change while the
         driver is running
+
+        Args:
+            autonomous_command: If true, indicates that this function should also check if autonomy is enabled
 
         Returns: True if the robot is allowed to move, false otherwise
 
@@ -441,11 +444,14 @@ class SpotROS():
         if not self.allow_motion:
             rospy.logwarn("Spot is not currently allowed to move. Use the allow_motion service to allow the robot to "
                           "move.")
-        if not self.autonomy_enabled:
-            rospy.logwarn("Spot is not allowed to be autonomous because this instance of the driver was started with "
-                          "it disabled. Set autonomy_enabled to true in the launch file to enable it.")
+        autonomy_ok = True
+        if autonomous_command:
+            if not self.autonomy_enabled:
+                rospy.logwarn("Spot is not allowed to be autonomous because this instance of the driver was started "
+                              "with it disabled. Set autonomy_enabled to true in the launch file to enable it.")
+                autonomy_ok = False
 
-        return self.allow_motion and self.autonomy_enabled
+        return self.allow_motion and autonomy_ok
 
     def handle_allow_motion(self, req):
         """
@@ -588,7 +594,8 @@ class SpotROS():
         # Sleep to allow some feedback to come through from the trajectory command
         rospy.sleep(0.25)
         if self.spot_wrapper._trajectory_status_unknown:
-            rospy.logerr("Sent trajectory request to spot but received unknown feedback. Resending command. This will only be attempted once")
+            rospy.logerr("Sent trajectory request to spot but received unknown feedback. Resending command. This will "
+                         "only be attempted once")
             # If we receive an unknown result from the trajectory, something went wrong internally (not
             # catastrophically). We need to resend the command, because getting status unknown happens right when
             # the command is sent. It's unclear right now why this happens
@@ -640,7 +647,7 @@ class SpotROS():
 
         """
         if not self.robot_allowed_to_move():
-            rospy.logerr("send trajectory was called but motion is not enabled.")
+            rospy.logerr("send trajectory was called but motion is not allowed.")
             return
 
         if pose.header.frame_id != "body":
@@ -662,16 +669,16 @@ class SpotROS():
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
-        if not self.robot_allowed_to_move():
-            rospy.logerr("cmd_vel received a message but motion is not enabled.")
+        if not self.robot_allowed_to_move(autonomous_command=False):
+            rospy.logerr("cmd_vel received a message but motion is not allowed.")
             return
 
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
 
     def bodyPoseCallback(self, data):
         """Callback for cmd_vel command"""
-        if not self.robot_allowed_to_move():
-            rospy.logerr("body pose received a message but motion is not enabled.")
+        if not self.robot_allowed_to_move(autonomous_command=False):
+            rospy.logerr("body pose received a message but motion is not allowed.")
             return
 
         self._set_body_pose(data)
@@ -687,8 +694,8 @@ class SpotROS():
 
         """
         # We can change the body pose if autonomy is not allowed
-        if not self.allow_motion:
-            rospy.logerr("body pose actionserver was called but motion is not enabled.")
+        if not self.robot_allowed_to_move(autonomous_command=False):
+            rospy.logerr("body pose actionserver was called but motion is not allowed.")
             return
 
         # If the body_pose is empty, we use the rpy + height components instead
