@@ -43,6 +43,8 @@ side_image_sources = ['left_fisheye_image', 'right_fisheye_image', 'left_depth',
 """List of image sources for side image periodic query"""
 rear_image_sources = ['back_fisheye_image', 'back_depth']
 """List of image sources for rear image periodic query"""
+hand_image_sources = ['hand_image', 'hand_depth', 'hand_color_image', 'hand_depth_in_hand_color_frame']
+"""List of image sources for hand image periodic query"""
 
 class AsyncRobotState(AsyncPeriodicQuery):
     """Class to get robot state at regular intervals.  get_robot_state_async query sent to the robot at every tick.  Callback registered to defined callback function.
@@ -250,6 +252,10 @@ class SpotWrapper():
         for source in rear_image_sources:
             self._rear_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
 
+        self._hand_image_requests = []
+        for source in hand_image_sources:
+            self._hand_image_requests.append(build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW))
+
         try:
             self._sdk = create_standard_sdk('ros_spot')
         except Exception as e:
@@ -298,12 +304,13 @@ class SpotWrapper():
             self._front_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("front_image", 0.0)), self._callbacks.get("front_image", lambda:None), self._front_image_requests)
             self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("side_image", 0.0)), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
             self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
+            self._hand_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("hand_image", 0.0)), self._callbacks.get("hand_image", lambda:None), self._hand_image_requests)
             self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
 
             self._estop_endpoint = None
 
             self._async_tasks = AsyncTasks(
-                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
+                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._hand_image_task, self._idle_task])
 
             self._robot_id = None
             self._lease = None
@@ -352,6 +359,11 @@ class SpotWrapper():
     def rear_images(self):
         """Return latest proto from the _rear_image_task"""
         return self._rear_image_task.proto
+    
+    @property
+    def hand_images(self):
+        """Return latest proto from the _hand_image_task"""
+        return self._hand_image_task.proto
 
     @property
     def is_standing(self):
@@ -737,6 +749,34 @@ class SpotWrapper():
             return False, "Exception occured while arm was moving"
 
         return True, "Unstow arm success"
+    
+    def arm_carry(self):
+        if not self._robot.has_arm():
+            return False, "Spot with an arm is required for this service"
+        
+        try:
+            self._logger.info("Spot is powering on")
+            self._robot.power_on(timeout_sec=20)
+            assert self._robot.is_powered_on(), "Spot failed to power on"
+            self._logger.info("Spot is powered on")
+            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
+            self._logger.info("Spot is standing")
+
+            time.sleep(2.0)
+
+            # Get Arm in carry mode
+            carry = RobotCommandBuilder.arm_carry_command()
+
+            # Command issue with RobotCommandClient
+            self._robot_command_client.robot_command(carry)
+            self._logger.info("Command carry issued")
+            time.sleep(2.0)
+
+        except Exception as e:
+            return False, "Exception occured while carry mode was issued"
+
+        return True, "Carry mode success"
+
 
     def make_robot_command(self, arm_joint_trajectory):
         """ Helper function to create a RobotCommand from an ArmJointTrajectory. 
