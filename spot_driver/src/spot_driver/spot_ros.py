@@ -464,7 +464,7 @@ class SpotROS():
 
         """
         self.allow_motion = req.data
-        rospy.loginfo("Robot motion is now {}", "allowed" if self.allow_motion else "disallowed")
+        rospy.loginfo("Robot motion is now {}".format("allowed" if self.allow_motion else "disallowed"))
         if not self.allow_motion:
             # Always send a stop command if disallowing motion, in case the robot is moving when it is sent
             self.spot_wrapper.stop()
