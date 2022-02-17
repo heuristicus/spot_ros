@@ -454,16 +454,22 @@ namespace spot_viz
         case spot_msgs::PowerState::STATE_POWERING_OFF:
             state = "Powering off";
             powerOffButton->setEnabled(false);
+            sitButton->setEnabled(false);
+            standButton->setEnabled(false);
             break;
         case spot_msgs::PowerState::STATE_ON:
             state = "On";
             powerOnButton->setEnabled(false);
             powerOffButton->setEnabled(true);
+            sitButton->setEnabled(true);
+            standButton->setEnabled(true);
             break;
         case spot_msgs::PowerState::STATE_OFF:
             state = "Off";
             powerOnButton->setEnabled(true && haveLease);
             powerOffButton->setEnabled(false);
+            sitButton->setEnabled(false);
+            standButton->setEnabled(false);
             break;
         case spot_msgs::PowerState::STATE_ERROR:
             state = "Error";
