@@ -1,0 +1,66 @@
+# Simulation settings for using moveit_sim_controllers
+moveit_sim_hw_interface:
+  joint_model_group: spot_arm
+  joint_model_group_pose: Zero
+# Settings for ros_control_boilerplate control loop
+generic_hw_control_loop:
+  loop_hz: 300
+  cycle_time_error_threshold: 0.01
+# Settings for ros_control hardware interface
+hardware_interface:
+  joints:
+    - Rev9
+    - Rev8
+    - Rev11
+    - Rev3
+    - Rev10
+    - Rev6
+    - Rev7
+  sim_control_mode: 1  # 0: position, 1: velocity
+# Publish all joint states
+# Creates the /joint_states topic necessary in ROS
+joint_state_controller:
+  type: joint_state_controller/JointStateController
+  publish_rate: 50
+controller_list:
+  []
+arm_position_controller:
+  type: position_controllers/JointPositionController
+  joints:
+    - Rev9
+    - Rev8
+    - Rev11
+    - Rev3
+    - Rev10
+    - Rev6
+  gains:
+    Rev9:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    Rev8:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    Rev11:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    Rev3:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    Rev10:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    Rev6:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1

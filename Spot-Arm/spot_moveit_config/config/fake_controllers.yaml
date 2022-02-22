@@ -1,0 +1,20 @@
+controller_list:
+  - name: fake_spot_arm_controller
+    type: $(arg execution_type)
+    joints:
+      - Rev9
+      - Rev8
+      - Rev11
+      - Rev3
+      - Rev10
+      - Rev6
+  - name: fake_hand_controller
+    type: $(arg execution_type)
+    joints:
+      - Rev6
+      - Rev7
+initial:  # Define initial robot poses.
+  - group: spot_arm
+    pose: Zero
+  - group: hand
+    pose: close

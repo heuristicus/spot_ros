@@ -1,0 +1,56 @@
+<?xml version="1.0" ?>
+<!--This does not replace URDF, and is not an extension of URDF.
+    This is a format for representing semantic information about the robot structure.
+    A URDF file must exist for this robot as well, where the joints and the links that are referenced are defined
+-->
+<robot name="spot_arm">
+    <!--GROUPS: Representation of a set of joints and links. This can be useful for specifying DOF to plan for, defining arms, end effectors, etc-->
+    <!--LINKS: When a link is specified, the parent joint of that link (if it exists) is automatically included-->
+    <!--JOINTS: When a joint is specified, the child link of that joint (which will always exist) is automatically included-->
+    <!--CHAINS: When a chain is specified, all the links along the chain (including endpoints) are included in the group. Additionally, all the joints that are parents to included links are also included. This means that joints along the chain and the parent joint of the base link are included in the group-->
+    <!--SUBGROUPS: Groups can also be formed by referencing to already defined group names-->
+    <group name="spot_arm">
+        <chain base_link="base_link" tip_link="gripper_1" />
+    </group>
+    <group name="hand">
+        <link name="gripper_1" />
+        <link name="finger_1" />
+    </group>
+    <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
+    <group_state name="Zero" group="spot_arm">
+        <joint name="Rev10" value="0" />
+        <joint name="Rev11" value="0" />
+        <joint name="Rev3" value="0" />
+        <joint name="Rev6" value="0" />
+        <joint name="Rev8" value="0" />
+        <joint name="Rev9" value="0" />
+    </group_state>
+    <group_state name="ready" group="spot_arm">
+        <joint name="Rev10" value="0.4599" />
+        <joint name="Rev11" value="1.7868" />
+        <joint name="Rev3" value="0.0159" />
+        <joint name="Rev6" value="0" />
+        <joint name="Rev8" value="-1.2554" />
+        <joint name="Rev9" value="-2.6642" />
+    </group_state>
+    <group_state name="close" group="hand">
+        <joint name="Rev6" value="0" />
+        <joint name="Rev7" value="0" />
+    </group_state>
+    <group_state name="open" group="hand">
+        <joint name="Rev6" value="0" />
+        <joint name="Rev7" value="-1.1937" />
+    </group_state>
+    <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
+    <end_effector name="hand" parent_link="Part4_1" group="spot_arm" />
+    <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
+    <virtual_joint name="virtual_joint" type="fixed" parent_frame="world" child_link="base_link" />
+    <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
+    <disable_collisions link1="Part0_1" link2="Part1_1" reason="Adjacent" />
+    <disable_collisions link1="Part0_1" link2="base_link" reason="Adjacent" />
+    <disable_collisions link1="Part1_1" link2="Part2_1" reason="Adjacent" />
+    <disable_collisions link1="Part2_1" link2="Part3_1" reason="Adjacent" />
+    <disable_collisions link1="Part3_1" link2="Part4_1" reason="Adjacent" />
+    <disable_collisions link1="Part4_1" link2="gripper_1" reason="Adjacent" />
+    <disable_collisions link1="finger_1" link2="gripper_1" reason="Adjacent" />
+</robot>
