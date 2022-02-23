@@ -786,12 +786,6 @@ class SpotWrapper():
         if not self._robot.has_arm():
             return False, "Spot with an arm is required for this service"
 
-        # Verify that estop is not activated 
-        if self._estop_client.get_status().stop_level != estop_pb2.ESTOP_LEVEL_NONE:
-            error_message = "Spot is estopped"
-            self._logger.info(error_message)
-            raise Exception(error_message)
-
         try:
             self._logger.info("Spot is powering on")
             self._robot.power_on(timeout_sec=20)
