@@ -159,6 +159,7 @@ class ControlPanel : public rviz::Panel
     QLabel* batteryStateLabel;
     QLabel* motorStateLabel;
     QLabel* batteryTempLabel;
+    QLabel* estopLabel;
 
     QComboBox* gaitComboBox;
     QComboBox* swingHeightComboBox;

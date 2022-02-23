@@ -75,6 +75,13 @@
       </layout>
      </item>
      <item>
+      <widget class="QLabel" name="estopLabel">
+       <property name="text">
+        <string>E-stops</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="releaseStopButton">
        <property name="enabled">
         <bool>false</bool>

@@ -77,6 +77,7 @@ namespace spot_viz
         batteryStateLabel = this->findChild<QLabel*>("batteryStateLabel");
         motorStateLabel = this->findChild<QLabel*>("motorStateLabel");
         batteryTempLabel = this->findChild<QLabel*>("batteryTempLabel");
+        estopLabel = this->findChild<QLabel*>("estopLabel");
 
         gaitComboBox = this->findChild<QComboBox*>("gaitComboBox");
         swingHeightComboBox = this->findChild<QComboBox*>("swingHeightComboBox");
@@ -335,16 +336,34 @@ namespace spot_viz
      * @param estops
      */
     void ControlPanel::estopCallback(const spot_msgs::EStopStateArray::ConstPtr &estops) {
-        bool msg_is_estopped = false;
-        for (int i=estops->estop_states.size()-1; i>=0; i--) {
-            const spot_msgs::EStopState &estop = estops->estop_states[i];
+        bool softwareEstopped = false;
+        bool estopped = false;
+        std::string estopString("E-stops:");
+        for (const auto& estop : estops->estop_states) {
+            // Can't release hardware estops from the sdk
+            bool stopped = false;
             if (estop.state == spot_msgs::EStopState::STATE_ESTOPPED) {
-                msg_is_estopped = true;
-                break;
+                if (estop.type == spot_msgs::EStopState::TYPE_SOFTWARE) {
+                    softwareEstopped = true;
+                }
+                stopped = true;
+            }
+            std::string stoppedStr(stopped ? "On" : "Off");
+            if (estop.name == "hardware_estop") {
+                estopString += " hardware: " + stoppedStr;
+            } else if (estop.name == "payload_estop") {
+                estopString += " payload: " + stoppedStr;
+            } else if (estop.name == "software_estop") {
+                estopString += " software: " + stoppedStr;
+            } else {
+                estopString += " " + estop.name + ": " + stoppedStr;
             }
         }
-        if (msg_is_estopped != isEStopped) {
-            isEStopped = msg_is_estopped;
+
+        estopLabel->setText(QString(estopString.c_str()));
+
+        if (softwareEstopped != isEStopped) {
+            isEStopped = softwareEstopped;
             setControlButtons();
         }
     }
