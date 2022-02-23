@@ -696,17 +696,27 @@ class SpotWrapper():
         return resp
 
     # Arm ############################################
-    def arm_stow(self):
+    def check_arm_power_and_stand(self):
         if not self._robot.has_arm():
             return False, "Spot with an arm is required for this service"
         
         try:
-            self._logger.info("Spot is powering on")
+            self._logger.info("Spot is powering on within the timeout of 20 secs")
             self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on within the timeout of 20 secs"
+            assert self._robot.is_powered_on(), "Spot failed to power on"
             self._logger.info("Spot is powered on")
             robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
             self._logger.info("Spot is standing")
+
+        except Exception as e:
+            return False, "Exception occured while Spot was trying to power on or stand"
+
+        return True, "Spot has an arm, is powered on, and standing"
+
+    
+    def arm_stow(self):
+        try:
+            self.check_arm_power_and_stand()
 
             # Stow Arm
             stow = RobotCommandBuilder.arm_stow_command()
@@ -722,16 +732,8 @@ class SpotWrapper():
         return True, "Stow arm success"
 
     def arm_unstow(self):
-        if not self._robot.has_arm():
-            return False, "Spot with an arm is required for this service"
-        
         try:
-            self._logger.info("Spot is powering on")
-            self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on within the timeout of 20 secs"
-            self._logger.info("Spot is powered on")
-            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
-            self._logger.info("Spot is standing")
+            self.check_arm_power_and_stand()
 
             # Unstow Arm
             unstow = RobotCommandBuilder.arm_ready_command()
@@ -747,16 +749,8 @@ class SpotWrapper():
         return True, "Unstow arm success"
     
     def arm_carry(self):
-        if not self._robot.has_arm():
-            return False, "Spot with an arm is required for this service"
-        
-        try:
-            self._logger.info("Spot is powering on")
-            self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on within the timeout of 20 secs"
-            self._logger.info("Spot is powered on")
-            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
-            self._logger.info("Spot is standing")
+       try:
+            self.check_arm_power_and_stand()
 
             # Get Arm in carry mode
             carry = RobotCommandBuilder.arm_carry_command()
@@ -783,14 +777,8 @@ class SpotWrapper():
         return RobotCommandBuilder.build_synchro_command(arm_sync_robot_cmd)
 
     def arm_joint_move(self, joint_targets):
-        if not self._robot.has_arm():
-            return False, "Spot with an arm is required for this service"
-
-        try:
-            self._logger.info("Spot is powering on")
-            self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on within the timeout of 20 secs"
-            self._logger.info("Spot is powered on")
+       try:
+            self.check_arm_power_and_stand()
 
             if not self._is_standing:
                 self._logger.info("Commanding Spot to stand")
@@ -828,21 +816,8 @@ class SpotWrapper():
             return False, "Exception occured during arm movement: " + str(e)
 
     def force_trajectory(self, forces:List[float], torques:List[float]):
-        # Robot requires an arm to execute this service
-        if not self._robot.has_arm():
-            return False, "Spot with an arm is required for this service"
-
-        # Verify that estop is not activated 
-        if self._estop_client.get_status().stop_level != estop_pb2.ESTOP_LEVEL_NONE:
-            error_message = "Spot is estopped"
-            self._logger.info(error_message)
-            raise Exception(error_message)
-
         try:
-            self._logger.info("Spot is powering on")
-            self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on within the timeout of 20 secs"
-            self._logger.info("Spot is powered on")
+            self.check_arm_power_and_stand()
 
             if not self._is_standing:
                 self._logger.info("Commanding Spot to stand")
@@ -898,16 +873,8 @@ class SpotWrapper():
             return False, "Exception occured during arm movement" + str(e)
         
     def gripper_open(self):
-        if not self._robot.has_arm():
-            return False, "Spot with an arm is required for this service"
-        
         try:
-            self._logger.info("Spot is powering on")
-            self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on within the timeout of 20 secs"
-            self._logger.info("Spot is powered on")
-            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
-            self._logger.info("Spot is standing")
+            self.check_arm_power_and_stand()
 
             # Open gripper
             command = RobotCommandBuilder.claw_gripper_open_command()
@@ -923,16 +890,8 @@ class SpotWrapper():
         return True, "Open gripper success"
 
     def gripper_close(self):
-        if not self._robot.has_arm():
-            return False, "Spot with an arm is required for this service"
-        
         try:
-            self._logger.info("Spot is powering on")
-            self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on within the timeout of 20 secs"
-            self._logger.info("Spot is powered on")
-            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
-            self._logger.info("Spot is standing")
+            self.check_arm_power_and_stand()
 
             # Close gripper
             command = RobotCommandBuilder.claw_gripper_close_command()
@@ -949,16 +908,8 @@ class SpotWrapper():
     
     
     def gripper_angle_open(self, gripper_ang):
-        if not self._robot.has_arm():
-            return False, "Spot with an arm is required for this service"
-        
         try:
-            self._logger.info("Spot is powering on")
-            self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on within the timeout of 20 secs"
-            self._logger.info("Spot is powered on")
-            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
-            self._logger.info("Spot is standing")
+            self.check_arm_power_and_stand()
 
             # Open gripper at an angle
             command = RobotCommandBuilder.claw_gripper_open_angle_command(gripper_ang)
