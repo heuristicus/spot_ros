@@ -85,6 +85,10 @@ namespace spot_viz
         obstaclePaddingSpin = this->findChild<QDoubleSpinBox*>("obstaclePaddingSpin");
         frictionSpin = this->findChild<QDoubleSpinBox*>("frictionSpin");
 
+        setupComboBoxes();
+        setupStopButtons();
+        setupSpinBoxes();
+
         // Subscribe to things after everything is set up to avoid crashes when things aren't initialised
         leaseSub_ = nh_.subscribe("/spot/status/leases", 1, &ControlPanel::leaseCallback, this);
         estopSub_ = nh_.subscribe("/spot/status/estop", 1, &ControlPanel::estopCallback, this);
@@ -92,10 +96,6 @@ namespace spot_viz
         batterySub_ = nh_.subscribe("/spot/status/battery_states", 1, &ControlPanel::batteryCallback, this);
         powerSub_ = nh_.subscribe("/spot/status/power_state", 1, &ControlPanel::powerCallback, this);
         motionAllowedSub_ = nh_.subscribe("/spot/status/motion_allowed", 1, &ControlPanel::motionAllowedCallback, this);
-
-        setupComboBoxes();
-        setupStopButtons();
-        setupSpinBoxes();
 
         connect(claimLeaseButton, SIGNAL(clicked()), this, SLOT(claimLease()));
         connect(releaseLeaseButton, SIGNAL(clicked()), this, SLOT(releaseLease()));
