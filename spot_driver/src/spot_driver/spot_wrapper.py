@@ -772,7 +772,7 @@ class SpotWrapper():
         return True, "Carry mode success"
 
 
-    def make_robot_command(self, arm_joint_trajectory):
+    def make_arm_trajectory_command(self, arm_joint_trajectory):
         """ Helper function to create a RobotCommand from an ArmJointTrajectory. 
             Copy from 'spot-sdk/python/examples/arm_joint_move/arm_joint_move.py' """
 
@@ -817,7 +817,7 @@ class SpotWrapper():
                 joint_targets[0], joint_targets[1], joint_targets[2],
                 joint_targets[3], joint_targets[4], joint_targets[5])
             arm_joint_trajectory = arm_command_pb2.ArmJointTrajectory(points = [trajectory_point])
-            arm_command = self.make_robot_command(arm_joint_trajectory)
+            arm_command = self.make_arm_trajectory_command(arm_joint_trajectory)
 
             # Send the request
             cmd_id = self._robot_command_client.robot_command(arm_command)
