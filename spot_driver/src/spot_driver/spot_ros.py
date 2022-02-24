@@ -89,6 +89,7 @@ class SpotROS():
 
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
+            self.tf_pub.publish(generate_feet_tf(foot_array_msg))
             self.feet_pub.publish(foot_array_msg)
 
             # EStop #

@@ -32,6 +32,7 @@ add_message_files(
   LeaseResource.msg
   PowerState.msg
   SystemFaultState.msg
+  TerrainState.msg
 )
 
 add_service_files(
