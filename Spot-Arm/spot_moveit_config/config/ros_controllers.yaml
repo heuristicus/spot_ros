@@ -9,13 +9,13 @@ generic_hw_control_loop:
 # Settings for ros_control hardware interface
 hardware_interface:
   joints:
-    - Rev9
-    - Rev8
-    - Rev11
-    - Rev3
-    - Rev10
-    - Rev6
-    - Rev7
+    - Joint1
+    - Joint2
+    - Joint3
+    - Joint4
+    - Joint5
+    - Joint6
+    - Joint7
   sim_control_mode: 1  # 0: position, 1: velocity
 # Publish all joint states
 # Creates the /joint_states topic necessary in ROS
@@ -27,39 +27,39 @@ controller_list:
 arm_position_controller:
   type: position_controllers/JointPositionController
   joints:
-    - Rev9
-    - Rev8
-    - Rev11
-    - Rev3
-    - Rev10
-    - Rev6
+    - Joint1
+    - Joint2
+    - Joint3
+    - Joint4
+    - Joint5
+    - Joint6
   gains:
-    Rev9:
+    Joint1:
       p: 100
       d: 1
       i: 1
       i_clamp: 1
-    Rev8:
+    Joint2:
       p: 100
       d: 1
       i: 1
       i_clamp: 1
-    Rev11:
+    Joint3:
       p: 100
       d: 1
       i: 1
       i_clamp: 1
-    Rev3:
+    Joint4:
       p: 100
       d: 1
       i: 1
       i_clamp: 1
-    Rev10:
+    Joint5:
       p: 100
       d: 1
       i: 1
       i_clamp: 1
-    Rev6:
+    Joint6:
       p: 100
       d: 1
       i: 1
