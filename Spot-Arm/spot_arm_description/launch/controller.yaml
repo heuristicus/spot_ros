@@ -5,31 +5,31 @@ spot_arm_controller:
     publish_rate: 50
 
   # Position Controllers --------------------------------------
-  Rev3_position_controller:
+ Joint1_position_controller:
     type: effort_controllers/JointPositionController
-    joint: Rev3
+    joint: Joint1
     pid: {p: 100.0, i: 0.01, d: 10.0}
-  Rev6_position_controller:
+  Joint2_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: Joint2
+    pid: {p: 100.0, i: 0.01, d: 10.0}
+  Joint3_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: Joint3
+    pid: {p: 100.0, i: 0.01, d: 10.0}
+  Joint4_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: Joint4
+    pid: {p: 100.0, i: 0.01, d: 10.0}
+  Joint5_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: Joint5
+    pid: {p: 100.0, i: 0.01, d: 10.0}
+  Joint6_position_controller:
     type: effort_controllers/JointPositionController
     joint: Rev6
     pid: {p: 100.0, i: 0.01, d: 10.0}
-  Rev7_position_controller:
+  Joint7_position_controller:
     type: effort_controllers/JointPositionController
     joint: Rev7
-    pid: {p: 100.0, i: 0.01, d: 10.0}
-  Rev8_position_controller:
-    type: effort_controllers/JointPositionController
-    joint: Rev8
-    pid: {p: 100.0, i: 0.01, d: 10.0}
-  Rev9_position_controller:
-    type: effort_controllers/JointPositionController
-    joint: Rev9
-    pid: {p: 100.0, i: 0.01, d: 10.0}
-  Rev10_position_controller:
-    type: effort_controllers/JointPositionController
-    joint: Rev10
-    pid: {p: 100.0, i: 0.01, d: 10.0}
-  Rev11_position_controller:
-    type: effort_controllers/JointPositionController
-    joint: Rev11
     pid: {p: 100.0, i: 0.01, d: 10.0}
