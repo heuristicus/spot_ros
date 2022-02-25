@@ -41,6 +41,7 @@ add_service_files(
   SetLocomotion.srv
   SetVelocity.srv
   ClearBehaviorFault.srv
+  PosedStand.srv
 )
 
 add_action_files(

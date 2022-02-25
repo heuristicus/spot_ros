@@ -15,6 +15,7 @@ from bosdyn.api.geometry_pb2 import Quaternion, SE2VelocityLimit
 from bosdyn.client import math_helpers
 import actionlib
 import functools
+import math
 import bosdyn.geometry
 import tf2_ros
 
@@ -35,6 +36,7 @@ from spot_msgs.srv import ListGraph, ListGraphResponse
 from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
 from spot_msgs.srv import SetVelocity, SetVelocityResponse
+from spot_msgs.srv import PosedStand, PosedStandResponse
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
@@ -264,6 +266,24 @@ class SpotROS():
         """ROS service handler for the stand service"""
         resp = self.spot_wrapper.stand()
         return TriggerResponse(resp[0], resp[1])
+
+    def handle_posed_stand(self, req):
+        """
+        Handle a request to stand the robot with a specified  body height and pose
+
+        If no value is provided, this is equivalent to the basic stand commmand
+
+        Args:
+            req: PosedStand request
+        """
+        # By empirical observation, the limit on body height is [-0.16, 0.11], and RPY are probably limited to 30
+        # degrees. Roll values are likely affected by the payload configuration as well. If the payload is
+        # misconfigured a high roll value could cause it to hit the legs
+        resp = self.spot_wrapper.stand(body_height=req.body_height,
+                                       body_yaw=math.radians(req.body_yaw),
+                                       body_pitch=math.radians(req.body_pitch),
+                                       body_roll=math.radians(req.body_roll))
+        return PosedStandResponse(resp[0], resp[1])
 
     def handle_power_on(self, req):
         """ROS service handler for the power-on service"""
@@ -590,6 +610,7 @@ class SpotROS():
             rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
             rospy.Service("max_velocity", SetVelocity, self.handle_max_vel)
             rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_behavior_fault)
+            rospy.Service("posed_stand", PosedStand, self.handle_posed_stand)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 

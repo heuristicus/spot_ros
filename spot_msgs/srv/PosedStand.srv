@@ -1,0 +1,12 @@
+# See https://dev.bostondynamics.com/python/bosdyn-client/src/bosdyn/client/robot_command.html?highlight=feedback#bosdyn.client.robot_command.RobotCommandBuilder.stand_command
+
+# Offset of the body from the default stand height, in metres
+float32 body_height
+
+# RPY of the body relative to the robot's default stand pose
+float32 body_yaw
+float32 body_pitch
+float32 body_roll
+---
+bool success
+string message
