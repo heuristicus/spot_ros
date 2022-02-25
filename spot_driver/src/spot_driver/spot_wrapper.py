@@ -696,7 +696,7 @@ class SpotWrapper():
         return resp
 
     # Arm ############################################
-    def check_arm_power_and_stand(self):
+    def ensure_arm_power_and_stand(self):
         if not self._robot.has_arm():
             return False, "Spot with an arm is required for this service"
         
@@ -705,26 +705,30 @@ class SpotWrapper():
             self._robot.power_on(timeout_sec=20)
             assert self._robot.is_powered_on(), "Spot failed to power on"
             self._logger.info("Spot is powered on")
-            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
-            self._logger.info("Spot is standing")
-
         except Exception as e:
             return False, "Exception occured while Spot was trying to power on or stand"
 
+        if not self._is_standing:
+            robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
+            self._logger.info("Spot is standing")
+        else:
+            self._logger.info("Spot is already standing")
+
         return True, "Spot has an arm, is powered on, and standing"
 
-    
     def arm_stow(self):
         try:
-            self.check_arm_power_and_stand()
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
+            else:
+                # Stow Arm
+                stow = RobotCommandBuilder.arm_stow_command()
 
-            # Stow Arm
-            stow = RobotCommandBuilder.arm_stow_command()
-
-            # Command issue with RobotCommandClient
-            self._robot_command_client.robot_command(stow)
-            self._logger.info("Command stow issued")
-            time.sleep(2.0)
+                # Command issue with RobotCommandClient
+                self._robot_command_client.robot_command(stow)
+                self._logger.info("Command stow issued")
+                time.sleep(2.0)
 
         except Exception as e:
             return False, "Exception occured while trying to stow"
@@ -733,15 +737,17 @@ class SpotWrapper():
 
     def arm_unstow(self):
         try:
-            self.check_arm_power_and_stand()
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
+            else:                
+                # Unstow Arm
+                unstow = RobotCommandBuilder.arm_ready_command()
 
-            # Unstow Arm
-            unstow = RobotCommandBuilder.arm_ready_command()
-
-            # Command issue with RobotCommandClient
-            self._robot_command_client.robot_command(unstow)
-            self._logger.info("Command unstow issued")
-            time.sleep(2.0)
+                # Command issue with RobotCommandClient
+                self._robot_command_client.robot_command(unstow)
+                self._logger.info("Command unstow issued")
+                time.sleep(2.0)
 
         except Exception as e:
             return False, "Exception occured while trying to unstow"
@@ -750,15 +756,17 @@ class SpotWrapper():
     
     def arm_carry(self):
        try:
-            self.check_arm_power_and_stand()
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
+            else:
+                # Get Arm in carry mode
+                carry = RobotCommandBuilder.arm_carry_command()
 
-            # Get Arm in carry mode
-            carry = RobotCommandBuilder.arm_carry_command()
-
-            # Command issue with RobotCommandClient
-            self._robot_command_client.robot_command(carry)
-            self._logger.info("Command carry issued")
-            time.sleep(2.0)
+                # Command issue with RobotCommandClient
+                self._robot_command_client.robot_command(carry)
+                self._logger.info("Command carry issued")
+                time.sleep(2.0)
 
         except Exception as e:
             return False, "Exception occured while carry mode was issued"
@@ -778,111 +786,101 @@ class SpotWrapper():
 
     def arm_joint_move(self, joint_targets):
        try:
-            self.check_arm_power_and_stand()
-
-            if not self._is_standing:
-                self._logger.info("Commanding Spot to stand")
-                robot_command.blocking_stand(command_client=self._robot_command_client,
-                                             timeout_sec=10.0)
-                self._logger.info("Spot standing")
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
             else:
-                self._logger.info("Spot is already standing")
+                # Joint1: 0.0 arm points to the front. RANGE: 0.0 -> 5.75959 (positive: turn left, negative: turn right)
+                # Joint2: 0.0 arm points to the front. RANGE: 0.0 -> 3.66519)
+                # Joint3: 0.0 arm straight. RANGE: 0.0 -> 3.1415
+                # Joint4: 0.0 middle position. RANGE: -2.79253 -> 2.79253
+                # Joint5: 0.0 gripper points to the front. RANGE: -1.8326 -> 1.8326
+                # Joint6: 0.0 Moving finger on top of stationary finger. RANGE: -2.87979 -> 2.87979)
 
-            # Joint1: 0.0 arm points to the front. RANGE: 0.0 -> 5.75959 (positive: turn left, negative: turn right)
-            # Joint2: 0.0 arm points to the front. RANGE: 0.0 -> 3.66519)
-            # Joint3: 0.0 arm straight. RANGE: 0.0 -> 3.1415
-            # Joint4: 0.0 middle position. RANGE: -2.79253 -> 2.79253
-            # Joint5: 0.0 gripper points to the front. RANGE: -1.8326 -> 1.8326
-            # Joint6: 0.0 Moving finger on top of stationary finger. RANGE: -2.87979 -> 2.87979)
+                trajectory_point = RobotCommandBuilder.create_arm_joint_trajectory_point(
+                    joint_targets[0], joint_targets[1], joint_targets[2],
+                    joint_targets[3], joint_targets[4], joint_targets[5])
+                arm_joint_trajectory = arm_command_pb2.ArmJointTrajectory(points = [trajectory_point])
+                arm_command = self.make_arm_trajectory_command(arm_joint_trajectory)
 
-            trajectory_point = RobotCommandBuilder.create_arm_joint_trajectory_point(
-                joint_targets[0], joint_targets[1], joint_targets[2],
-                joint_targets[3], joint_targets[4], joint_targets[5])
-            arm_joint_trajectory = arm_command_pb2.ArmJointTrajectory(points = [trajectory_point])
-            arm_command = self.make_arm_trajectory_command(arm_joint_trajectory)
+                # Send the request
+                cmd_id = self._robot_command_client.robot_command(arm_command)
 
-            # Send the request
-            cmd_id = self._robot_command_client.robot_command(arm_command)
-
-            # Query for feedback to determine how long it will take
-            feedback_resp = self._robot_command_client.robot_command_feedback(cmd_id)
-            joint_move_feedback = feedback_resp.feedback.synchronized_feedback.arm_command_feedback.arm_joint_move_feedback
-            time_to_goal : Duration = joint_move_feedback.time_to_goal
-            time_to_goal_in_seconds: float = time_to_goal.seconds + (float(time_to_goal.nanos) / float(10**9))
-            time.sleep(time_to_goal_in_seconds)
-            return True, "Spot Arm moved successfully"
+                # Query for feedback to determine how long it will take
+                feedback_resp = self._robot_command_client.robot_command_feedback(cmd_id)
+                joint_move_feedback = feedback_resp.feedback.synchronized_feedback.arm_command_feedback.arm_joint_move_feedback
+                time_to_goal : Duration = joint_move_feedback.time_to_goal
+                time_to_goal_in_seconds: float = time_to_goal.seconds + (float(time_to_goal.nanos) / float(10**9))
+                time.sleep(time_to_goal_in_seconds)
+                return True, "Spot Arm moved successfully"
         
         except Exception as e:
             return False, "Exception occured during arm movement: " + str(e)
 
     def force_trajectory(self, forces:List[float], torques:List[float]):
         try:
-            self.check_arm_power_and_stand()
-
-            if not self._is_standing:
-                self._logger.info("Commanding Spot to stand")
-                robot_command.blocking_stand(command_client=self._robot_command_client,
-                                             timeout_sec=10.0)
-                self._logger.info("Spot standing")
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
             else:
-                self._logger.info("Spot is already standing")
+                # Unstow arm
+                unstow = RobotCommandBuilder.arm_ready_command()
 
-            # Unstow arm
-            unstow = RobotCommandBuilder.arm_ready_command()
+                # Send command via the RobotCommandClient
+                self._robot_command_client.robot_command(unstow)
 
-            # Send command via the RobotCommandClient
-            self._robot_command_client.robot_command(unstow)
+                self._logger.info("Unstow command issued.")
+                time.sleep(2.0)
 
-            self._logger.info("Unstow command issued.")
-            time.sleep(2.0)
+                # First point of trajectory
+                force_vector = geometry_pb2.Vec3(x=forces[0], y=forces[1], z=forces[2])
+                torque_vector = geometry_pb2.Vec3(x=forces[0], y=forces[1], z=forces[2])
+                wrench = geometry_pb2.Wrench(force=force_vector, torque=torque_vector)
+                time_since_reference = seconds_to_duration(0)
 
-            # First point of trajectory
-            force_vector = geometry_pb2.Vec3(x=forces[0], y=forces[1], z=forces[2])
-            torque_vector = geometry_pb2.Vec3(x=forces[0], y=forces[1], z=forces[2])
-            wrench = geometry_pb2.Wrench(force=force_vector, torque=torque_vector)
-            time_since_reference = seconds_to_duration(0)
+                traj_point0 = trajectory_pb2.WrenchTrajectoryPoint(wrench=wrench,
+                                                                time_since_reference=time_since_reference)
+                # Build the trajectory
+                trajectory = trajectory_pb2.WrenchTrajectory(points=[traj_point0])
+                
+                # Build the trajectory request, putting all axes into force mode
+                arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
+                    root_frame_name=ODOM_FRAME_NAME, wrench_trajectory_in_task=trajectory,
+                    x_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    y_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    z_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    rx_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    ry_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    rz_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE)
+                arm_command = arm_command_pb2.ArmCommand.Request(
+                    arm_cartesian_command=arm_cartesian_command)
+                synchronized_command = synchronized_command_pb2.SynchronizedCommand.Request(
+                    arm_command=arm_command)
+                robot_command = robot_command_pb2.RobotCommand(
+                    synchronized_command=synchronized_command)
 
-            traj_point0 = trajectory_pb2.WrenchTrajectoryPoint(wrench=wrench,
-                                                               time_since_reference=time_since_reference)
-            # Build the trajectory
-            trajectory = trajectory_pb2.WrenchTrajectory(points=[traj_point0])
-            
-            # Build the trajectory request, putting all axes into force mode
-            arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
-                root_frame_name=ODOM_FRAME_NAME, wrench_trajectory_in_task=trajectory,
-                x_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
-                y_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
-                z_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
-                rx_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
-                ry_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
-                rz_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE)
-            arm_command = arm_command_pb2.ArmCommand.Request(
-                arm_cartesian_command=arm_cartesian_command)
-            synchronized_command = synchronized_command_pb2.SynchronizedCommand.Request(
-                arm_command=arm_command)
-            robot_command = robot_command_pb2.RobotCommand(
-                synchronized_command=synchronized_command)
+                # Send the request
+                self._robot_command_client.robot_command(robot_command)
+                self._logger.info('Force trajectory command sent')
 
-            # Send the request
-            self._robot_command_client.robot_command(robot_command)
-            self._logger.info('Force trajectory command sent')
-
-            time.sleep(10.0)
+                time.sleep(10.0)
 
         except Exception as e:
             return False, "Exception occured during arm movement" + str(e)
         
     def gripper_open(self):
         try:
-            self.check_arm_power_and_stand()
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
+            else:
+                # Open gripper
+                command = RobotCommandBuilder.claw_gripper_open_command()
 
-            # Open gripper
-            command = RobotCommandBuilder.claw_gripper_open_command()
-
-            # Command issue with RobotCommandClient
-            self._robot_command_client.robot_command(command)
-            self._logger.info("Command gripper open sent")
-            time.sleep(2.0)
+                # Command issue with RobotCommandClient
+                self._robot_command_client.robot_command(command)
+                self._logger.info("Command gripper open sent")
+                time.sleep(2.0)
 
         except Exception as e:
             return False, "Exception occured while gripper was moving"
@@ -891,16 +889,18 @@ class SpotWrapper():
 
     def gripper_close(self):
         try:
-            self.check_arm_power_and_stand()
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
+            else:
+                # Close gripper
+                command = RobotCommandBuilder.claw_gripper_close_command()
 
-            # Close gripper
-            command = RobotCommandBuilder.claw_gripper_close_command()
-
-            # Command issue with RobotCommandClient
-            self._robot_command_client.robot_command(command)
-            self._logger.info("Command gripper close sent")
-            time.sleep(2.0)
-
+                # Command issue with RobotCommandClient
+                self._robot_command_client.robot_command(command)
+                self._logger.info("Command gripper close sent")
+                time.sleep(2.0)
+                
         except Exception as e:
             return False, "Exception occured while gripper was moving"
 
@@ -909,15 +909,17 @@ class SpotWrapper():
     
     def gripper_angle_open(self, gripper_ang):
         try:
-            self.check_arm_power_and_stand()
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
+            else:
+                # Open gripper at an angle
+                command = RobotCommandBuilder.claw_gripper_open_angle_command(gripper_q)
 
-            # Open gripper at an angle
-            command = RobotCommandBuilder.claw_gripper_open_angle_command(gripper_ang)
-
-            # Command issue with RobotCommandClient
-            self._robot_command_client.robot_command(command)
-            self._logger.info("Command gripper open angle sent")
-            time.sleep(2.0)
+                # Command issue with RobotCommandClient
+                self._robot_command_client.robot_command(command)
+                self._logger.info("Command gripper open angle sent")
+                time.sleep(2.0)
 
         except Exception as e:
             return False, "Exception occured while gripper was moving"
