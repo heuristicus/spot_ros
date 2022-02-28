@@ -721,6 +721,7 @@ class SpotWrapper():
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
+                return False, msg
             else:
                 # Stow Arm
                 stow = RobotCommandBuilder.arm_stow_command()
@@ -740,6 +741,7 @@ class SpotWrapper():
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
+                return False, msg
             else:                
                 # Unstow Arm
                 unstow = RobotCommandBuilder.arm_ready_command()
@@ -759,6 +761,7 @@ class SpotWrapper():
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
+                return False, msg
             else:
                 # Get Arm in carry mode
                 carry = RobotCommandBuilder.arm_carry_command()
@@ -789,6 +792,7 @@ class SpotWrapper():
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
+                return False, msg
             else:
                 # Joint1: 0.0 arm points to the front. RANGE: 0.0 -> 5.75959 (positive: turn left, negative: turn right)
                 # Joint2: 0.0 arm points to the front. RANGE: 0.0 -> 3.66519)
@@ -904,6 +908,7 @@ class SpotWrapper():
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
+                return False, msg
             else:
                 # Open gripper
                 command = RobotCommandBuilder.claw_gripper_open_command()
@@ -923,6 +928,7 @@ class SpotWrapper():
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
+                return False, msg
             else:
                 # Close gripper
                 command = RobotCommandBuilder.claw_gripper_close_command()
@@ -943,6 +949,7 @@ class SpotWrapper():
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
+                return False, msg
             else:
                 # Open gripper at an angle
                 command = RobotCommandBuilder.claw_gripper_open_angle_command(gripper_q)
