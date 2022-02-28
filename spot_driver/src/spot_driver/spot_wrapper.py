@@ -817,11 +817,12 @@ class SpotWrapper():
         except Exception as e:
             return False, "Exception occured during arm movement: " + str(e)
 
-    def force_trajectory(self, forces:List[float], torques:List[float]):
+    def force_trajectory(self, forces_torques):
         try:
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
+                return False, msg
             else:
                 # Unstow arm
                 unstow = RobotCommandBuilder.arm_ready_command()
@@ -832,16 +833,46 @@ class SpotWrapper():
                 self._logger.info("Unstow command issued.")
                 time.sleep(2.0)
 
-                # First point of trajectory
-                force_vector = geometry_pb2.Vec3(x=forces[0], y=forces[1], z=forces[2])
-                torque_vector = geometry_pb2.Vec3(x=forces[0], y=forces[1], z=forces[2])
-                wrench = geometry_pb2.Wrench(force=force_vector, torque=torque_vector)
-                time_since_reference = seconds_to_duration(0)
+                # Demonstrate an example force trajectory by ramping up and down a vertical force over
+                # 10 seconds
 
-                traj_point0 = trajectory_pb2.WrenchTrajectoryPoint(wrench=wrench,
-                                                                time_since_reference=time_since_reference)
+                f_x0 = forces_torques[0]  # Newtons
+                f_y0 = forces_torques[1]
+                f_z0 = forces_torques[2]
+
+                f_x1 = forces_torques[3]  # Newtons
+                f_y1 = forces_torques[4]
+                f_z1 = forces_torques[5]  # -10 push down
+
+                # We won't have any rotational torques
+                torque_x = forces_torques[6]
+                torque_y = forces_torques[7]
+                torque_z = forces_torques[8]
+
+                # Duration in seconds.
+                traj_duration = 5
+
+                # First point of trajectory
+                force_vector0 = geometry_pb2.Vec3(x=f_x0, y=f_y0, z=f_z0)
+                torque_vector0 = geometry_pb2.Vec3(x=torque_x, y=torque_y, z=torque_z)
+                
+                wrench0 = geometry_pb2.Wrench(force=force_vector0, torque=torque_vector0)
+                t0 = seconds_to_duration(0)
+                traj_point0 = trajectory_pb2.WrenchTrajectoryPoint(wrench=wrench0,
+                                                                time_since_reference=t0)
+                
+                # Second point on the trajectory
+                force_vector1 = geometry_pb2.Vec3(x=f_x1, y=f_y1, z=f_z1)
+                torque_vector1 = geometry_pb2.Vec3(x=torque_x, y=torque_y, z=torque_z)
+
+                wrench1 = geometry_pb2.Wrench(force=force_vector1, torque=torque_vector1)
+                t1 = seconds_to_duration(traj_duration)
+                traj_point1 = trajectory_pb2.WrenchTrajectoryPoint(wrench=wrench1,
+                                                                time_since_reference=t1)
+
                 # Build the trajectory
-                trajectory = trajectory_pb2.WrenchTrajectory(points=[traj_point0])
+                self._logger.info("Building the trajectory")
+                trajectory = trajectory_pb2.WrenchTrajectory(points=[traj_point0, traj_point1])
                 
                 # Build the trajectory request, putting all axes into force mode
                 arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
@@ -925,6 +956,63 @@ class SpotWrapper():
             return False, "Exception occured while gripper was moving"
 
         return True, "Opened gripper successfully"
+    
+    def body_follow_arm(self):
+        try:
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
+                return False, msg
+            else:
+                # Move the arm to a spot in front of the robot, and command the body to follow the hand.
+                # Build a position to move the arm to (in meters, relative to the body frame origin.)
+                x = 1.25
+                y = 0
+                z = 0.25
+                hand_pos_rt_body = geometry_pb2.Vec3(x=x, y=y, z=z)
+
+                # Rotation as a quaternion.
+                qw = 1
+                qx = 0
+                qy = 0
+                qz = 0
+                body_Q_hand = geometry_pb2.Quaternion(w=qw, x=qx, y=qy, z=qz)
+
+                # Build the SE(3) pose of the desired hand position in the moving body frame.
+                body_T_hand = geometry_pb2.SE3Pose(position=hand_pos_rt_body, rotation=body_Q_hand)
+
+                # Transform the desired from the moving body frame to the odom frame.
+                robot_state = self._robot_state_client.get_robot_state()
+
+                odom_T_body = frame_helpers.get_a_tform_b(robot_state.kinematic_state.transforms_snapshot,
+                                            ODOM_FRAME_NAME, GRAV_ALIGNED_BODY_FRAME_NAME)
+                odom_T_hand = odom_T_body * math_helpers.SE3Pose.from_obj(body_T_hand)
+
+                # duration in seconds
+                seconds = 5
+
+                # Create the arm command.
+                arm_command = RobotCommandBuilder.arm_pose_command(
+                    odom_T_hand.x, odom_T_hand.y, odom_T_hand.z, odom_T_hand.rot.w, odom_T_hand.rot.x,
+                    odom_T_hand.rot.y, odom_T_hand.rot.z, ODOM_FRAME_NAME, seconds)
+                self._logger.info("Create arm command")
+
+                # Tell the robot's body to follow the arm
+                follow_arm_command = RobotCommandBuilder.follow_arm_command()
+                
+                command = self._robot_command(RobotCommandBuilder.build_synchro_command(follow_arm_command, arm_command))
+                self._logger.info("After building command")
+
+                # Send the request
+                self._robot_command_client.robot_command(command)
+                robot.logger.info('Moving arm to position.')
+
+                time.sleep(6.0)
+
+        except Exception as e:
+            return False, "Exception occured while arm was moving"
+
+        return True, "Moved arm successfully"
    
             
     ###################################################################
