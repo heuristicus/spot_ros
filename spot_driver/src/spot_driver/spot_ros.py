@@ -37,6 +37,7 @@ from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
 from spot_msgs.srv import SetVelocity, SetVelocityResponse
 from spot_msgs.srv import ArmJointMovement, ArmJointMovementResponse, ArmJointMovementRequest
 from spot_msgs.srv import GripperAngleMove, GripperAngleMoveResponse, GripperAngleMoveRequest
+from spot_msgs.srv import ArmForceTrajectory, ArmForceTrajectoryResponse, ArmForceTrajectoryRequest
 
 
 from .ros_helpers import *
@@ -526,6 +527,11 @@ class SpotROS():
         resp = self.spot_wrapper.arm_joint_move(joint_targets = srv_data.joint_target)
         return ArmJointMovementResponse(resp[0], resp[1])
     
+    def handle_force_trajectory(self, srv_data: ArmForceTrajectoryRequest):
+        """ROS service handler to send a force trajectory up or down a vertical force"""
+        resp = self.spot_wrapper.force_trajectory(forces_torques = srv_data.force_torque)
+        return ArmForceTrajectoryResponse(resp[0], resp[1])
+    
     def handle_gripper_open(self, srv_data):
         """ROS service handler to open the gripper"""
         resp = self.spot_wrapper.gripper_open()
@@ -544,6 +550,11 @@ class SpotROS():
     def handle_arm_carry(self, srv_data):
         """ROS service handler to put arm in carry mode"""
         resp = self.spot_wrapper.arm_carry()
+        return TriggerResponse(resp[0], resp[1])
+    
+    def handle_body_follow_arm(self, srv_data):
+        """ROS service to send a pose to the end effector"""
+        resp = self.spot_wrapper.hand_position_3d()
         return TriggerResponse(resp[0], resp[1])
 
     ##################################################################
@@ -683,6 +694,8 @@ class SpotROS():
             rospy.Service("arm_carry", Trigger, self.handle_arm_carry)
             rospy.Service("gripper_angle_open", GripperAngleMove, self.handle_gripper_angle_open)
             rospy.Service("arm_joint_move", ArmJointMovement, self.handle_arm_joint_move)
+            rospy.Service("force_trajectory", ArmForceTrajectory, self.handle_force_trajectory)
+            rospy.Service("body_follow_hand", Trigger, self.handle_body_follow_arm)
             #########################################################
 
             self.navigate_as = actionlib.SimpleActionServer('navigate_to', NavigateToAction,
