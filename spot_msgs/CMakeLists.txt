@@ -43,6 +43,7 @@ add_service_files(
   ArmJointMovement.srv
   ConstrainedArmJointMovement.srv
   GripperAngleMove.srv
+  ArmForceTrajectory.srv
 )
 
 add_action_files(
