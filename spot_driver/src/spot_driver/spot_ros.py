@@ -421,8 +421,14 @@ class SpotROS():
         """Callback for cmd_vel command"""
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
 
-    def bodyPoseCallback(self, data):
-        """Callback for cmd_vel command"""
+    def in_motion_or_idle_pose_cb(self, data):
+        """
+        Callback for pose to be used while in motion or idling
+
+        This sets the body control field in the mobility params. This means that the pose will be used while a motion
+        command is executed. Only the pitch is maintained while moving. The roll and yaw will be applied by the idle
+        stand command.
+        """
         q = Quaternion()
         q.x = data.orientation.x
         q.y = data.orientation.y
@@ -591,7 +597,7 @@ class SpotROS():
             self.mobility_params_pub = rospy.Publisher('status/mobility_params', MobilityParams, queue_size=10)
 
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
-            rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
+            rospy.Subscriber('in_motion_or_idle_body_pose', Pose, self.in_motion_or_idle_pose_cb, queue_size = 1)
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
