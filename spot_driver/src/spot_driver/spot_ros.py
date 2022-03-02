@@ -38,6 +38,7 @@ from spot_msgs.srv import SetVelocity, SetVelocityResponse
 from spot_msgs.srv import ArmJointMovement, ArmJointMovementResponse, ArmJointMovementRequest
 from spot_msgs.srv import GripperAngleMove, GripperAngleMoveResponse, GripperAngleMoveRequest
 from spot_msgs.srv import ArmForceTrajectory, ArmForceTrajectoryResponse, ArmForceTrajectoryRequest
+from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
 
 
 from .ros_helpers import *
@@ -556,6 +557,11 @@ class SpotROS():
         """ROS service to send a pose to the end effector"""
         resp = self.spot_wrapper.hand_position_3d()
         return TriggerResponse(resp[0], resp[1])
+    
+    def handle_hand_pose(self, srv_data: HandPoseRequest):
+        """ROS service to give a position to the gripper"""
+        resp = self.spot_wrapper.hand_pose(pose_points = srv_data.pose_point)
+        return HandPoseResponse(resp[0], resp[1])
 
     ##################################################################
     
@@ -696,6 +702,7 @@ class SpotROS():
             rospy.Service("arm_joint_move", ArmJointMovement, self.handle_arm_joint_move)
             rospy.Service("force_trajectory", ArmForceTrajectory, self.handle_force_trajectory)
             rospy.Service("body_follow_hand", Trigger, self.handle_body_follow_arm)
+            rospy.Service("gripper_pose", HandPose, self.handle_hand_pose)
             #########################################################
 
             self.navigate_as = actionlib.SimpleActionServer('navigate_to', NavigateToAction,
