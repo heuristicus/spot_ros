@@ -44,6 +44,7 @@ add_service_files(
   ConstrainedArmJointMovement.srv
   GripperAngleMove.srv
   ArmForceTrajectory.srv
+  HandPose.srv
 )
 
 add_action_files(
