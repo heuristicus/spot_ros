@@ -107,6 +107,7 @@ class SpotROS():
 
             # Battery States #
             battery_states_array_msg = GetBatteryStatesFromState(state, self.spot_wrapper)
+            self.is_charging = battery_states_array_msg.battery_states[0].status == BatteryState.STATUS_CHARGING
             self.battery_pub.publish(battery_states_array_msg)
 
             # Power State #
@@ -451,6 +452,10 @@ class SpotROS():
                               "with it disabled. Set autonomy_enabled to true in the launch file to enable it.")
                 autonomy_ok = False
 
+            if self.is_charging:
+                rospy.logwarn("Spot cannot be autonomous because it is connected to shore power.")
+                autonomy_ok = False
+
         return self.allow_motion and autonomy_ok
 
     def handle_allow_motion(self, req):
@@ -669,7 +674,7 @@ class SpotROS():
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
-        if not self.robot_allowed_to_move(autonomous_command=False):
+        if not self.robot_allowed_to_move():
             rospy.logerr("cmd_vel received a message but motion is not allowed.")
             return
 
@@ -837,6 +842,7 @@ class SpotROS():
         self.estop_timeout = rospy.get_param('~estop_timeout', 9.0)
         self.autonomy_enabled = rospy.get_param('~autonomy_enabled', True)
         self.allow_motion = rospy.get_param('~allow_motion', True)
+        self.is_charging = False
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
