@@ -204,6 +204,34 @@ class AsyncIdle(AsyncPeriodicQuery):
         if self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving:
             self._spot_wrapper.stand(False)
 
+class AsyncEStopMonitor(AsyncPeriodicQuery):
+    """Class to check if the estop endpoint is still valid
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            spot_wrapper: A handle to the wrapper library
+    """
+
+    def __init__(self, client, logger, rate, spot_wrapper):
+        super(AsyncEStopMonitor, self).__init__("estop_alive", client, logger, period_sec=1.0 / rate)
+        self._spot_wrapper = spot_wrapper
+
+    def _start_query(self):
+        if not self._spot_wrapper._estop_keepalive:
+            self._logger.debug("No keepalive yet - the lease has not been claimed.")
+            return
+
+        last_estop_status = self._spot_wrapper._estop_keepalive.status_queue.queue[-1]
+        if last_estop_status[0] == self._spot_wrapper._estop_keepalive.KeepAliveStatus.ERROR:
+            self._logger.error("Estop keepalive has an error: {}".format(last_estop_status[1]))
+        elif last_estop_status == self._spot_wrapper._estop_keepalive.KeepAliveStatus.DISABLED:
+            self._logger.error("Estop keepalive is disabled: {}".format(last_estop_status[1]))
+        else:
+            # estop keepalive is ok
+            pass
+
 class SpotWrapper():
     """Generic wrapper class to encompass release 1.1.4 API features as well as maintaining leases automatically"""
     def __init__(self, username, password, hostname, logger, estop_timeout=9.0, rates = {}, callbacks = {}):
@@ -290,11 +318,13 @@ class SpotWrapper():
             self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("side_image", 0.0)), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
             self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
             self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
+            self._estop_monitor = AsyncEStopMonitor(self._estop_client, self._logger, 20.0, self)
 
             self._estop_endpoint = None
+            self._estop_keepalive = None
 
             self._async_tasks = AsyncTasks(
-                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
+                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task, self._estop_monitor])
 
             self._robot_id = None
             self._lease = None
