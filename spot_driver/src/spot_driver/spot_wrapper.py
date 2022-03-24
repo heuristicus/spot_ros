@@ -1074,6 +1074,72 @@ class SpotWrapper():
             return False, "Exception occured while arm was moving"
 
         return True, "Moved arm successfully"
+    
+    def walk_to_object_image(self, object_point):
+        print("In wrapper")
+        print(object_point)
+
+        try:
+            success, msg = self.ensure_arm_power_and_stand()
+            self.gripper_open()
+            if not success:
+                self._logger.info(msg)
+                return False, msg
+            else:
+                walk_vec = geometry_pb2.Vec2(x=object_point[0], y=object_point[1])
+
+                manipulation_api_client = self._robot.ensure_client(ManipulationApiClient.default_service_name)
+                print("manipulation_api_client")
+
+                data = self.front_images
+                image_used = data[1]
+
+                offset_distance = None
+
+                # Build proto
+                walk_to = manipulation_api_pb2.WalkToObjectInImage(
+                    pixel_xy=walk_vec, transforms_snapshot_for_camera=image_used.shot.transforms_snapshot,
+                    frame_name_image_sensor=image_used.shot.frame_name_image_sensor,
+                    camera_model=image_used.source.pinhole, offset_distance=offset_distance)
+
+                print("Built proto")
+
+                # Ask Spot to pick up the object
+                walk_to_request = manipulation_api_pb2.ManipulationApiRequest(
+                    walk_to_object_in_image=walk_to)
+
+                print("Walk to request")
+
+                # Send the request
+                cmd_response = manipulation_api_client.manipulation_api_command( 
+                    manipulation_api_request=walk_to_request)
+
+                print("Sent request")
+
+                # Get feedback from robot
+                while True:
+                    time.sleep(0.25)
+                    feedback_request = manipulation_api_pb2.ManipulationApiFeedbackRequest(
+                        manipulation_cmd_id=cmd_response.manipulation_cmd_id)
+
+                    print("Feedback request")
+
+                    # Send the request
+                    response = manipulation_api_client.manipulation_api_feedback_command(
+                        manipulation_api_feedback_request=feedback_request)
+
+                    print("Feedback response")
+
+                    print('Current state: ', manipulation_api_pb2.ManipulationFeedbackState.Name(response.current_state))
+
+                    if response.current_state == manipulation_api_pb2.MANIP_STATE_DONE:
+                        break
+
+                self._logger.info('Finished')
+                time.sleep(4.0)
+
+        finally:
+            print("done")
    
             
     ###################################################################
