@@ -981,10 +981,9 @@ class SpotWrapper():
     def dock(self, dock_id):
         "Dock the robot to dockid"
         try:
-            with LeaseKeepAlive(self._lease_client):
-                # make sure we're powered on and standing
-                self._robot.power_on()
-                robot_command.blocking_stand(self._robot_command_client)
+            # Make sure we're powered on and standing
+            self._robot.power_on()
+            robot_command.blocking_stand(self._robot_command_client)
             # Dock the robot
             blocking_dock_robot(self._robot, dock_id)
             return True, "Success"
@@ -994,7 +993,9 @@ class SpotWrapper():
     def undock(self, timeout=20):
         "Power motor on and undock the robot from the station"
         try:
-            # Dock the robot
+            # Maker sure we're powered on
+            self._robot.power_on()
+            # Undock the robot
             blocking_undock(self._robot ,timeout)
             return True, "Success"
         except Exception as e:
