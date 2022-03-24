@@ -562,6 +562,15 @@ class SpotROS():
         """ROS service to give a position to the gripper"""
         resp = self.spot_wrapper.hand_pose(pose_points = srv_data.pose_point)
         return HandPoseResponse(resp[0], resp[1])
+    
+    def walk_to_obj_callback(self, obj_point):
+        """Callback for pixel points, object to walk"""
+        rospy.loginfo("Pixel for location to walk to: " + str(obj_point))
+        the_click = []
+        the_click.append(obj_point.pixel_pose[0])
+        the_click.append(obj_point.pixel_pose[1])
+        self.spot_wrapper.walk_to_object_image(object_point = the_click)
+
 
     ##################################################################
     
@@ -671,6 +680,9 @@ class SpotROS():
 
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
             rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
+            
+            # Walk to an object
+            rospy.Subscriber('object_location', PixelPose, self.walk_to_obj_callback, queue_size=1)
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
