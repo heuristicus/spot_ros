@@ -12,7 +12,7 @@ from bosdyn.client.frame_helpers import get_odom_tform_body
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
 from bosdyn.client.image import ImageClient, build_image_request
-from bosdyn.client.docking import blocking_dock_robot, blocking_undock
+from bosdyn.client.docking import DockingClient, blocking_dock_robot, blocking_undock
 from bosdyn.api import image_pb2
 from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
@@ -271,6 +271,7 @@ class SpotWrapper():
                 self._lease_wallet = self._lease_client.lease_wallet
                 self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
                 self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
+                self._docking_client = self._robot.ensure_client(DockingClient.default_service_name)
             except Exception as e:
                 self._logger.error("Unable to create client service: %s", e)
                 self._valid = False
@@ -979,7 +980,7 @@ class SpotWrapper():
         return None
 
     def dock(self, dock_id):
-        "Dock the robot to dockid"
+        """Dock the robot to the docking station with fiducial ID [dock_id]."""
         try:
             # Make sure we're powered on and standing
             self._robot.power_on()
@@ -991,7 +992,7 @@ class SpotWrapper():
             return False, str(e)
 
     def undock(self, timeout=20):
-        "Power motor on and undock the robot from the station"
+        """Power motors on and undock the robot from the station."""
         try:
             # Maker sure we're powered on
             self._robot.power_on()
@@ -1000,3 +1001,9 @@ class SpotWrapper():
             return True, "Success"
         except Exception as e:
             return False, str(e)
+
+    def get_docking_state(self, **kwargs):
+        """Get docking state of robot."""
+        state = self._docking_client.get_docking_state(**kwargs)
+        return state
+        

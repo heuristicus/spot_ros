@@ -35,7 +35,7 @@ from spot_msgs.srv import ListGraph, ListGraphResponse
 from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
 from spot_msgs.srv import SetVelocity, SetVelocityResponse
-from spot_msgs.srv import Dock, DockResponse
+from spot_msgs.srv import Dock, DockResponse, GetDockState, GetDockStateResponse
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
@@ -407,6 +407,11 @@ class SpotROS():
         resp = self.spot_wrapper.undock()
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_get_docking_state(self, req):
+        """Get docking state of robot"""
+        resp = self.spot_wrapper.get_docking_state()
+        return GetDockStateResponse(GetDockStatesFromState(resp, self.spot_wrapper))
+
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
@@ -606,6 +611,7 @@ class SpotROS():
             # Docking
             rospy.Service("dock", Dock, self.handle_dock)
             rospy.Service("undock", Trigger, self.handle_undock)
+            rospy.Service("docking_state", GetDockState, self.handle_get_docking_state)
 
             self.navigate_as = actionlib.SimpleActionServer('navigate_to', NavigateToAction,
                                                             execute_cb = self.handle_navigate_to,
