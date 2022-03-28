@@ -31,7 +31,7 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
-from spot_msgs.msg import PoseBodyAction, PoseBodyResult
+from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams, ObstacleParams, TerrainParams
 from spot_msgs.msg import NavigateToAction, NavigateToResult, NavigateToFeedback
@@ -319,21 +319,55 @@ class SpotROS():
 
     def handle_posed_stand(self, req):
         """
-        Handle a request to stand the robot with a specified  body height and pose
+        Handle a service call for the posed stand
+
+        Args:
+            req: PosedStandRequest
+
+        Returns: PosedStandResponse
+        """
+        success, message = self._posed_stand(req.height, req.yaw, req.pitch, req.roll)
+        return PosedStandResponse(success, message)
+
+    def handle_posed_stand_action(self, action):
+        """
+        Handle a call to the posed stand actionserver
 
         If no value is provided, this is equivalent to the basic stand commmand
 
         Args:
-            req: PosedStand request
+            action: PoseBodyGoal
+
         """
-        # By empirical observation, the limit on body height is [-0.16, 0.11], and RPY are probably limited to 30
-        # degrees. Roll values are likely affected by the payload configuration as well. If the payload is
-        # misconfigured a high roll value could cause it to hit the legs
-        resp = self.spot_wrapper.stand(body_height=req.body_height,
-                                       body_yaw=math.radians(req.body_yaw),
-                                       body_pitch=math.radians(req.body_pitch),
-                                       body_roll=math.radians(req.body_roll))
-        return PosedStandResponse(resp[0], resp[1])
+        success, message = self._posed_stand(action.height, action.yaw, action.pitch, action.roll)
+        return PoseBodyResult(success, message)
+
+    def _posed_stand(self, body_height, yaw, pitch, roll):
+        """
+        Make the robot do a posed stand with specified body height and orientation
+
+        By empirical observation, the limit on body height is [-0.16, 0.11], and RPY are probably limited to 30
+        degrees. Roll values are likely affected by the payload configuration as well. If the payload is
+        misconfigured a high roll value could cause it to hit the legs
+
+        Args:
+            body_height: Height of the body relative to the default height
+            yaw: Yaw to apply (in degrees)
+            pitch: Pitch to apply (in degrees)
+            roll: Roll to apply (in degrees)
+
+        Returns:
+
+        """
+        if not self.robot_allowed_to_move(autonomous_command=False):
+            return False, "Robot motion is not allowed"
+
+        resp = self.spot_wrapper.stand(body_height=body_height,
+                                       body_yaw=math.radians(yaw),
+                                       body_pitch=math.radians(pitch),
+                                       body_roll=math.radians(roll))
+
+        return resp[0], resp[1]
 
     def handle_power_on(self, req):
         """ROS service handler for the power-on service"""
@@ -1095,6 +1129,11 @@ class SpotROS():
                                                                             execute_cb=self.handle_in_motion_or_idle_body_pose,
                                                                             auto_start=False)
             self.motion_or_idle_body_pose_as.start()
+
+            self.body_pose_as = actionlib.SimpleActionServer('body_pose', PoseBodyAction,
+                                                             execute_cb=self.handle_posed_stand_action,
+                                                             auto_start=False)
+            self.body_pose_as.start()
 
             # Stop service calls other services so initialise it after them to prevent crashes which can happen if
             # the service is immediately called
