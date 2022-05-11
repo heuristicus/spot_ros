@@ -1,5 +1,6 @@
 import rospy
 
+import time
 from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 from std_msgs.msg import Bool
 from tf2_msgs.msg import TFMessage
@@ -42,6 +43,27 @@ from .spot_wrapper import SpotWrapper
 import actionlib
 import logging
 import threading
+
+class RateLimitedCall:
+    """
+    Wrap a function with this class to limit how frequently it can be called within a loop
+    """
+    def __init__(self, fn, rate_limit):
+        """
+
+        Args:
+            fn: Function to call
+            rate_limit: The function will not be called faster than this rate
+        """
+        self.fn = fn
+        self.min_time_between_calls = 1.0/rate_limit
+        self.last_call = 0
+
+    def __call__(self):
+        now_sec = time.time()
+        if (now_sec - self.last_call) > self.min_time_between_calls:
+            self.fn()
+            self.last_call = now_sec
 
 class SpotROS():
     """Parent class for using the wrapper.  Defines all callbacks and keeps the wrapper alive"""
@@ -486,12 +508,63 @@ class SpotROS():
         rospy.Rate(0.25).sleep()
         self.spot_wrapper.disconnect()
 
+    def publish_mobility_params(self):
+        mobility_params_msg = MobilityParams()
+        try:
+            mobility_params = self.spot_wrapper.get_mobility_params()
+            mobility_params_msg.body_control.position.x = \
+                mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.x
+            mobility_params_msg.body_control.position.y = \
+                mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.y
+            mobility_params_msg.body_control.position.z = \
+                mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.z
+            mobility_params_msg.body_control.orientation.x = \
+                mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.x
+            mobility_params_msg.body_control.orientation.y = \
+                mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.y
+            mobility_params_msg.body_control.orientation.z = \
+                mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.z
+            mobility_params_msg.body_control.orientation.w = \
+                mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.w
+            mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
+            mobility_params_msg.stair_hint = mobility_params.stair_hint
+        except Exception as e:
+            rospy.logerr('Error:{}'.format(e))
+            pass
+        self.mobility_params_pub.publish(mobility_params_msg)
+
+    def publish_feedback(self):
+        feedback_msg = Feedback()
+        feedback_msg.standing = self.spot_wrapper.is_standing
+        feedback_msg.sitting = self.spot_wrapper.is_sitting
+        feedback_msg.moving = self.spot_wrapper.is_moving
+        id_ = self.spot_wrapper.id
+        try:
+            feedback_msg.serial_number = id_.serial_number
+            feedback_msg.species = id_.species
+            feedback_msg.version = id_.version
+            feedback_msg.nickname = id_.nickname
+            feedback_msg.computer_serial_number = id_.computer_serial_number
+        except:
+            pass
+        self.feedback_pub.publish(feedback_msg)
+
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
         rospy.init_node('spot_ros', anonymous=True)
-        rate = rospy.Rate(50)
 
         self.rates = rospy.get_param('~rates', {})
+        if "loop_frequency" in self.rates:
+            loop_rate = self.rates["loop_frequency"]
+        else:
+            loop_rate = 50
+
+        for param, rate in self.rates.items():
+            if rate > loop_rate:
+                rospy.logwarn("{} has a rate of {} specified, which is higher than the loop rate of {}. It will not "
+                              "be published at the expected frequency".format(param, rate, loop_rate))
+
+        rate = rospy.Rate(loop_rate)
         self.username = rospy.get_param('~username', 'default_value')
         self.password = rospy.get_param('~password', 'default_value')
         self.hostname = rospy.get_param('~hostname', 'default_value')
@@ -615,43 +688,11 @@ class SpotROS():
                     if self.auto_stand:
                         self.spot_wrapper.stand()
 
+            rate_limited_feedback = RateLimitedCall(self.publish_feedback, self.rates["feedback"])
+            rate_limited_mobility_params = RateLimitedCall(self.publish_mobility_params, self.rates["mobility_params"])
+
             while not rospy.is_shutdown():
                 self.spot_wrapper.updateTasks()
-                feedback_msg = Feedback()
-                feedback_msg.standing = self.spot_wrapper.is_standing
-                feedback_msg.sitting = self.spot_wrapper.is_sitting
-                feedback_msg.moving = self.spot_wrapper.is_moving
-                id = self.spot_wrapper.id
-                try:
-                    feedback_msg.serial_number = id.serial_number
-                    feedback_msg.species = id.species
-                    feedback_msg.version = id.version
-                    feedback_msg.nickname = id.nickname
-                    feedback_msg.computer_serial_number = id.computer_serial_number
-                except:
-                    pass
-                self.feedback_pub.publish(feedback_msg)
-                mobility_params_msg = MobilityParams()
-                try:
-                    mobility_params = self.spot_wrapper.get_mobility_params()
-                    mobility_params_msg.body_control.position.x = \
-                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.x
-                    mobility_params_msg.body_control.position.y = \
-                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.y
-                    mobility_params_msg.body_control.position.z = \
-                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.position.z
-                    mobility_params_msg.body_control.orientation.x = \
-                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.x
-                    mobility_params_msg.body_control.orientation.y = \
-                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.y
-                    mobility_params_msg.body_control.orientation.z = \
-                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.z
-                    mobility_params_msg.body_control.orientation.w = \
-                            mobility_params.body_control.base_offset_rt_footprint.points[0].pose.rotation.w
-                    mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
-                    mobility_params_msg.stair_hint = mobility_params.stair_hint
-                except Exception as e:
-                    rospy.logerr('Error:{}'.format(e))
-                    pass
-                self.mobility_params_pub.publish(mobility_params_msg)
+                rate_limited_feedback()
+                rate_limited_mobility_params()
                 rate.sleep()
