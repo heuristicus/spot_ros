@@ -27,11 +27,25 @@
         <child link="front_rail" />
     </joint>
 
+    <link name="real_front_rail"/>
+    <joint name="real_front_rail_joint" type="fixed">
+        <origin xyz="0.2075 0 0.0805" rpy="0 0 0" />
+        <parent link="body" />
+        <child link="real_front_rail" />
+    </joint>
+
     <link name="rear_rail"/>
     <joint name="rear_rail_joint" type="fixed">
         <origin xyz="-0.223 0 0.0805" rpy="0 0 0" />
         <parent link="body" />
         <child link="rear_rail" />
+    </joint>
+
+    <link name="real_rear_rail"/>
+    <joint name="real_rear_rail_joint" type="fixed">
+        <origin xyz="-0.415 0 0" rpy="0 0 0" />
+        <parent link="real_front_rail" />
+        <child link="real_rear_rail" />
     </joint>
 
     <link name="front_left_hip">
