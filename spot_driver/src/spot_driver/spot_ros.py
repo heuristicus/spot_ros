@@ -326,7 +326,7 @@ class SpotROS():
 
         Returns: PosedStandResponse
         """
-        success, message = self._posed_stand(req.height, req.yaw, req.pitch, req.roll)
+        success, message = self._posed_stand(req.body_height, req.body_yaw, req.body_pitch, req.body_roll)
         return PosedStandResponse(success, message)
 
     def handle_posed_stand_action(self, action):
@@ -339,8 +339,12 @@ class SpotROS():
             action: PoseBodyGoal
 
         """
-        success, message = self._posed_stand(action.height, action.yaw, action.pitch, action.roll)
-        return PoseBodyResult(success, message)
+        success, message = self._posed_stand(action.body_height, action.yaw, action.pitch, action.roll)
+        result = PoseBodyResult(success, message)
+        if success:
+            self.body_pose_as.set_succeeded(result)
+        else:
+            self.body_pose_as.set_aborted(result)
 
     def _posed_stand(self, body_height, yaw, pitch, roll):
         """
