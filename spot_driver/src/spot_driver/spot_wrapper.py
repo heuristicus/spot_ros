@@ -143,12 +143,15 @@ class AsyncIdle(AsyncPeriodicQuery):
         if self._spot_wrapper._last_stand_command != None:
             try:
                 response = self._client.robot_command_feedback(self._spot_wrapper._last_stand_command)
+                status = response.feedback.synchronized_feedback.mobility_command_feedback.stand_feedback.status
                 self._spot_wrapper._is_sitting = False
-                if (response.feedback.synchronized_feedback.mobility_command_feedback.stand_feedback.status ==
-                        basic_command_pb2.StandCommand.Feedback.STATUS_IS_STANDING):
+                if status == basic_command_pb2.StandCommand.Feedback.STATUS_IS_STANDING:
                     self._spot_wrapper._is_standing = True
                     self._spot_wrapper._last_stand_command = None
+                elif status == basic_command_pb2.StandCommand.Feedback.STATUS_IN_PROGRESS:
+                    self._spot_wrapper._is_standing = False
                 else:
+                    self._logger.warn("Stand command in unknown state")
                     self._spot_wrapper._is_standing = False
             except (ResponseError, RpcError) as e:
                 self._logger.error("Error when getting robot command feedback: %s", e)
@@ -205,7 +208,13 @@ class AsyncIdle(AsyncPeriodicQuery):
 
         self._spot_wrapper._is_moving = is_moving
 
-        if self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving:
+        # We must check if any command currently has a non-None value for its id. If we don't do this, this stand
+        # command can cause other commands to be interrupted before they get to start
+        if (self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving
+            and self._spot_wrapper._last_trajectory_command is not None
+            and self._spot_wrapper._last_stand_command is not None
+            and self._spot_wrapper._last_velocity_command_time is not None
+        ):
             self._spot_wrapper.stand(False)
 
 class AsyncEStopMonitor(AsyncPeriodicQuery):
@@ -551,9 +560,30 @@ class SpotWrapper():
         self._last_sit_command = response[2]
         return response[0], response[1]
 
-    def stand(self, monitor_command=True):
-        """If the e-stop is enabled, and the motor power is enabled, stand the robot up."""
-        response = self._robot_command(RobotCommandBuilder.synchro_stand_command(params=self._mobility_params))
+    def stand(self, monitor_command=True, body_height=0, body_yaw=0, body_pitch=0, body_roll=0):
+        """
+        If the e-stop is enabled, and the motor power is enabled, stand the robot up.
+        Executes a stand command, but one where the robot will assume the pose specified by the given parameters.
+
+        If no parameters are given this behave just as a normal stand command
+
+        Args:
+            monitor_command: Track the state of the command in the async idle, which sets is_standing
+            body_height: Offset of the body relative to normal stand height, in metres
+            body_yaw: Yaw of the body in radians
+            body_pitch: Pitch of the body in radians
+            body_roll: Roll of the body in radians
+
+        """
+        if any([body_height, body_yaw, body_pitch, body_roll]):
+            # If any of the orientation parameters are nonzero use them to pose the body
+            body_orientation = EulerZXY(yaw=body_yaw, pitch=body_pitch, roll=body_roll)
+            response = self._robot_command(RobotCommandBuilder.synchro_stand_command(body_height=body_height,
+                                                                                     footprint_R_body=body_orientation))
+        else:
+            # Otherwise just use the mobility params
+            response = self._robot_command(RobotCommandBuilder.synchro_stand_command(params=self._mobility_params))
+
         if monitor_command:
             self._last_stand_command = response[2]
         return response[0], response[1]

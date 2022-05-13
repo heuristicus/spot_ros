@@ -34,6 +34,7 @@ add_message_files(
   SystemFaultState.msg
   ObstacleParams.msg
   TerrainParams.msg
+  TerrainState.msg
 )
 
 add_service_files(
@@ -45,6 +46,7 @@ add_service_files(
   ClearBehaviorFault.srv
   SetObstacleParams.srv
   SetTerrainParams.srv
+  PosedStand.srv
 )
 
 add_action_files(

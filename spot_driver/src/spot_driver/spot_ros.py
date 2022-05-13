@@ -17,6 +17,7 @@ from bosdyn.client import math_helpers
 from google.protobuf.wrappers_pb2 import DoubleValue
 import actionlib
 import functools
+import math
 import bosdyn.geometry
 import tf2_ros
 import tf2_geometry_msgs
@@ -41,6 +42,7 @@ from spot_msgs.srv import SetTerrainParams, SetTerrainParamsResponse
 from spot_msgs.srv import SetObstacleParams, SetObstacleParamsResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
 from spot_msgs.srv import SetVelocity, SetVelocityResponse
+from spot_msgs.srv import PosedStand, PosedStandResponse
 from spot_msgs.srv import SetSwingHeight, SetSwingHeightResponse
 
 from .ros_helpers import *
@@ -117,6 +119,7 @@ class SpotROS():
 
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
+            self.tf_pub.publish(generate_feet_tf(foot_array_msg))
             self.feet_pub.publish(foot_array_msg)
 
             # EStop #
@@ -313,6 +316,24 @@ class SpotROS():
             return TriggerResponse(False, "Robot motion is not allowed")
         resp = self.spot_wrapper.stand()
         return TriggerResponse(resp[0], resp[1])
+
+    def handle_posed_stand(self, req):
+        """
+        Handle a request to stand the robot with a specified  body height and pose
+
+        If no value is provided, this is equivalent to the basic stand commmand
+
+        Args:
+            req: PosedStand request
+        """
+        # By empirical observation, the limit on body height is [-0.16, 0.11], and RPY are probably limited to 30
+        # degrees. Roll values are likely affected by the payload configuration as well. If the payload is
+        # misconfigured a high roll value could cause it to hit the legs
+        resp = self.spot_wrapper.stand(body_height=req.body_height,
+                                       body_yaw=math.radians(req.body_yaw),
+                                       body_pitch=math.radians(req.body_pitch),
+                                       body_roll=math.radians(req.body_roll))
+        return PosedStandResponse(resp[0], resp[1])
 
     def handle_power_on(self, req):
         """ROS service handler for the power-on service"""
@@ -702,15 +723,21 @@ class SpotROS():
 
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
 
-    def bodyPoseCallback(self, data):
-        """Callback for cmd_vel command"""
+    def in_motion_or_idle_pose_cb(self, data):
+        """
+        Callback for pose to be used while in motion or idling
+
+        This sets the body control field in the mobility params. This means that the pose will be used while a motion
+        command is executed. Only the pitch is maintained while moving. The roll and yaw will be applied by the idle
+        stand command.
+        """
         if not self.robot_allowed_to_move(autonomous_command=False):
             rospy.logerr("body pose received a message but motion is not allowed.")
             return
 
-        self._set_body_pose(data)
+        self._set_in_motion_or_idle_body_pose(data)
 
-    def handle_body_pose(self, goal):
+    def handle_in_motion_or_idle_body_pose(self, goal):
         """
         Handle a goal received from the pose body actionserver
 
@@ -731,7 +758,7 @@ class SpotROS():
             if not any([goal.roll, goal.pitch, goal.yaw, not math.isclose(goal.body_height, 0, abs_tol=1e-9)]):
                 pose = Pose()
                 pose.orientation.w = 1
-                self._set_body_pose(pose)
+                self._set_in_motion_or_idle_body_pose(pose)
             else:
                 pose = Pose()
                 # Multiplication order is important to get the correct quaternion
@@ -745,16 +772,16 @@ class SpotROS():
                 pose.orientation.z = orientation_quat.z
                 pose.orientation.w = orientation_quat.w
                 pose.position.z = goal.body_height
-                self._set_body_pose(pose)
+                self._set_in_motion_or_idle_body_pose(pose)
         else:
-            self._set_body_pose(goal.body_pose)
+            self._set_in_motion_or_idle_body_pose(goal.body_pose)
         # Give it some time to move
         rospy.sleep(2)
         self.body_pose_as.set_succeeded(PoseBodyResult(success=True, message="Successfully posed body"))
 
-    def _set_body_pose(self, pose):
+    def _set_in_motion_or_idle_body_pose(self, pose):
         """
-        Set the pose of the body
+        Set the pose of the body which should be applied while in motion or idle
 
         Args:
             pose: Pose to be applied to the body. Only the body height is taken from the position component
@@ -1026,8 +1053,8 @@ class SpotROS():
             self.mobility_params_pub = rospy.Publisher('status/mobility_params', MobilityParams, queue_size=10)
 
             rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
-            rospy.Subscriber('body_pose', Pose, self.bodyPoseCallback, queue_size = 1)
             rospy.Subscriber('go_to_pose', PoseStamped, self.trajectory_callback, queue_size = 1)
+            rospy.Subscriber('in_motion_or_idle_body_pose', Pose, self.in_motion_or_idle_pose_cb, queue_size = 1)
 
             rospy.Service("claim", Trigger, self.handle_claim)
             rospy.Service("release", Trigger, self.handle_release)
@@ -1050,6 +1077,7 @@ class SpotROS():
             rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_behavior_fault)
             rospy.Service("terrain_params", SetTerrainParams, self.handle_terrain_params)
             rospy.Service("obstacle_params", SetObstacleParams, self.handle_obstacle_params)
+            rospy.Service("posed_stand", PosedStand, self.handle_posed_stand)
 
             rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 
@@ -1063,10 +1091,10 @@ class SpotROS():
                                                                   auto_start=False)
             self.trajectory_server.start()
 
-            self.body_pose_as = actionlib.SimpleActionServer('pose_body', PoseBodyAction,
-                                                             execute_cb=self.handle_body_pose,
-                                                             auto_start=False)
-            self.body_pose_as.start()
+            self.motion_or_idle_body_pose_as = actionlib.SimpleActionServer('motion_or_idle_body_pose', PoseBodyAction,
+                                                                            execute_cb=self.handle_in_motion_or_idle_body_pose,
+                                                                            auto_start=False)
+            self.motion_or_idle_body_pose_as.start()
 
             # Stop service calls other services so initialise it after them to prevent crashes which can happen if
             # the service is immediately called
