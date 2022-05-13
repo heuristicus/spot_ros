@@ -43,6 +43,7 @@ class ControlPanel : public rviz::Panel
     void powerOn();
     void powerOff();
     void sendBodyPose();
+    void sendNeutralBodyPose();
     void setMaxVel();
     void gentleStop();
     void hardStop();
@@ -119,8 +120,8 @@ class ControlPanel : public rviz::Panel
     ros::ServiceClient terrainParamsService_;
     ros::ServiceClient obstacleParamsService_;
     ros::ServiceClient allowMotionService_;
+    ros::ServiceClient bodyPoseService_;
 
-    ros::Publisher bodyPosePub_;
     ros::Subscriber leaseSub_;
     ros::Subscriber estopSub_;
     ros::Subscriber mobilityParamsSub_;
@@ -133,6 +134,7 @@ class ControlPanel : public rviz::Panel
     QPushButton* powerOnButton;
     QPushButton* powerOffButton;
     QPushButton* setBodyPoseButton;
+    QPushButton* setBodyNeutralButton;
     QPushButton* sitButton;
     QPushButton* standButton;
     QPushButton* setMaxVelButton;

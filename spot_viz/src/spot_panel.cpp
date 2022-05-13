@@ -18,6 +18,7 @@
 #include <spot_msgs/EStopState.h>
 #include <spot_msgs/SetObstacleParams.h>
 #include <spot_msgs/SetTerrainParams.h>
+#include <spot_msgs/PosedStand.h>
 #include <string.h>
 
 
@@ -55,7 +56,7 @@ namespace spot_viz
         terrainParamsService_ = nh_.serviceClient<spot_msgs::SetTerrainParams>("/spot/terrain_params");
         obstacleParamsService_ = nh_.serviceClient<spot_msgs::SetObstacleParams>("/spot/obstacle_params");
         allowMotionService_ = nh_.serviceClient<std_srvs::SetBool>("/spot/allow_motion");
-        bodyPosePub_ = nh_.advertise<geometry_msgs::Pose>("/spot/body_pose", 1);
+        bodyPoseService_ = nh_.serviceClient<spot_msgs::PosedStand>("/spot/posed_stand");
 
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
         releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
@@ -64,6 +65,7 @@ namespace spot_viz
         standButton = this->findChild<QPushButton*>("standButton");
         sitButton = this->findChild<QPushButton*>("sitButton");
         setBodyPoseButton = this->findChild<QPushButton*>("setBodyPoseButton");
+        setBodyNeutralButton = this->findChild<QPushButton*>("setBodyNeutralButton");
         setMaxVelButton = this->findChild<QPushButton*>("setMaxVelButton");
         setGaitButton = this->findChild<QPushButton*>("setGaitButton");
         setSwingHeightButton = this->findChild<QPushButton*>("setSwingHeightButton");
@@ -105,6 +107,7 @@ namespace spot_viz
         connect(sitButton, SIGNAL(clicked()), this, SLOT(sit()));
         connect(standButton, SIGNAL(clicked()), this, SLOT(stand()));
         connect(setBodyPoseButton, SIGNAL(clicked()), this, SLOT(sendBodyPose()));
+        connect(setBodyNeutralButton, SIGNAL(clicked()), this, SLOT(sendNeutralBodyPose()));
         connect(setMaxVelButton, SIGNAL(clicked()), this, SLOT(setMaxVel()));
         connect(releaseStopButton, SIGNAL(clicked()), this, SLOT(releaseStop()));
         connect(hardStopButton, SIGNAL(clicked()), this, SLOT(hardStop()));
@@ -242,6 +245,7 @@ namespace spot_viz
         sitButton->setEnabled(haveLease);
         standButton->setEnabled(haveLease);
         setBodyPoseButton->setEnabled(haveLease);
+        setBodyNeutralButton->setEnabled(haveLease);
         setMaxVelButton->setEnabled(haveLease);
         releaseStopButton->setEnabled(haveLease && isEStopped);
         hardStopButton->setEnabled(haveLease);
@@ -576,15 +580,19 @@ namespace spot_viz
 
     void ControlPanel::sendBodyPose() {
         ROS_INFO("Sending body pose");
-        tf::Quaternion q;
-        q.setRPY(rollSpin->value() * M_PI / 180, pitchSpin->value() * M_PI / 180, yawSpin->value() * M_PI / 180);
-        geometry_msgs::Pose p;
-        p.position.z = bodyHeightSpin->value();
-        p.orientation.x = q.getX();
-        p.orientation.y = q.getY();
-        p.orientation.z = q.getZ();
-        p.orientation.w = q.getW();
-        bodyPosePub_.publish(p);
+        spot_msgs::PosedStand req;
+        req.request.body_height = bodyHeightSpin->value();
+        req.request.body_yaw = yawSpin->value();
+        req.request.body_pitch = pitchSpin->value();
+        req.request.body_roll = rollSpin->value();
+
+        callCustomTriggerService(bodyPoseService_, "set body pose", req);
+    }
+
+    void ControlPanel::sendNeutralBodyPose() {
+        ROS_INFO("Sending body neutral pose");
+        spot_msgs::PosedStand req;
+        callCustomTriggerService(bodyPoseService_, "set body pose", req);
     }
 
     /**
