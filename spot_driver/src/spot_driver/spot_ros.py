@@ -341,6 +341,7 @@ class SpotROS():
         """
         success, message = self._posed_stand(action.body_height, action.yaw, action.pitch, action.roll)
         result = PoseBodyResult(success, message)
+        rospy.sleep(2)  # Only return after the body has had a chance to move
         if success:
             self.body_pose_as.set_succeeded(result)
         else:
