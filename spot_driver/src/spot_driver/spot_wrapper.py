@@ -1,6 +1,7 @@
 import time
 import math
 
+import bosdyn.client.auth
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
 from bosdyn.geometry import EulerZXY
@@ -248,31 +249,49 @@ class SpotWrapper():
             self._valid = False
             return
 
+        self._logger.info("Initialising robot at {}".format(self._hostname))
         self._robot = self._sdk.create_robot(self._hostname)
 
-        try:
-            self._robot.authenticate(self._username, self._password)
-            self._robot.start_time_sync()
-        except RpcError as err:
-            self._logger.error("Failed to communicate with robot: %s", err)
-            self._valid = False
-            return
+        authenticated = False
+        while not authenticated:
+            try:
+                self._logger.info("Trying to authenticate with robot...")
+                self._robot.authenticate(self._username, self._password)
+                self._robot.start_time_sync()
+                self._logger.info("Successfully authenticated.")
+                authenticated = True
+            except RpcError as err:
+                sleep_secs = 15
+                self._logger.warn("Failed to communicate with robot: {}\nEnsure the robot is powered on and you can "
+                                  "ping {}. Robot may still be booting. Will retry in {} seconds".format(err,
+                                                                                                         self._hostname,
+                                                                                                         sleep_secs))
+                time.sleep(sleep_secs)
+            except bosdyn.client.auth.InvalidLoginError as err:
+                self._logger.error("Failed to log in to robot: {}".format(err))
+                self._valid = False
+                return
 
         if self._robot:
             # Clients
-            try:
-                self._robot_state_client = self._robot.ensure_client(RobotStateClient.default_service_name)
-                self._robot_command_client = self._robot.ensure_client(RobotCommandClient.default_service_name)
-                self._graph_nav_client = self._robot.ensure_client(GraphNavClient.default_service_name)
-                self._power_client = self._robot.ensure_client(PowerClient.default_service_name)
-                self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
-                self._lease_wallet = self._lease_client.lease_wallet
-                self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
-                self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
-            except Exception as e:
-                self._logger.error("Unable to create client service: %s", e)
-                self._valid = False
-                return
+            self._logger.info("Creating clients...")
+            initialised = False
+            while not initialised:
+                try:
+                    self._robot_state_client = self._robot.ensure_client(RobotStateClient.default_service_name)
+                    self._robot_command_client = self._robot.ensure_client(RobotCommandClient.default_service_name)
+                    self._graph_nav_client = self._robot.ensure_client(GraphNavClient.default_service_name)
+                    self._power_client = self._robot.ensure_client(PowerClient.default_service_name)
+                    self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
+                    self._lease_wallet = self._lease_client.lease_wallet
+                    self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
+                    self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
+                    initialised = True
+                except Exception as e:
+                    sleep_secs = 15
+                    self._logger.warn("Unable to create client service: {}. This usually means the robot hasn't "
+                                      "finished booting yet. Will wait {} seconds and try again.".format(e, sleep_secs))
+                    time.sleep(sleep_secs)
 
             # Store the most recent knowledge of the state of the robot based on rpc calls.
             self._current_graph = None
