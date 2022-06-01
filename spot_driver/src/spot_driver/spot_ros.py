@@ -1043,132 +1043,136 @@ class SpotROS():
         rospy.loginfo("Starting ROS driver for Spot")
         self.spot_wrapper = SpotWrapper(self.username, self.password, self.hostname, self.logger, self.estop_timeout, self.rates, self.callbacks)
 
-        if self.spot_wrapper.is_valid:
-            # Images #
-            self.back_image_pub = rospy.Publisher('camera/back/image', Image, queue_size=10)
-            self.frontleft_image_pub = rospy.Publisher('camera/frontleft/image', Image, queue_size=10)
-            self.frontright_image_pub = rospy.Publisher('camera/frontright/image', Image, queue_size=10)
-            self.left_image_pub = rospy.Publisher('camera/left/image', Image, queue_size=10)
-            self.right_image_pub = rospy.Publisher('camera/right/image', Image, queue_size=10)
-            # Depth #
-            self.back_depth_pub = rospy.Publisher('depth/back/image', Image, queue_size=10)
-            self.frontleft_depth_pub = rospy.Publisher('depth/frontleft/image', Image, queue_size=10)
-            self.frontright_depth_pub = rospy.Publisher('depth/frontright/image', Image, queue_size=10)
-            self.left_depth_pub = rospy.Publisher('depth/left/image', Image, queue_size=10)
-            self.right_depth_pub = rospy.Publisher('depth/right/image', Image, queue_size=10)
 
-            # Image Camera Info #
-            self.back_image_info_pub = rospy.Publisher('camera/back/camera_info', CameraInfo, queue_size=10)
-            self.frontleft_image_info_pub = rospy.Publisher('camera/frontleft/camera_info', CameraInfo, queue_size=10)
-            self.frontright_image_info_pub = rospy.Publisher('camera/frontright/camera_info', CameraInfo, queue_size=10)
-            self.left_image_info_pub = rospy.Publisher('camera/left/camera_info', CameraInfo, queue_size=10)
-            self.right_image_info_pub = rospy.Publisher('camera/right/camera_info', CameraInfo, queue_size=10)
-            # Depth Camera Info #
-            self.back_depth_info_pub = rospy.Publisher('depth/back/camera_info', CameraInfo, queue_size=10)
-            self.frontleft_depth_info_pub = rospy.Publisher('depth/frontleft/camera_info', CameraInfo, queue_size=10)
-            self.frontright_depth_info_pub = rospy.Publisher('depth/frontright/camera_info', CameraInfo, queue_size=10)
-            self.left_depth_info_pub = rospy.Publisher('depth/left/camera_info', CameraInfo, queue_size=10)
-            self.right_depth_info_pub = rospy.Publisher('depth/right/camera_info', CameraInfo, queue_size=10)
+        if not self.spot_wrapper.is_valid:
+            return
 
-            # Status Publishers #
-            self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=10)
-            """Defining a TF publisher manually because of conflicts between Python3 and tf"""
-            self.tf_pub = rospy.Publisher('tf', TFMessage, queue_size=10)
-            self.metrics_pub = rospy.Publisher('status/metrics', Metrics, queue_size=10)
-            self.lease_pub = rospy.Publisher('status/leases', LeaseArray, queue_size=10)
-            self.odom_twist_pub = rospy.Publisher('odometry/twist', TwistWithCovarianceStamped, queue_size=10)
-            self.odom_pub = rospy.Publisher('odometry', Odometry, queue_size=10)
-            self.feet_pub = rospy.Publisher('status/feet', FootStateArray, queue_size=10)
-            self.estop_pub = rospy.Publisher('status/estop', EStopStateArray, queue_size=10)
-            self.wifi_pub = rospy.Publisher('status/wifi', WiFiState, queue_size=10)
-            self.power_pub = rospy.Publisher('status/power_state', PowerState, queue_size=10)
-            self.battery_pub = rospy.Publisher('status/battery_states', BatteryStateArray, queue_size=10)
-            self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
-            self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
-            self.motion_allowed_pub = rospy.Publisher('status/motion_allowed', Bool, queue_size=10)
+        # Images #
+        self.back_image_pub = rospy.Publisher('camera/back/image', Image, queue_size=10)
+        self.frontleft_image_pub = rospy.Publisher('camera/frontleft/image', Image, queue_size=10)
+        self.frontright_image_pub = rospy.Publisher('camera/frontright/image', Image, queue_size=10)
+        self.left_image_pub = rospy.Publisher('camera/left/image', Image, queue_size=10)
+        self.right_image_pub = rospy.Publisher('camera/right/image', Image, queue_size=10)
+        # Depth #
+        self.back_depth_pub = rospy.Publisher('depth/back/image', Image, queue_size=10)
+        self.frontleft_depth_pub = rospy.Publisher('depth/frontleft/image', Image, queue_size=10)
+        self.frontright_depth_pub = rospy.Publisher('depth/frontright/image', Image, queue_size=10)
+        self.left_depth_pub = rospy.Publisher('depth/left/image', Image, queue_size=10)
+        self.right_depth_pub = rospy.Publisher('depth/right/image', Image, queue_size=10)
 
-            self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
+        # Image Camera Info #
+        self.back_image_info_pub = rospy.Publisher('camera/back/camera_info', CameraInfo, queue_size=10)
+        self.frontleft_image_info_pub = rospy.Publisher('camera/frontleft/camera_info', CameraInfo, queue_size=10)
+        self.frontright_image_info_pub = rospy.Publisher('camera/frontright/camera_info', CameraInfo, queue_size=10)
+        self.left_image_info_pub = rospy.Publisher('camera/left/camera_info', CameraInfo, queue_size=10)
+        self.right_image_info_pub = rospy.Publisher('camera/right/camera_info', CameraInfo, queue_size=10)
+        # Depth Camera Info #
+        self.back_depth_info_pub = rospy.Publisher('depth/back/camera_info', CameraInfo, queue_size=10)
+        self.frontleft_depth_info_pub = rospy.Publisher('depth/frontleft/camera_info', CameraInfo, queue_size=10)
+        self.frontright_depth_info_pub = rospy.Publisher('depth/frontright/camera_info', CameraInfo, queue_size=10)
+        self.left_depth_info_pub = rospy.Publisher('depth/left/camera_info', CameraInfo, queue_size=10)
+        self.right_depth_info_pub = rospy.Publisher('depth/right/camera_info', CameraInfo, queue_size=10)
 
-            self.mobility_params_pub = rospy.Publisher('status/mobility_params', MobilityParams, queue_size=10)
+        # Status Publishers #
+        self.joint_state_pub = rospy.Publisher('joint_states', JointState, queue_size=10)
+        """Defining a TF publisher manually because of conflicts between Python3 and tf"""
+        self.tf_pub = rospy.Publisher('tf', TFMessage, queue_size=10)
+        self.metrics_pub = rospy.Publisher('status/metrics', Metrics, queue_size=10)
+        self.lease_pub = rospy.Publisher('status/leases', LeaseArray, queue_size=10)
+        self.odom_twist_pub = rospy.Publisher('odometry/twist', TwistWithCovarianceStamped, queue_size=10)
+        self.odom_pub = rospy.Publisher('odometry', Odometry, queue_size=10)
+        self.feet_pub = rospy.Publisher('status/feet', FootStateArray, queue_size=10)
+        self.estop_pub = rospy.Publisher('status/estop', EStopStateArray, queue_size=10)
+        self.wifi_pub = rospy.Publisher('status/wifi', WiFiState, queue_size=10)
+        self.power_pub = rospy.Publisher('status/power_state', PowerState, queue_size=10)
+        self.battery_pub = rospy.Publisher('status/battery_states', BatteryStateArray, queue_size=10)
+        self.behavior_faults_pub = rospy.Publisher('status/behavior_faults', BehaviorFaultState, queue_size=10)
+        self.system_faults_pub = rospy.Publisher('status/system_faults', SystemFaultState, queue_size=10)
+        self.motion_allowed_pub = rospy.Publisher('status/motion_allowed', Bool, queue_size=10)
 
-            rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
-            rospy.Subscriber('go_to_pose', PoseStamped, self.trajectory_callback, queue_size = 1)
-            rospy.Subscriber('in_motion_or_idle_body_pose', Pose, self.in_motion_or_idle_pose_cb, queue_size = 1)
+        self.feedback_pub = rospy.Publisher('status/feedback', Feedback, queue_size=10)
 
-            rospy.Service("claim", Trigger, self.handle_claim)
-            rospy.Service("release", Trigger, self.handle_release)
-            rospy.Service("self_right", Trigger, self.handle_self_right)
-            rospy.Service("sit", Trigger, self.handle_sit)
-            rospy.Service("stand", Trigger, self.handle_stand)
-            rospy.Service("power_on", Trigger, self.handle_power_on)
-            rospy.Service("power_off", Trigger, self.handle_safe_power_off)
+        self.mobility_params_pub = rospy.Publisher('status/mobility_params', MobilityParams, queue_size=10)
 
-            rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
-            rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
-            rospy.Service("estop/release", Trigger, self.handle_estop_disengage)
+        rospy.Subscriber('cmd_vel', Twist, self.cmdVelCallback, queue_size = 1)
+        rospy.Subscriber('go_to_pose', PoseStamped, self.trajectory_callback, queue_size = 1)
+        rospy.Subscriber('in_motion_or_idle_body_pose', Pose, self.in_motion_or_idle_pose_cb, queue_size = 1)
 
-            rospy.Service("allow_motion", SetBool, self.handle_allow_motion)
+        rospy.Service("claim", Trigger, self.handle_claim)
+        rospy.Service("release", Trigger, self.handle_release)
+        rospy.Service("self_right", Trigger, self.handle_self_right)
+        rospy.Service("sit", Trigger, self.handle_sit)
+        rospy.Service("stand", Trigger, self.handle_stand)
+        rospy.Service("power_on", Trigger, self.handle_power_on)
+        rospy.Service("power_off", Trigger, self.handle_safe_power_off)
 
-            rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
-            rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
-            rospy.Service("swing_height", SetSwingHeight, self.handle_swing_height)
-            rospy.Service("velocity_limit", SetVelocity, self.handle_vel_limit)
-            rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_behavior_fault)
-            rospy.Service("terrain_params", SetTerrainParams, self.handle_terrain_params)
-            rospy.Service("obstacle_params", SetObstacleParams, self.handle_obstacle_params)
-            rospy.Service("posed_stand", PosedStand, self.handle_posed_stand)
+        rospy.Service("estop/hard", Trigger, self.handle_estop_hard)
+        rospy.Service("estop/gentle", Trigger, self.handle_estop_soft)
+        rospy.Service("estop/release", Trigger, self.handle_estop_disengage)
 
-            rospy.Service("list_graph", ListGraph, self.handle_list_graph)
+        rospy.Service("allow_motion", SetBool, self.handle_allow_motion)
 
-            self.navigate_as = actionlib.SimpleActionServer('navigate_to', NavigateToAction,
-                                                            execute_cb = self.handle_navigate_to,
-                                                            auto_start = False)
-            self.navigate_as.start()
+        rospy.Service("stair_mode", SetBool, self.handle_stair_mode)
+        rospy.Service("locomotion_mode", SetLocomotion, self.handle_locomotion_mode)
+        rospy.Service("swing_height", SetSwingHeight, self.handle_swing_height)
+        rospy.Service("velocity_limit", SetVelocity, self.handle_vel_limit)
+        rospy.Service("clear_behavior_fault", ClearBehaviorFault, self.handle_clear_behavior_fault)
+        rospy.Service("terrain_params", SetTerrainParams, self.handle_terrain_params)
+        rospy.Service("obstacle_params", SetObstacleParams, self.handle_obstacle_params)
+        rospy.Service("posed_stand", PosedStand, self.handle_posed_stand)
 
-            self.trajectory_server = actionlib.SimpleActionServer("trajectory", TrajectoryAction,
-                                                                  execute_cb=self.handle_trajectory,
-                                                                  auto_start=False)
-            self.trajectory_server.start()
+        rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 
-            self.motion_or_idle_body_pose_as = actionlib.SimpleActionServer('motion_or_idle_body_pose', PoseBodyAction,
-                                                                            execute_cb=self.handle_in_motion_or_idle_body_pose,
-                                                                            auto_start=False)
-            self.motion_or_idle_body_pose_as.start()
+        self.navigate_as = actionlib.SimpleActionServer('navigate_to', NavigateToAction,
+                                                        execute_cb = self.handle_navigate_to,
+                                                        auto_start = False)
+        self.navigate_as.start()
 
-            self.body_pose_as = actionlib.SimpleActionServer('body_pose', PoseBodyAction,
-                                                             execute_cb=self.handle_posed_stand_action,
-                                                             auto_start=False)
-            self.body_pose_as.start()
+        self.trajectory_server = actionlib.SimpleActionServer("trajectory", TrajectoryAction,
+                                                              execute_cb=self.handle_trajectory,
+                                                              auto_start=False)
+        self.trajectory_server.start()
 
-            # Stop service calls other services so initialise it after them to prevent crashes which can happen if
-            # the service is immediately called
-            rospy.Service("stop", Trigger, self.handle_stop)
-            rospy.Service("locked_stop", Trigger, self.handle_locked_stop)
+        self.motion_or_idle_body_pose_as = actionlib.SimpleActionServer('motion_or_idle_body_pose', PoseBodyAction,
+                                                                        execute_cb=self.handle_in_motion_or_idle_body_pose,
+                                                                        auto_start=False)
+        self.motion_or_idle_body_pose_as.start()
 
-            rospy.on_shutdown(self.shutdown)
+        self.body_pose_as = actionlib.SimpleActionServer('body_pose', PoseBodyAction,
+                                                         execute_cb=self.handle_posed_stand_action,
+                                                         auto_start=False)
+        self.body_pose_as.start()
 
-            max_linear_x = rospy.get_param('~max_linear_velocity_x', 0)
-            max_linear_y = rospy.get_param('~max_linear_velocity_y', 0)
-            max_angular_z = rospy.get_param('~max_angular_velocity_z', 0)
-            self.set_velocity_limits(max_linear_x, max_linear_y, max_angular_z)
+        # Stop service calls other services so initialise it after them to prevent crashes which can happen if
+        # the service is immediately called
+        rospy.Service("stop", Trigger, self.handle_stop)
+        rospy.Service("locked_stop", Trigger, self.handle_locked_stop)
 
-            self.auto_claim = rospy.get_param('~auto_claim', False)
-            self.auto_power_on = rospy.get_param('~auto_power_on', False)
-            self.auto_stand = rospy.get_param('~auto_stand', False)
+        rospy.on_shutdown(self.shutdown)
 
-            if self.auto_claim:
-                self.spot_wrapper.claim()
-                if self.auto_power_on:
-                    self.spot_wrapper.power_on()
-                    if self.auto_stand:
-                        self.spot_wrapper.stand()
+        max_linear_x = rospy.get_param('~max_linear_velocity_x', 0)
+        max_linear_y = rospy.get_param('~max_linear_velocity_y', 0)
+        max_angular_z = rospy.get_param('~max_angular_velocity_z', 0)
+        self.set_velocity_limits(max_linear_x, max_linear_y, max_angular_z)
 
-            rate_limited_feedback = RateLimitedCall(self.publish_feedback, self.rates["feedback"])
-            rate_limited_mobility_params = RateLimitedCall(self.publish_mobility_params, self.rates["mobility_params"])
-            rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
-            while not rospy.is_shutdown():
-                self.spot_wrapper.updateTasks()
-                rate_limited_feedback()
-                rate_limited_mobility_params()
-                rate_limited_motion_allowed()
-                rate.sleep()
+        self.auto_claim = rospy.get_param('~auto_claim', False)
+        self.auto_power_on = rospy.get_param('~auto_power_on', False)
+        self.auto_stand = rospy.get_param('~auto_stand', False)
+
+        if self.auto_claim:
+            self.spot_wrapper.claim()
+            if self.auto_power_on:
+                self.spot_wrapper.power_on()
+                if self.auto_stand:
+                    self.spot_wrapper.stand()
+
+        rate_limited_feedback = RateLimitedCall(self.publish_feedback, self.rates["feedback"])
+        rate_limited_mobility_params = RateLimitedCall(self.publish_mobility_params, self.rates["mobility_params"])
+        rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
+        rospy.loginfo("Driver started")
+        while not rospy.is_shutdown():
+            self.spot_wrapper.updateTasks()
+            rate_limited_feedback()
+            rate_limited_mobility_params()
+            rate_limited_motion_allowed()
+            rate.sleep()
