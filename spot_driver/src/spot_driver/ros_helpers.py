@@ -385,12 +385,11 @@ def GetPowerStatesFromState(state, spot_wrapper):
     power_state_msg.locomotion_estimated_runtime = rospy.Time(state.power_state.locomotion_estimated_runtime.seconds, state.power_state.locomotion_estimated_runtime.nanos)
     return power_state_msg
 
-def GetDockStatesFromState(state, spot_wrapper):
+def GetDockStatesFromState(state):
     """Maps dock state data from robot state proto to ROS DockState message
 
     Args:
-        data: Robot State proto
-        spot_wrapper: A SpotWrapper object
+        state: Robot State proto
     Returns:
         DockState message
     """

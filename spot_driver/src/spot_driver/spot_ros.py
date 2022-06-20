@@ -410,7 +410,7 @@ class SpotROS():
     def handle_get_docking_state(self, req):
         """Get docking state of robot"""
         resp = self.spot_wrapper.get_docking_state()
-        return GetDockStateResponse(GetDockStatesFromState(resp, self.spot_wrapper))
+        return GetDockStateResponse(GetDockStatesFromState(resp))
 
     def cmdVelCallback(self, data):
         """Callback for cmd_vel command"""
