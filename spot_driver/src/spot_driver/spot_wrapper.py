@@ -203,7 +203,11 @@ class AsyncIdle(AsyncPeriodicQuery):
 
         self._spot_wrapper._is_moving = is_moving
 
-        if self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving:
+        if (self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving
+                    and self._spot_wrapper._last_trajectory_command is not None
+                    and self._spot_wrapper._last_stand_command is not None
+                    and self._spot_wrapper._last_velocity_command_time is not None
+                    and self._spot_wrapper._last_docking_command is not None):            
             self._spot_wrapper.stand(False)
 
 class SpotWrapper():
@@ -230,6 +234,7 @@ class SpotWrapper():
         self._last_trajectory_command = None
         self._last_trajectory_command_precise = None
         self._last_velocity_command_time = None
+        self._last_docking_command = None
 
         self._front_image_requests = []
         for source in front_image_sources:
@@ -984,9 +989,11 @@ class SpotWrapper():
         try:
             # Make sure we're powered on and standing
             self._robot.power_on()
-            robot_command.blocking_stand(self._robot_command_client)
+            self.stand()
             # Dock the robot
+            self.last_docking_command = dock_id
             blocking_dock_robot(self._robot, dock_id)
+            self.last_docking_command = None
             return True, "Success"
         except Exception as e:
             return False, str(e)
@@ -1006,4 +1013,3 @@ class SpotWrapper():
         """Get docking state of robot."""
         state = self._docking_client.get_docking_state(**kwargs)
         return state
-        
