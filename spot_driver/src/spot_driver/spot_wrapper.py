@@ -629,6 +629,42 @@ class SpotWrapper:
             self._robot_id = None
             self._lease = None
 
+    @staticmethod
+    def authenticate(robot, hostname, username, password, logger):
+        """
+        Authenticate with a robot through the bosdyn API. A blocking function which will wait until authenticated (if
+        the robot is still booting) or login fails
+
+        Args:
+            robot: Robot object which we are authenticating with
+            hostname: Hostname or IP address of the robot
+            username: Username to authenticate with
+            password: Password for the given username
+            logger: Logger with which to print messages
+
+        Returns:
+
+        """
+        authenticated = False
+        while not authenticated:
+            try:
+                logger.info("Trying to authenticate with robot...")
+                robot.authenticate(username, password)
+                robot.start_time_sync()
+                logger.info("Successfully authenticated.")
+                authenticated = True
+            except RpcError as err:
+                sleep_secs = 15
+                logger.warn("Failed to communicate with robot: {}\nEnsure the robot is powered on and you can "
+                                  "ping {}. Robot may still be booting. Will retry in {} seconds".format(err,
+                                                                                                         hostname,
+                                                                                                         sleep_secs))
+                time.sleep(sleep_secs)
+            except bosdyn.client.auth.InvalidLoginError as err:
+                logger.error("Failed to log in to robot: {}".format(err))
+
+        return authenticated
+
     @property
     def logger(self):
         """Return logger instance of the SpotWrapper"""
