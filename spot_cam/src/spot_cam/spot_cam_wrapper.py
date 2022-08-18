@@ -2,16 +2,19 @@ import enum
 import typing
 
 import bosdyn.client
+from bosdyn.client import Robot
 from bosdyn.client import spot_cam
 from bosdyn.client.spot_cam.lighting import LightingClient
+from bosdyn.client.spot_cam.power import PowerClient
 
 from spot_driver.spot_wrapper import SpotWrapper
 
 
-class SpotCamLightingHandler:
+class LightingWrapper:
     """
-    Handler for interacting with LED brightnesses
+    Wrapper for LED brightness interaction
     """
+
     class LEDPosition(enum.Enum):
         """
         Values indicate the position of the specified LED in the brightness list
@@ -22,8 +25,11 @@ class SpotCamLightingHandler:
         FRONT_RIGHT = 2
         REAR_RIGHT = 3
 
-    def __init__(self, robot):
-        self.client = robot.ensure_client(LightingClient.default_service_name)
+    def __init__(self, robot: Robot, logger):
+        self.logger = logger
+        self.client: LightingClient = robot.ensure_client(
+            LightingClient.default_service_name
+        )
 
     def set_led_brightness(self, brightness):
         """
@@ -48,6 +54,60 @@ class SpotCamLightingHandler:
         return self.client.get_led_brightness()
 
 
+class PowerWrapper:
+    """
+    Wrapper for power interaction
+    """
+
+    def __init__(self, robot: Robot, logger):
+        self.logger = logger
+        self.client: PowerClient = robot.ensure_client(PowerClient.default_service_name)
+
+    def get_power_status(self):
+        """
+        Get power status for the devices
+        """
+        return self.client.get_power_status()
+
+    def set_power_status(
+        self,
+        ptz: typing.Optional[bool] = None,
+        aux1: typing.Optional[bool] = None,
+        aux2: typing.Optional[bool] = None,
+        external_mic: typing.Optional[bool] = None,
+    ):
+        """
+        Set power status for each of the devices
+
+        Args:
+            ptz:
+            aux1: ??
+            aux2: ??
+            external_mic:
+        """
+        self.client.set_power_status(ptz, aux1, aux2, external_mic)
+
+    def cycle_power(
+        self,
+        ptz: typing.Optional[bool] = None,
+        aux1: typing.Optional[bool] = None,
+        aux2: typing.Optional[bool] = None,
+        external_mic: typing.Optional[bool] = None,
+    ):
+        """
+        Cycle power of the specified devices
+
+        Args:
+            ptz:
+            aux1:
+            aux2:
+            external_mic:
+        """
+        self.client.cycle_power(ptz, aux1, aux2, external_mic)
+
+
+
+
 class SpotCamWrapper:
     def __init__(self, hostname, username, password, logger):
         self._hostname = hostname
@@ -64,4 +124,6 @@ class SpotCamWrapper:
             robot, self._hostname, self._username, self._password, self._logger
         )
 
-        self.lighting = SpotCamLightingHandler(robot)
+        # TODO: Work out how to distinguish between spot cam, spot cam +, and spot cam + IR
+        self.lighting = LightingWrapper(robot, self._logger)
+        self.power = PowerWrapper(robot, self._logger)
