@@ -1,9 +1,12 @@
 import typing
 import rospy
+import threading
 import logging
 from spot_cam.spot_cam_wrapper import SpotCamWrapper
 from std_msgs.msg import Float32MultiArray, Float32
 from spot_cam.msg import PowerStatus
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
 
 
 class ROSHandler:
@@ -154,6 +157,33 @@ class PowerHandlerROS(ROSHandler):
 
         self.power_publisher.publish(power_status)
 
+class ImageStreamHandlerROS(ROSHandler):
+    """
+    This handles the image stream coming from the Spot CAM. Its output depends on the screen that has been chosen on
+    the compositor.
+    """
+
+    def __init__(self, wrapper: SpotCamWrapper):
+        super().__init__()
+        self.client = wrapper.image
+        self.cv_bridge = CvBridge()
+        self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
+
+        self.loop_thread = threading.Thread(target=self._run)
+        self.loop_thread.start()
+
+    def _run(self):
+        """
+        We run this handler in a separate thread so it can loop and publish whenever the image is updated
+        """
+        loop_rate = rospy.Rate(20)
+        last_image_time = self.client.last_image_time
+        while not rospy.is_shutdown():
+            if last_image_time != self.client.last_image_time:
+                self.image_pub.publish(self.cv_bridge.cv2_to_imgmsg(self.client.last_image, "bgr8"))
+                last_image_time = self.client.last_image_time
+
+            loop_rate.sleep()
 
 class SpotCam:
     def __init__(self):
@@ -169,6 +199,13 @@ class SpotCam:
 
         self.lighting = LightingHandlerROS(self.wrapper)
         self.power = PowerHandlerROS(self.wrapper)
+        self.power = ImageStreamHandlerROS(self.wrapper)
+
+        rospy.on_shutdown(self.shutdown)
+
+    def shutdown(self):
+        self.logger.info("Spot CAM ROS shutdown called")
+        self.wrapper.shutdown()
 
     def main(self):
         rospy.spin()

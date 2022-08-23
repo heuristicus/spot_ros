@@ -1,12 +1,20 @@
+import asyncio
+import datetime
 import enum
+import threading
 import typing
 
 import bosdyn.client
+import cv2
+import numpy as np
+from aiortc import RTCConfiguration
 from bosdyn.client import Robot
 from bosdyn.client import spot_cam
+from bosdyn.client.spot_cam.compositor import CompositorClient
 from bosdyn.client.spot_cam.lighting import LightingClient
 from bosdyn.client.spot_cam.power import PowerClient
 
+from spot_cam.webrtc_client import WebRTCClient
 from spot_driver.spot_wrapper import SpotWrapper
 
 
@@ -106,6 +114,104 @@ class PowerWrapper:
         self.client.cycle_power(ptz, aux1, aux2, external_mic)
 
 
+class CompositorWrapper:
+    def __init__(self, robot: Robot, logger):
+        self.logger = logger
+        self.client: CompositorClient = robot.ensure_client(
+            CompositorClient.default_service_name
+        )
+
+
+class ImageStreamWrapper:
+    """
+    A wrapper for the image stream from WebRTC
+
+    Contains functions adapted from
+    https://github.com/boston-dynamics/spot-sdk/blob/master/python/examples/spot_cam/webrtc.py
+    """
+
+    def __init__(
+        self,
+        hostname: str,
+        username: str,
+        password: str,
+        logger,
+        sdp_port=31102,
+        sdp_filename="h264.sdp",
+        cam_ssl_cert_path=None,
+    ):
+        """
+        Initialise the wrapper
+
+        Args:
+            hostname: Hostname/IP of the robot
+            username: Username on the robot
+            password: Password for the given user
+            sdp_port: SDP port of Spot's WebRTC server
+            sdp_filename: File being streamed from the WebRTC server
+            cam_ssl_cert_path: Path to the Spot CAM's client cert to check with Spot CAM server
+        """
+        self.shutdown_flag = threading.Event()
+        self.logger = logger
+        self.last_image_time = None
+        self.image_lock = threading.Lock()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        config = RTCConfiguration(iceServers=[])
+        self.client = WebRTCClient(
+            hostname,
+            username,
+            password,
+            sdp_port,
+            sdp_filename,
+            cam_ssl_cert_path if cam_ssl_cert_path else False,
+            config,
+        )
+
+        asyncio.gather(
+            self.client.start(),
+            self._process_func(),
+            self._monitor_shutdown(),
+        )
+        # Put the async loop into a separate thread so we can continue initialisation
+        self.async_thread = threading.Thread(target=loop.run_forever)
+        self.async_thread.start()
+
+    async def _monitor_shutdown(self):
+        while not self.shutdown_flag.is_set():
+            await asyncio.sleep(1.0)
+
+        self.logger.info("Image stream wrapper received shutdown flag")
+        await self.client.pc.close()
+        asyncio.get_event_loop().stop()
+
+    async def _process_func(self):
+        while asyncio.get_event_loop().is_running():
+            try:
+                frame = await self.client.video_frame_queue.get()
+
+                pil_image = frame.to_image()
+                cv_image = np.array(pil_image)
+                # OpenCV needs BGR
+                cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
+                with self.image_lock:
+                    self.last_image_time = datetime.datetime.now()
+                    self.last_image = cv_image
+            except Exception as e:
+                self.logger.error("Image stream wrapper exception {}".format(e))
+            try:
+                # discard audio frames
+                while not self.client.audio_frame_queue.empty():
+                    await self.client.audio_frame_queue.get()
+            except Exception as e:
+                self.logger.error(
+                    "Image stream wrapper exception while discarding audio frames {}".format(
+                        e
+                    )
+                )
+
+        self.shutdown_flag.set()
 
 
 class SpotCamWrapper:
@@ -127,3 +233,12 @@ class SpotCamWrapper:
         # TODO: Work out how to distinguish between spot cam, spot cam +, and spot cam + IR
         self.lighting = LightingWrapper(robot, self._logger)
         self.power = PowerWrapper(robot, self._logger)
+        self.image = ImageStreamWrapper(
+            self._hostname, self._username, self._password, self._logger
+        )
+
+        self._logger.info("Finished setting up spot cam wrapper components")
+
+    def shutdown(self):
+        self._logger.info("Shutting down Spot CAM wrapper")
+        self.image.shutdown_flag.set()
