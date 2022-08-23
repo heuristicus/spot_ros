@@ -18,11 +18,12 @@ add_message_files(
   PowerStatus.msg
 )
 
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  SetIRColormap.srv
+  SetIRMeterOverlay.srv
+  SetString.srv
+)
 
 # add_action_files(
 #   FILES

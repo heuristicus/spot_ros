@@ -1,12 +1,16 @@
-import typing
-import rospy
-import threading
 import logging
-from spot_cam.spot_cam_wrapper import SpotCamWrapper
-from std_msgs.msg import Float32MultiArray, Float32
-from spot_cam.msg import PowerStatus
-from sensor_msgs.msg import Image
+import threading
+import typing
+
+import rospy
+from bosdyn.client.exceptions import InvalidRequestError
 from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
+from spot_cam.msg import PowerStatus
+from spot_cam.srv import SetIRColormap, SetIRMeterOverlay, SetString
+from std_msgs.msg import Float32MultiArray, Float32, String
+
+from spot_cam.spot_cam_wrapper import SpotCamWrapper
 
 
 class ROSHandler:
@@ -157,6 +161,57 @@ class PowerHandlerROS(ROSHandler):
 
         self.power_publisher.publish(power_status)
 
+
+class CompositorHandlerROS(ROSHandler):
+    def __init__(self, wrapper: SpotCamWrapper):
+        super().__init__()
+        self.client = wrapper.compositor
+        self.set_screen_service = rospy.Service(
+            "/spot/cam/set_screen", SetString, self.handle_set_screen
+        )
+        self.set_ir_meter_overlay_service = rospy.Service(
+            "/spot/cam/set_ir_meter_overlay",
+            SetIRMeterOverlay,
+            self.handle_set_ir_meter_overlay,
+        )
+        self.set_ir_colormap_service = rospy.Service(
+            "/spot/cam/set_ir_colormap", SetIRColormap, self.handle_set_ir_colormap
+        )
+
+    def handle_set_screen(self, req: SetString):
+        try:
+            self.set_screen(req.value)
+            return True, f"Successfully set screen to {req.value}"
+        except InvalidRequestError as e:
+            message = f"{e}.\nValid screens are {self.client.list_screens()}"
+            self.logger.error(message)
+            return False, message
+
+    def set_screen(self, screen):
+        """
+
+        Args:
+            screen: Screen to display
+
+        Returns:
+        """
+        self.client.set_screen(screen)
+
+    def handle_set_ir_meter_overlay(self, req: SetIRMeterOverlay):
+        self.set_ir_meter_overlay(req.x, req.y, req.enable)
+        return True, "Successfully set IR overlay"
+
+    def set_ir_meter_overlay(self, x, y, enable=True):
+        self.client.set_ir_meter_overlay(x, y, enable)
+
+    def handle_set_ir_colormap(self, req: SetIRColormap):
+        self.set_ir_colormap(req.colormap, req.min, req.max, req.auto_scale)
+        return True, "Successfully set IR colormap"
+
+    def set_ir_colormap(self, colormap, min, max, auto_scale=True):
+        self.client.set_ir_colormap(colormap, min, max, auto_scale)
+
+
 class ImageStreamHandlerROS(ROSHandler):
     """
     This handles the image stream coming from the Spot CAM. Its output depends on the screen that has been chosen on
@@ -168,7 +223,6 @@ class ImageStreamHandlerROS(ROSHandler):
         self.client = wrapper.image
         self.cv_bridge = CvBridge()
         self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
-
         self.loop_thread = threading.Thread(target=self._run)
         self.loop_thread.start()
 
@@ -176,14 +230,20 @@ class ImageStreamHandlerROS(ROSHandler):
         """
         We run this handler in a separate thread so it can loop and publish whenever the image is updated
         """
-        loop_rate = rospy.Rate(20)
+        loop_rate = rospy.Rate(50)
         last_image_time = self.client.last_image_time
         while not rospy.is_shutdown():
             if last_image_time != self.client.last_image_time:
-                self.image_pub.publish(self.cv_bridge.cv2_to_imgmsg(self.client.last_image, "bgr8"))
+                image = self.cv_bridge.cv2_to_imgmsg(self.client.last_image, "bgr8")
+                image.header.stamp = (
+                    rospy.Time.now()
+                )  # Not strictly correct... but close enough?
+                # TODO: This has to do frame switching in the published message headers depending on the compositor view
+                self.image_pub.publish(image)
                 last_image_time = self.client.last_image_time
 
             loop_rate.sleep()
+
 
 class SpotCam:
     def __init__(self):
@@ -199,7 +259,8 @@ class SpotCam:
 
         self.lighting = LightingHandlerROS(self.wrapper)
         self.power = PowerHandlerROS(self.wrapper)
-        self.power = ImageStreamHandlerROS(self.wrapper)
+        self.compositor = CompositorHandlerROS(self.wrapper)
+        self.image = ImageStreamHandlerROS(self.wrapper)
 
         rospy.on_shutdown(self.shutdown)
 

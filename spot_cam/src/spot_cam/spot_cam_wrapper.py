@@ -13,6 +13,7 @@ from bosdyn.client import spot_cam
 from bosdyn.client.spot_cam.compositor import CompositorClient
 from bosdyn.client.spot_cam.lighting import LightingClient
 from bosdyn.client.spot_cam.power import PowerClient
+from bosdyn.client.exceptions import InvalidRequestError
 
 from spot_cam.webrtc_client import WebRTCClient
 from spot_driver.spot_wrapper import SpotWrapper
@@ -121,6 +122,49 @@ class CompositorWrapper:
             CompositorClient.default_service_name
         )
 
+    def list_screens(self) -> typing.List[str]:
+        """
+        List the available screens - this includes individual cameras and also panoramic and other stitched images
+        provided by the camera
+
+        Returns:
+             List of strings indicating available screens
+        """
+        return [screen.name for screen in self.client.list_screens()]
+
+    def set_screen(self, screen):
+        """
+        Set the screen to be streamed over the network
+
+        Args:
+            screen: Screen to show
+        """
+        self.client.set_screen(screen)
+
+    def set_ir_colormap(self, colormap, min_temp, max_temp, auto_scale=True):
+        """
+        Set the colormap used for the IR camera
+
+        Args:
+            colormap: Colormap to use, options are https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#ircolormap-colormap
+            min_temp: Minimum temperature on the scale
+            max_temp: Maximum temperature on the scale
+            auto_scale: Auto-scales the colormap according to the image. If this is set min_temp and max_temp are
+                        ignored
+        """
+        self.client.set_ir_colormap(colormap, min_temp, max_temp, auto_scale)
+
+    def set_ir_meter_overlay(self, x, y, enable=True):
+        """
+        Set the reticle position on the Spot CAM IR.
+
+        Args:
+            x: Horizontal coordinate between 0 and 1
+            y: Vertical coordinate between 0 and 1
+            enable: If true, enable the reticle on the display
+        """
+        self.client.set_ir_meter_overlay(x, y, enable)
+
 
 class ImageStreamWrapper:
     """
@@ -199,16 +243,14 @@ class ImageStreamWrapper:
                     self.last_image_time = datetime.datetime.now()
                     self.last_image = cv_image
             except Exception as e:
-                self.logger.error("Image stream wrapper exception {}".format(e))
+                self.logger.error(f"Image stream wrapper exception {e}")
             try:
                 # discard audio frames
                 while not self.client.audio_frame_queue.empty():
                     await self.client.audio_frame_queue.get()
             except Exception as e:
                 self.logger.error(
-                    "Image stream wrapper exception while discarding audio frames {}".format(
-                        e
-                    )
+                    f"Image stream wrapper exception while discarding audio frames {e}"
                 )
 
         self.shutdown_flag.set()
@@ -233,6 +275,7 @@ class SpotCamWrapper:
         # TODO: Work out how to distinguish between spot cam, spot cam +, and spot cam + IR
         self.lighting = LightingWrapper(robot, self._logger)
         self.power = PowerWrapper(robot, self._logger)
+        self.compositor = CompositorWrapper(robot, self._logger)
         self.image = ImageStreamWrapper(
             self._hostname, self._username, self._password, self._logger
         )

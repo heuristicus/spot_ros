@@ -8,4 +8,11 @@
         <param name="password" value="$(arg password)"/>
         <param name="hostname" value="$(arg hostname)"/>
     </node>
+
+    <!-- Add a compressed version of the webrtc image stream  -->
+    <node name="compress_spot_webrtc" pkg="image_transport" type="republish" args="raw compressed">
+        <remap from="in" to="/spot/cam/image"/>
+        <remap from="out" to="/spot/cam/image"/>
+    </node>
+
 </launch>
