@@ -4,6 +4,9 @@ project(spot_cam)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  spot_msgs
+  spot_driver
+  geometry_msgs
   message_generation
 )
 
@@ -15,7 +18,11 @@ include_directories(
 
 add_message_files(
   FILES
+  BITStatus.msg
+  Degradation.msg
   PowerStatus.msg
+  Temperature.msg
+  TemperatureArray.msg
 )
 
 add_service_files(
@@ -34,6 +41,8 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  spot_msgs
+  geometry_msgs
 )
 
 catkin_package(

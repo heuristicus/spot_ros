@@ -6,11 +6,12 @@ import rospy
 from bosdyn.client.exceptions import InvalidRequestError
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from spot_cam.msg import PowerStatus
+from spot_cam.msg import PowerStatus, Temperature, TemperatureArray, BITStatus, Degradation
 from spot_cam.srv import SetIRColormap, SetIRMeterOverlay, SetString
 from std_msgs.msg import Float32MultiArray, Float32, String
 
 from spot_cam.spot_cam_wrapper import SpotCamWrapper
+from spot_driver.ros_helpers import getSystemFaults
 
 
 class ROSHandler:
@@ -211,6 +212,60 @@ class CompositorHandlerROS(ROSHandler):
     def set_ir_colormap(self, colormap, min, max, auto_scale=True):
         self.client.set_ir_colormap(colormap, min, max, auto_scale)
 
+class HealthHandlerROS(ROSHandler):
+
+    def __init__(self, wrapper: SpotCamWrapper):
+        super().__init__()
+        self.client = wrapper.health
+        self.robot = wrapper.robot
+        self.temp_publisher = rospy.Publisher("/spot/cam/temperatures", TemperatureArray, queue_size=1)
+        self.status_publisher = rospy.Publisher("/spot/cam/status", BITStatus, queue_size=1)
+
+        self.temp_thread = threading.Thread(target=self._publish_temperatures_loop)
+        self.temp_thread.start()
+
+        self.status_thread = threading.Thread(target=self._publish_status_loop)
+        self.status_thread.start()
+
+    def get_status(self):
+        events, degradations = self.client.get_bit_status()
+        status = BITStatus()
+        status.events = getSystemFaults(events, self.robot)
+
+        for degradation in degradations:
+            status.degradations.append(Degradation(type=degradation[0], description=degradation[1]))
+
+        return status
+
+    def publish_status(self):
+        self.status_publisher.publish(self.get_status())
+
+    def _publish_status_loop(self):
+        rate = rospy.Rate(1)
+        while not rospy.is_shutdown():
+            self.publish_status()
+            rate.sleep()
+
+    def get_temperatures(self):
+        temps = self.client.get_temperature()
+        temp_array = TemperatureArray()
+        for temp in temps:
+            temp_msg = Temperature()
+            temp_msg.channel_name = temp[0]
+            temp_msg.temperature = temp[1]
+            temp_array.temperatures.append(temp_msg)
+
+        return temp_array
+
+    def publish_temperatures(self):
+        self.temp_publisher.publish(self.get_temperatures())
+
+    def _publish_temperatures_loop(self):
+        rate = rospy.Rate(1)
+        while not rospy.is_shutdown():
+            self.publish_temperatures()
+            rate.sleep()
+
 
 class ImageStreamHandlerROS(ROSHandler):
     """
@@ -223,10 +278,10 @@ class ImageStreamHandlerROS(ROSHandler):
         self.client = wrapper.image
         self.cv_bridge = CvBridge()
         self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
-        self.loop_thread = threading.Thread(target=self._run)
+        self.loop_thread = threading.Thread(target=self._publish_images_loop)
         self.loop_thread.start()
 
-    def _run(self):
+    def _publish_images_loop(self):
         """
         We run this handler in a separate thread so it can loop and publish whenever the image is updated
         """
@@ -261,6 +316,7 @@ class SpotCam:
         self.power = PowerHandlerROS(self.wrapper)
         self.compositor = CompositorHandlerROS(self.wrapper)
         self.image = ImageStreamHandlerROS(self.wrapper)
+        self.health = HealthHandlerROS(self.wrapper)
 
         rospy.on_shutdown(self.shutdown)
 

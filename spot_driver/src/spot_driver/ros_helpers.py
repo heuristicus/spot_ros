@@ -21,7 +21,11 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
+<<<<<<< HEAD
 from spot_msgs.msg import DockState
+=======
+from spot_driver.spot_wrapper import robotToLocalTime
+>>>>>>> Add health wrapper, move body of robotToLocalTime out of spot wrapper object
 
 from bosdyn.api import image_pb2, point_cloud_pb2
 from bosdyn.client.math_helpers import SE3Pose

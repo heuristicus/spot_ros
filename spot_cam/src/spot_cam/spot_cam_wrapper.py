@@ -13,7 +13,7 @@ from bosdyn.client import spot_cam
 from bosdyn.client.spot_cam.compositor import CompositorClient
 from bosdyn.client.spot_cam.lighting import LightingClient
 from bosdyn.client.spot_cam.power import PowerClient
-from bosdyn.client.exceptions import InvalidRequestError
+from bosdyn.client.spot_cam.health import HealthClient
 
 from spot_cam.webrtc_client import WebRTCClient
 from spot_driver.spot_wrapper import SpotWrapper
@@ -165,6 +165,48 @@ class CompositorWrapper:
         """
         self.client.set_ir_meter_overlay(x, y, enable)
 
+class HealthWrapper:
+    """
+    Wrapper for health details
+    """
+
+    def __init__(self, robot, logger):
+        self.client: HealthClient = robot.ensure_client(HealthClient.default_service_name)
+        self.logger = logger
+
+    def get_bit_status(self) -> typing.Tuple[typing.List[str], typing.List[typing.Tuple[int, str]]]:
+        """
+        Get fault events and degradations
+
+        Returns:
+            Dictionary
+
+        """
+        bit_status = self.client.get_bit_status()
+        events = []
+        for event in bit_status[0]:
+            events.append(event)
+
+        degradations = []
+        for degradation in bit_status[1]:
+            degradations.append((degradation.type, degradation.description))
+        return events, degradations
+
+    def get_temperature(self) -> typing.Tuple[str, float]:
+        """
+        Get temperatures of various components of the camera
+
+        Returns:
+            Tuple of string and float indicating the component and its temperature in celsius
+        """
+        return [(composite.channel_name, composite.temperature/1000.0) for composite in self.client.get_temperature()]
+
+    # def get_system_log(self):
+    #     """
+    #     This seems to always time out
+    #     """
+    #     return self.client.get_system_log()
+
 
 class ImageStreamWrapper:
     """
@@ -264,22 +306,22 @@ class SpotCamWrapper:
         self._logger = logger
 
         # Create robot object and authenticate.
-        sdk = bosdyn.client.create_standard_sdk("Spot CAM Client")
-        spot_cam.register_all_service_clients(sdk)
+        self.sdk = bosdyn.client.create_standard_sdk("Spot CAM Client")
+        spot_cam.register_all_service_clients(self.sdk)
 
-        robot = sdk.create_robot(self._hostname)
+        self.robot = self.sdk.create_robot(self._hostname)
         SpotWrapper.authenticate(
-            robot, self._hostname, self._username, self._password, self._logger
+            self.robot, self._hostname, self._username, self._password, self._logger
         )
 
         # TODO: Work out how to distinguish between spot cam, spot cam +, and spot cam + IR
-        self.lighting = LightingWrapper(robot, self._logger)
-        self.power = PowerWrapper(robot, self._logger)
-        self.compositor = CompositorWrapper(robot, self._logger)
+        self.lighting = LightingWrapper(self.robot, self._logger)
+        self.power = PowerWrapper(self.robot, self._logger)
+        self.compositor = CompositorWrapper(self.robot, self._logger)
         self.image = ImageStreamWrapper(
             self._hostname, self._username, self._password, self._logger
         )
-
+        self.health = HealthWrapper(self.robot, self._logger)
         self._logger.info("Finished setting up spot cam wrapper components")
 
     def shutdown(self):

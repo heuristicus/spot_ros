@@ -81,6 +81,31 @@ hand_image_sources = [
 """List of image sources for hand image periodic query"""
 
 
+def robotToLocalTime(timestamp, robot):
+    """Takes a timestamp and an estimated skew and return seconds and nano seconds in local time
+
+    Args:
+        timestamp: google.protobuf.Timestamp
+        robot: Robot handle to use to get the time skew
+    Returns:
+        google.protobuf.Timestamp
+    """
+
+    rtime = Timestamp()
+
+    rtime.seconds = timestamp.seconds - robot.time_sync.endpoint.clock_skew.seconds
+    rtime.nanos = timestamp.nanos - robot.time_sync.endpoint.clock_skew.nanos
+    if rtime.nanos < 0:
+        rtime.nanos = rtime.nanos + 1000000000
+        rtime.seconds = rtime.seconds - 1
+
+    # Workaround for timestamps being incomplete
+    if rtime.seconds < 0:
+        rtime.seconds = 0
+        rtime.nanos = 0
+
+    return rtime
+
 class AsyncRobotState(AsyncPeriodicQuery):
     """Class to get robot state at regular intervals.  get_robot_state_async query sent to the robot at every tick.  Callback registered to defined callback function.
 
@@ -763,21 +788,7 @@ class SpotWrapper:
         Returns:
             google.protobuf.Timestamp
         """
-
-        rtime = Timestamp()
-
-        rtime.seconds = timestamp.seconds - self.time_skew.seconds
-        rtime.nanos = timestamp.nanos - self.time_skew.nanos
-        if rtime.nanos < 0:
-            rtime.nanos = rtime.nanos + 1000000000
-            rtime.seconds = rtime.seconds - 1
-
-        # Workaround for timestamps being incomplete
-        if rtime.seconds < 0:
-            rtime.seconds = 0
-            rtime.nanos = 0
-
-        return rtime
+        return robotToLocalTime(timestamp, self._robot)
 
     def claim(self):
         """Get a lease for the robot, a handle on the estop endpoint, and the ID of the robot."""

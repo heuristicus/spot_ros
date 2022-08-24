@@ -12,6 +12,9 @@
     <buildtool_depend>catkin</buildtool_depend>
     <depend>rospy</depend>
     <depend>std_msgs</depend>
+    <depend>geometry_msgs</depend>
+    <depend>spot_msgs</depend>
+    <depend>spot_driver</depend>
     <build_depend>message_generation</build_depend>
     <exec_depend>message_runtime</exec_depend>
 </package>
