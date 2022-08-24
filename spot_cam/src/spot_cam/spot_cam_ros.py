@@ -11,15 +11,18 @@ from spot_cam.msg import (
     BITStatus,
     Degradation,
     PowerStatus,
+    StreamParams,
     Temperature,
     TemperatureArray,
 )
 from spot_cam.srv import (
     LoadSound,
     PlaySound,
+    SetBool,
     SetFloat,
     SetIRColormap,
     SetIRMeterOverlay,
+    SetStreamParams,
     SetString,
 )
 from std_msgs.msg import Float32MultiArray, Float32
@@ -81,6 +84,10 @@ class LightingHandlerROS(ROSHandler):
 
 
 class PowerHandlerROS(ROSHandler):
+    """
+    Handles interaction with power controls
+    """
+
     def __init__(self, wrapper: SpotCamWrapper):
         super().__init__()
         self.power_client = wrapper.power
@@ -178,6 +185,10 @@ class PowerHandlerROS(ROSHandler):
 
 
 class CompositorHandlerROS(ROSHandler):
+    """
+    Handles interaction with the compositor
+    """
+
     def __init__(self, wrapper: SpotCamWrapper):
         super().__init__()
         self.client = wrapper.compositor
@@ -194,6 +205,9 @@ class CompositorHandlerROS(ROSHandler):
         )
 
     def handle_set_screen(self, req: SetString):
+        """
+        Handle a request to set the screen displayed by webrtc
+        """
         try:
             self.set_screen(req.value)
             return True, f"Successfully set screen to {req.value}"
@@ -204,30 +218,56 @@ class CompositorHandlerROS(ROSHandler):
 
     def set_screen(self, screen):
         """
+        Choose which screen to display. This is how it is possible to view the streams from different cameras
 
         Args:
             screen: Screen to display
-
-        Returns:
         """
         self.client.set_screen(screen)
 
     def handle_set_ir_meter_overlay(self, req: SetIRMeterOverlay):
+        """
+        Handle a request to set the IR overlay
+        """
         self.set_ir_meter_overlay(req.x, req.y, req.enable)
         return True, "Successfully set IR overlay"
 
     def set_ir_meter_overlay(self, x, y, enable=True):
+        """
+        Enable or disable and set the reticle position in the IR overlay
+
+        Args:
+            x: Horizontal coordinate between 0 and 1
+            y: Vertical coordinate between 0 and 1
+            enable: If true, show the overlay
+        """
         self.client.set_ir_meter_overlay(x, y, enable)
 
     def handle_set_ir_colormap(self, req: SetIRColormap):
+        """
+        Handle a request to set the colormap for the IR images
+        """
         self.set_ir_colormap(req.colormap, req.min, req.max, req.auto_scale)
         return True, "Successfully set IR colormap"
 
     def set_ir_colormap(self, colormap, min, max, auto_scale=True):
+        """
+        Set the IR colormap for images
+
+        Args:
+            colormap: Colormap to use
+            min: Minimum temperature on the scale
+            max: Maximum temperature on the scale
+            auto_scale: If true, scale based on the values in the image and ignore min and max
+        """
         self.client.set_ir_colormap(colormap, min, max, auto_scale)
 
 
 class HealthHandlerROS(ROSHandler):
+    """
+    Handles interaction with health information from the device
+    """
+
     def __init__(self, wrapper: SpotCamWrapper):
         super().__init__()
         self.client = wrapper.health
@@ -246,6 +286,9 @@ class HealthHandlerROS(ROSHandler):
         self.status_thread.start()
 
     def get_status(self):
+        """
+        Get the fault and degradation status of the device
+        """
         events, degradations = self.client.get_bit_status()
         status = BITStatus()
         status.events = getSystemFaults(events, self.robot)
@@ -258,6 +301,9 @@ class HealthHandlerROS(ROSHandler):
         return status
 
     def publish_status(self):
+        """
+        Publish the current status of the device
+        """
         self.status_publisher.publish(self.get_status())
 
     def _publish_status_loop(self):
@@ -267,6 +313,9 @@ class HealthHandlerROS(ROSHandler):
             rate.sleep()
 
     def get_temperatures(self):
+        """
+        Get the temperatures for various components of the device
+        """
         temps = self.client.get_temperature()
         temp_array = TemperatureArray()
         for temp in temps:
@@ -278,6 +327,9 @@ class HealthHandlerROS(ROSHandler):
         return temp_array
 
     def publish_temperatures(self):
+        """
+        Publish the current temperatures of the device
+        """
         self.temp_publisher.publish(self.get_temperatures())
 
     def _publish_temperatures_loop(self):
@@ -288,6 +340,10 @@ class HealthHandlerROS(ROSHandler):
 
 
 class AudioHandlerROS(ROSHandler):
+    """
+    Handles audio interaction with the device
+    """
+
     def __init__(self, wrapper: SpotCamWrapper):
         super().__init__()
         self.client = wrapper.audio
@@ -305,10 +361,19 @@ class AudioHandlerROS(ROSHandler):
         )
 
     def handle_set_volume(self, req):
+        """
+        Handle a request to set audio volume on the device
+        """
         self.set_volume(req.value)
         return True, "Successfully set volume"
 
     def set_volume(self, percentage):
+        """
+        Set the audio volume on the device
+
+        Args:
+            percentage: Volume as a percentage
+        """
         self.client.set_volume(percentage)
 
     def handle_play_sound(self, req):
@@ -386,6 +451,126 @@ class AudioHandlerROS(ROSHandler):
         self.logger.info(f"Deleted sound {sound_name}")
 
 
+class StreamQualityHandlerROS(ROSHandler):
+    """
+    Handles interaction with stream quality controls
+    """
+
+    def __init__(self, wrapper: SpotCamWrapper):
+        super().__init__()
+        self.client = wrapper.stream_quality
+        self.params_service = rospy.Service(
+            "/spot/cam/stream/set_params", SetStreamParams, self.handle_params
+        )
+        self.congestion_control_service = rospy.Service(
+            "/spot/cam/stream/enable_congestion_control",
+            SetBool,
+            self.handle_congestion_control,
+        )
+        self.params_pub = rospy.Publisher(
+            "/spot/cam/stream/params", StreamParams, queue_size=1, latch=True
+        )
+
+        # Allow time for publisher initialisation
+        rospy.sleep(0.3)
+        self.publish_stream_params()
+
+    def handle_params(self, req):
+        """
+        Handle a request to set the stream quality parameters
+        """
+        try:
+            self.set_stream_params(
+                req.params.target_bitrate,
+                req.params.refresh_interval,
+                req.params.idr_interval,
+                req.params.awb,
+            )
+        except InvalidRequestError as e:
+            message = f"Bad request while setting params {e}. This might be because you tried to turn auto white " \
+                      f"balance off. "
+            self.logger.error(message)
+            return False, message
+        return True, "Set stream parameters"
+
+    def set_stream_params(self, target_bitrate, refresh_interval, idr_interval, awb):
+        """
+        Set the stream quality parameters
+
+        Note: It is currently not possible to turn off the auto white balance. You will get a crash
+
+        Args:
+            target_bitrate: Compression target in bits per second
+            refresh_interval: How often to refresh the whole feed (in frames)
+            idr_interval: How often to send an IDR message (in frames)
+            awb: Mode for automatic white balance
+        """
+        # Convert the auto white balance to the bosdyn version. Had to do this to ensure we could distinguish between
+        # turning the awb off vs leaving it as it was
+        if awb == -1:
+            awb = 0
+        elif awb == 0:
+            awb = None
+        params = [
+            target_bitrate if target_bitrate != 0 else None,
+            refresh_interval if refresh_interval != 0 else None,
+            idr_interval if idr_interval != 0 else None,
+            awb,
+        ]
+
+        if not any(params[:3]) and awb is None:
+            rospy.logwarn(
+                "Received set params request where everything was empty. Not doing anything."
+            )
+            return
+
+        self.client.set_stream_params(*params)
+        self.publish_stream_params()
+
+    def get_stream_params(self):
+        """
+        Get the current parameters for the stream quality
+        """
+        return self.client.get_stream_params()
+
+    def publish_stream_params(self):
+        """
+        Publish the current stream quality parameters
+        """
+        params = self.get_stream_params()
+        params_msg = StreamParams()
+        params_msg.target_bitrate = params["target_bitrate"]
+        params_msg.refresh_interval = params["refresh_interval"]
+        params_msg.idr_interval = params["idr_interval"]
+        params_msg.awb = params["awb"]
+        # We had to mess with the ROS message to be able to distinguish between an unset variable and a request to
+        # turn off, so must do conversion here
+        if params_msg.awb == 0:
+            params_msg.awb = StreamParams.OFF
+
+        self.params_pub.publish(params_msg)
+
+    def handle_congestion_control(self, req):
+        """
+        Handle a request to enable or disable congestion control
+        """
+        self.enable_congestion_control(req.value)
+
+        enabled_str = "enabled" if req.value else "disabled"
+        message = f"Stream congestion control is {enabled_str}"
+        self.logger.info(message)
+        return True, message
+
+    def enable_congestion_control(self, enable):
+        """
+        Enable or disable the congestion control
+
+        Args:
+            enable: Enable if true
+        """
+        self.client.enable_congestion_control(enable)
+
+
 class ImageStreamHandlerROS(ROSHandler):
     """
     This handles the image stream coming from the Spot CAM. Its output depends on the screen that has been chosen on
@@ -437,6 +622,7 @@ class SpotCam:
         self.image = ImageStreamHandlerROS(self.wrapper)
         self.health = HealthHandlerROS(self.wrapper)
         self.audio = AudioHandlerROS(self.wrapper)
+        self.stream_quality = StreamQualityHandlerROS(self.wrapper)
 
         rospy.on_shutdown(self.shutdown)
 

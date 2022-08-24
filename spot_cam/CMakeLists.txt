@@ -21,6 +21,7 @@ add_message_files(
   BITStatus.msg
   Degradation.msg
   PowerStatus.msg
+  StreamParams.msg
   Temperature.msg
   TemperatureArray.msg
 )
@@ -29,9 +30,11 @@ add_service_files(
   FILES
   LoadSound.srv
   PlaySound.srv
+  SetBool.srv
   SetFloat.srv
   SetIRColormap.srv
   SetIRMeterOverlay.srv
+  SetStreamParams.srv
   SetString.srv
 )
 

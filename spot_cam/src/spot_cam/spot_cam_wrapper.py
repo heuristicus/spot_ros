@@ -17,6 +17,7 @@ from bosdyn.client.spot_cam.lighting import LightingClient
 from bosdyn.client.spot_cam.power import PowerClient
 from bosdyn.client.spot_cam.health import HealthClient
 from bosdyn.client.spot_cam.audio import AudioClient
+from bosdyn.client.spot_cam.streamquality import StreamQualityClient
 from bosdyn.api.spot_cam import audio_pb2
 
 from spot_cam.webrtc_client import WebRTCClient
@@ -304,6 +305,58 @@ class AudioWrapper:
         self.client.delete_sound(audio_pb2.Sound(name=name))
 
 
+class StreamQualityWrapper:
+    def __init__(self, robot, logger):
+        self.client: StreamQualityClient = robot.ensure_client(
+            StreamQualityClient.default_service_name
+        )
+        self.logger = logger
+
+    def set_stream_params(
+        self, target_bitrate, refresh_interval, idr_interval, awb
+    ):
+        """
+        Set image compression and postprocessing parameters
+
+        Note: It is currently not possible to turn off the auto white balance. You will get a crash
+
+        Args:
+            target_bitrate: Compression level target in bits per second
+            refresh_interval: How often the whole feed should be refreshed (in frames)
+            idr_interval: How often an IDR message should be sent (in frames)
+            awb: Mode for automatic white balance
+        """
+        self.client.set_stream_params(
+            target_bitrate, refresh_interval, idr_interval, 0
+        )
+
+    def get_stream_params(self) -> typing.Dict[str, int]:
+        """
+        Get the current stream quality parameters
+
+        Returns:
+            Dictionary containing the parameters
+        """
+        params = self.client.get_stream_params()
+        param_dict = {
+            "target_bitrate": params.targetbitrate.value,
+            "refresh_interval": params.refreshinterval.value,
+            "idr_interval": params.idrinterval.value,
+            "awb": params.awb.awb,
+        }
+
+        return param_dict
+
+    def enable_congestion_control(self, enable):
+        """
+        Enable congestion control on the receiver... not sure what this does
+
+        Args:
+            enable: If true, enable congestion control
+        """
+        self.client.enable_congestion_control(enable)
+
+
 class ImageStreamWrapper:
     """
     A wrapper for the image stream from WebRTC
@@ -415,6 +468,8 @@ class SpotCamWrapper:
         self.image = ImageStreamWrapper(self._hostname, self.robot, self._logger)
         self.health = HealthWrapper(self.robot, self._logger)
         self.audio = AudioWrapper(self.robot, self._logger)
+        self.stream_quality = StreamQualityWrapper(self.robot, self._logger)
+        print(self.stream_quality.get_stream_params())
 
         self._logger.info("Finished setting up spot cam wrapper components")
 
