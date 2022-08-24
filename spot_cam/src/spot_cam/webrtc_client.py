@@ -6,30 +6,21 @@
 
 import asyncio
 import base64
-import logging
 
 import requests
-
-from aiortc import (
-    RTCPeerConnection,
-    RTCSessionDescription,
-    MediaStreamTrack,
-)
-
+from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaBlackhole
 
 
 class SpotCAMMediaStreamTrack(MediaStreamTrack):
     def __init__(self, track, queue):
         super().__init__()
-        self.logger = logging.getLogger()
         self.track = track
         self.queue = queue
 
     async def recv(self):
         frame = await self.track.recv()
         await self.queue.put(frame)
-        self.logger.warning("got a frame from webrtc")
 
         return frame
 
@@ -38,11 +29,10 @@ class WebRTCClient:
     def __init__(
         self,
         hostname,
-        username,
-        password,
         sdp_port,
         sdp_filename,
         cam_ssl_cert,
+        token,
         rtc_config,
         media_recorder=None,
         recorder_type=None,
@@ -53,8 +43,7 @@ class WebRTCClient:
         self.audio_frame_queue = asyncio.Queue()
 
         self.hostname = hostname
-        self.username = username
-        self.password = password
+        self.token = token
         self.sdp_port = sdp_port
         self.media_recorder = media_recorder
         self.media_black_hole = None
@@ -65,15 +54,7 @@ class WebRTCClient:
     def get_bearer_token(self, mock=False):
         if mock:
             return "token"
-        payload = {"username": self.username, "password": self.password}
-        response = requests.post(
-            f"https://{self.hostname}/accounts/jwt/generate/",
-            verify=False,
-            data=payload,
-            timeout=1,
-        )
-        token = response.content.decode("utf-8")
-        return token
+        return self.token
 
     def get_sdp_offer_from_spot_cam(self, token):
         # then made the sdp request with the token

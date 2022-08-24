@@ -169,16 +169,21 @@ class CompositorWrapper:
         """
         self.client.set_ir_meter_overlay(x, y, enable)
 
+
 class HealthWrapper:
     """
     Wrapper for health details
     """
 
     def __init__(self, robot, logger):
-        self.client: HealthClient = robot.ensure_client(HealthClient.default_service_name)
+        self.client: HealthClient = robot.ensure_client(
+            HealthClient.default_service_name
+        )
         self.logger = logger
 
-    def get_bit_status(self) -> typing.Tuple[typing.List[str], typing.List[typing.Tuple[int, str]]]:
+    def get_bit_status(
+        self,
+    ) -> typing.Tuple[typing.List[str], typing.List[typing.Tuple[int, str]]]:
         """
         Get fault events and degradations
 
@@ -203,7 +208,10 @@ class HealthWrapper:
         Returns:
             Tuple of string and float indicating the component and its temperature in celsius
         """
-        return [(composite.channel_name, composite.temperature/1000.0) for composite in self.client.get_temperature()]
+        return [
+            (composite.channel_name, composite.temperature / 1000.0)
+            for composite in self.client.get_temperature()
+        ]
 
     # def get_system_log(self):
     #     """
@@ -211,10 +219,12 @@ class HealthWrapper:
     #     """
     #     return self.client.get_system_log()
 
+
 class AudioWrapper:
     """
     Wrapper for audio commands on the camera
     """
+
     def __init__(self, robot, logger):
         self.client: AudioClient = robot.ensure_client(AudioClient.default_service_name)
         self.logger = logger
@@ -275,11 +285,11 @@ class AudioWrapper:
 
         sound = audio_pb2.Sound(name=name)
 
-        with wave.open(full_path, 'rb') as fh:
+        with wave.open(full_path, "rb") as fh:
             # Use this to make sure that the file is actually a wav file
             pass
 
-        with open(full_path, 'rb') as fh:
+        with open(full_path, "rb") as fh:
             data = fh.read()
 
         self.client.load_sound(sound, data)
@@ -293,6 +303,7 @@ class AudioWrapper:
         """
         self.client.delete_sound(audio_pb2.Sound(name=name))
 
+
 class ImageStreamWrapper:
     """
     A wrapper for the image stream from WebRTC
@@ -304,8 +315,7 @@ class ImageStreamWrapper:
     def __init__(
         self,
         hostname: str,
-        username: str,
-        password: str,
+        robot,
         logger,
         sdp_port=31102,
         sdp_filename="h264.sdp",
@@ -316,8 +326,8 @@ class ImageStreamWrapper:
 
         Args:
             hostname: Hostname/IP of the robot
-            username: Username on the robot
-            password: Password for the given user
+            robot: Handle for the robot the camera is on
+            logger: Logger to use
             sdp_port: SDP port of Spot's WebRTC server
             sdp_filename: File being streamed from the WebRTC server
             cam_ssl_cert_path: Path to the Spot CAM's client cert to check with Spot CAM server
@@ -332,11 +342,10 @@ class ImageStreamWrapper:
         config = RTCConfiguration(iceServers=[])
         self.client = WebRTCClient(
             hostname,
-            username,
-            password,
             sdp_port,
             sdp_filename,
             cam_ssl_cert_path if cam_ssl_cert_path else False,
+            robot.user_token,
             config,
         )
 
@@ -403,9 +412,7 @@ class SpotCamWrapper:
         self.lighting = LightingWrapper(self.robot, self._logger)
         self.power = PowerWrapper(self.robot, self._logger)
         self.compositor = CompositorWrapper(self.robot, self._logger)
-        self.image = ImageStreamWrapper(
-            self._hostname, self._username, self._password, self._logger
-        )
+        self.image = ImageStreamWrapper(self._hostname, self.robot, self._logger)
         self.health = HealthWrapper(self.robot, self._logger)
         self.audio = AudioWrapper(self.robot, self._logger)
 
