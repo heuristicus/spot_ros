@@ -1,14 +1,28 @@
 import logging
 import threading
 import typing
+import wave
 
 import rospy
-from bosdyn.client.exceptions import InvalidRequestError
+from bosdyn.client.exceptions import InvalidRequestError, InternalServerError
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from spot_cam.msg import PowerStatus, Temperature, TemperatureArray, BITStatus, Degradation
-from spot_cam.srv import SetIRColormap, SetIRMeterOverlay, SetString
-from std_msgs.msg import Float32MultiArray, Float32, String
+from spot_cam.msg import (
+    BITStatus,
+    Degradation,
+    PowerStatus,
+    Temperature,
+    TemperatureArray,
+)
+from spot_cam.srv import (
+    LoadSound,
+    PlaySound,
+    SetFloat,
+    SetIRColormap,
+    SetIRMeterOverlay,
+    SetString,
+)
+from std_msgs.msg import Float32MultiArray, Float32
 
 from spot_cam.spot_cam_wrapper import SpotCamWrapper
 from spot_driver.ros_helpers import getSystemFaults
@@ -212,14 +226,18 @@ class CompositorHandlerROS(ROSHandler):
     def set_ir_colormap(self, colormap, min, max, auto_scale=True):
         self.client.set_ir_colormap(colormap, min, max, auto_scale)
 
-class HealthHandlerROS(ROSHandler):
 
+class HealthHandlerROS(ROSHandler):
     def __init__(self, wrapper: SpotCamWrapper):
         super().__init__()
         self.client = wrapper.health
         self.robot = wrapper.robot
-        self.temp_publisher = rospy.Publisher("/spot/cam/temperatures", TemperatureArray, queue_size=1)
-        self.status_publisher = rospy.Publisher("/spot/cam/status", BITStatus, queue_size=1)
+        self.temp_publisher = rospy.Publisher(
+            "/spot/cam/temperatures", TemperatureArray, queue_size=1
+        )
+        self.status_publisher = rospy.Publisher(
+            "/spot/cam/status", BITStatus, queue_size=1
+        )
 
         self.temp_thread = threading.Thread(target=self._publish_temperatures_loop)
         self.temp_thread.start()
@@ -233,7 +251,9 @@ class HealthHandlerROS(ROSHandler):
         status.events = getSystemFaults(events, self.robot)
 
         for degradation in degradations:
-            status.degradations.append(Degradation(type=degradation[0], description=degradation[1]))
+            status.degradations.append(
+                Degradation(type=degradation[0], description=degradation[1])
+            )
 
         return status
 
@@ -265,6 +285,105 @@ class HealthHandlerROS(ROSHandler):
         while not rospy.is_shutdown():
             self.publish_temperatures()
             rate.sleep()
+
+
+class AudioHandlerROS(ROSHandler):
+    def __init__(self, wrapper: SpotCamWrapper):
+        super().__init__()
+        self.client = wrapper.audio
+        self.set_volume_service = rospy.Service(
+            "/spot/cam/audio/set_volume", SetFloat, self.handle_set_volume
+        )
+        self.play_sound_service = rospy.Service(
+            "/spot/cam/audio/play", PlaySound, self.handle_play_sound
+        )
+        self.load_sound_service = rospy.Service(
+            "/spot/cam/audio/load", LoadSound, self.handle_load_sound
+        )
+        self.delete_sound_service = rospy.Service(
+            "/spot/cam/audio/delete", SetString, self.handle_delete_sound
+        )
+
+    def handle_set_volume(self, req):
+        self.set_volume(req.value)
+        return True, "Successfully set volume"
+
+    def set_volume(self, percentage):
+        self.client.set_volume(percentage)
+
+    def handle_play_sound(self, req):
+        """
+        Handle a service call to play a sound
+        """
+        try:
+            self.play_sound(req.name, req.gain)
+        except InvalidRequestError as e:
+            message = f"{e}.\nValid sounds are {self.client.list_screens()}"
+            self.logger.error(message)
+            return False, message
+
+        return True, f"Played sound {req.name}"
+
+    def play_sound(self, sound_name, gain=1):
+        """
+        Play a sound from the device
+
+        Args:
+            sound_name: Name of the sound to play
+            gain: Multiplicative gain on the sound volume
+        Raises:
+            InvalidRequestError: If a sound with the given name does not exist on the device
+        """
+        self.client.play_sound(sound_name, gain)
+
+    def handle_load_sound(self, req):
+        """
+        Handle a service call to load a sound
+        """
+        try:
+            self.load_sound(req.wav_path, req.name)
+        except (IOError, wave.Error) as e:
+            message = f"Failed to load sound: {e}"
+            self.logger.error(message)
+            return False, str(message)
+
+        return True, "Successfully loaded sound"
+
+    def load_sound(self, sound_file, name):
+        """
+        Load a sound from the file system onto the device
+        Args:
+            sound_file: File which should be added to the device sounds
+            name: Name under which the sound should be added
+        Raises:
+            wave.Error: If the file was not a wav file
+            IOError: If the provided string was not a file
+        """
+        self.client.load_sound(sound_file, name)
+        self.logger.info(f"Loaded new sound {name}")
+
+    def handle_delete_sound(self, req):
+        """
+        Handle a service call to delete a sound
+        """
+        try:
+            self.client.delete_sound(req.value)
+        except InternalServerError as e:
+            return False, f"Failed to delete sound {req.value}, perhaps it didn't exist"
+
+        return True, f"Successfully deleted sound {req.value}"
+
+    def delete_sound(self, sound_name):
+        """
+        Delete a sound from the device
+
+        Args:
+            sound_name: Name of the sound to delete
+        Raises:
+            InternalServerError: If the sound does not exist
+        """
+        self.client.delete_sound(sound_name)
+        self.logger.info(f"Deleted sound {sound_name}")
 
 
 class ImageStreamHandlerROS(ROSHandler):
@@ -317,6 +436,7 @@ class SpotCam:
         self.compositor = CompositorHandlerROS(self.wrapper)
         self.image = ImageStreamHandlerROS(self.wrapper)
         self.health = HealthHandlerROS(self.wrapper)
+        self.audio = AudioHandlerROS(self.wrapper)
 
         rospy.on_shutdown(self.shutdown)
 

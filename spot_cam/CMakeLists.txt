@@ -27,6 +27,9 @@ add_message_files(
 
 add_service_files(
   FILES
+  LoadSound.srv
+  PlaySound.srv
+  SetFloat.srv
   SetIRColormap.srv
   SetIRMeterOverlay.srv
   SetString.srv

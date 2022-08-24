@@ -1,8 +1,10 @@
 import asyncio
 import datetime
 import enum
+import os.path
 import threading
 import typing
+import wave
 
 import bosdyn.client
 import cv2
@@ -14,6 +16,8 @@ from bosdyn.client.spot_cam.compositor import CompositorClient
 from bosdyn.client.spot_cam.lighting import LightingClient
 from bosdyn.client.spot_cam.power import PowerClient
 from bosdyn.client.spot_cam.health import HealthClient
+from bosdyn.client.spot_cam.audio import AudioClient
+from bosdyn.api.spot_cam import audio_pb2
 
 from spot_cam.webrtc_client import WebRTCClient
 from spot_driver.spot_wrapper import SpotWrapper
@@ -207,6 +211,87 @@ class HealthWrapper:
     #     """
     #     return self.client.get_system_log()
 
+class AudioWrapper:
+    """
+    Wrapper for audio commands on the camera
+    """
+    def __init__(self, robot, logger):
+        self.client: AudioClient = robot.ensure_client(AudioClient.default_service_name)
+        self.logger = logger
+
+    def list_sounds(self) -> typing.List[str]:
+        """
+        List sounds available on the device
+
+        Returns:
+            List of names of available sounds
+        """
+        return self.client.list_sounds()
+
+    def set_volume(self, percentage):
+        """
+        Set the volume at which sounds should be played
+
+        Args:
+            percentage: How loud sounds should be from 0 to 100%
+        """
+        self.client.set_volume(percentage)
+
+    def get_volume(self):
+        """
+        Get the current volume at which sounds are played
+
+        Returns:
+            Current volume as a percentage
+        """
+        return self.client.get_volume()
+
+    def play_sound(self, sound_name, gain=1.0):
+        """
+        Play a sound which is on the device
+
+        Args:
+            sound_name: Name of the sound to play
+            gain: Volume gain multiplier
+        """
+        sound = audio_pb2.Sound(name=sound_name)
+        self.client.play_sound(sound, gain)
+
+    def load_sound(self, sound_file, name):
+        """
+        Load a sound from a wav file and save it with the given name onto the device
+        Args:
+            sound_file: Wav file to read from
+            name: Name to assign to the sound
+
+        Raises:
+            IOError: If the given file is not a file
+            wave.Error: If the given file is not a wav file
+        """
+        full_path = os.path.abspath(os.path.expanduser(sound_file))
+        print(full_path)
+        if not os.path.isfile(full_path):
+            raise IOError(f"Tried to load sound from {full_path} but it is not a file.")
+
+        sound = audio_pb2.Sound(name=name)
+
+        with wave.open(full_path, 'rb') as fh:
+            # Use this to make sure that the file is actually a wav file
+            pass
+
+        with open(full_path, 'rb') as fh:
+            data = fh.read()
+
+        self.client.load_sound(sound, data)
+
+    def delete_sound(self, name):
+        """
+        Delete a sound from the device
+
+        Args:
+            name: Name of the sound to delete
+        """
+        self.client.delete_sound(audio_pb2.Sound(name=name))
 
 class ImageStreamWrapper:
     """
@@ -322,6 +407,8 @@ class SpotCamWrapper:
             self._hostname, self._username, self._password, self._logger
         )
         self.health = HealthWrapper(self.robot, self._logger)
+        self.audio = AudioWrapper(self.robot, self._logger)
+
         self._logger.info("Finished setting up spot cam wrapper components")
 
     def shutdown(self):
