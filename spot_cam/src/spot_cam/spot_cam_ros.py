@@ -11,6 +11,10 @@ from spot_cam.msg import (
     BITStatus,
     Degradation,
     PowerStatus,
+    PTZDescription,
+    PTZDescriptionArray,
+    PTZLimits,
+    PTZState,
     StreamParams,
     Temperature,
     TemperatureArray,
@@ -487,8 +491,10 @@ class StreamQualityHandlerROS(ROSHandler):
                 req.params.awb,
             )
         except InvalidRequestError as e:
-            message = f"Bad request while setting params {e}. This might be because you tried to turn auto white " \
-                      f"balance off. "
+            message = (
+                f"Bad request while setting params {e}. This might be because you tried to turn auto white "
+                f"balance off. "
+            )
             self.logger.error(message)
             return False, message
         return True, "Set stream parameters"
@@ -571,6 +577,67 @@ class StreamQualityHandlerROS(ROSHandler):
         self.client.enable_congestion_control(enable)
 
 
+class PTZHandlerROS(ROSHandler):
+    """
+    Handles interaction with a ptz
+    """
+
+    def __init__(self, wrapper: SpotCamWrapper):
+        super().__init__()
+        self.client = wrapper.ptz
+        self.ptz_list_publisher = rospy.Publisher(
+            "/spot/cam/ptz/list", PTZDescriptionArray, queue_size=1, latch=True
+        )
+        self.publish_ptz_list()
+
+    def _limit_to_ros(self, limits):
+        """
+        Convert a limit dict to ROS
+
+        Returns:
+            PTZLimits
+        """
+        limits_ros = PTZLimits()
+
+        limits_ros.min = limits["min"] if "min" in limits else 0
+        limits_ros.max = limits["max"] if "max" in limits else 0
+
+        return limits_ros
+
+    def _description_to_ros(self, desc_dict):
+        """
+        Convert a description dict to ROS
+
+        Returns:
+            PTZDescription
+        """
+        desc = PTZDescription()
+        desc.name = desc_dict["name"]
+        desc.pan_limit = self._limit_to_ros(desc_dict["pan_limit"])
+        desc.tilt_limit = self._limit_to_ros(desc_dict["tilt_limit"])
+        desc.zoom_limit = self._limit_to_ros(desc_dict["zoom_limit"])
+
+        return desc
+
+    def publish_ptz_list(self):
+        """
+        Publish the list of available ptzs
+        """
+        self.ptz_list_publisher.publish(
+            PTZDescriptionArray(
+                ptzs=[
+                    self._description_to_ros(desc) for desc in self.list_ptzs().values()
+                ]
+            )
+        )
+
+    def list_ptzs(self):
+        """
+        List available ptzs on the device
+        """
+        return self.client.list_ptz()
+
+
 class ImageStreamHandlerROS(ROSHandler):
     """
     This handles the image stream coming from the Spot CAM. Its output depends on the screen that has been chosen on
@@ -623,6 +690,7 @@ class SpotCam:
         self.health = HealthHandlerROS(self.wrapper)
         self.audio = AudioHandlerROS(self.wrapper)
         self.stream_quality = StreamQualityHandlerROS(self.wrapper)
+        self.ptz = PTZHandlerROS(self.wrapper)
 
         rospy.on_shutdown(self.shutdown)
 

@@ -18,6 +18,8 @@ from bosdyn.client.spot_cam.power import PowerClient
 from bosdyn.client.spot_cam.health import HealthClient
 from bosdyn.client.spot_cam.audio import AudioClient
 from bosdyn.client.spot_cam.streamquality import StreamQualityClient
+from bosdyn.client.spot_cam.ptz import PtzClient
+from bosdyn.api.spot_cam.ptz_pb2 import PtzDescription, PtzVelocity, PtzPosition
 from bosdyn.api.spot_cam import audio_pb2
 
 from spot_cam.webrtc_client import WebRTCClient
@@ -306,15 +308,17 @@ class AudioWrapper:
 
 
 class StreamQualityWrapper:
+    """
+    Wrapper for stream quality commands
+    """
+
     def __init__(self, robot, logger):
         self.client: StreamQualityClient = robot.ensure_client(
             StreamQualityClient.default_service_name
         )
         self.logger = logger
 
-    def set_stream_params(
-        self, target_bitrate, refresh_interval, idr_interval, awb
-    ):
+    def set_stream_params(self, target_bitrate, refresh_interval, idr_interval, awb):
         """
         Set image compression and postprocessing parameters
 
@@ -326,9 +330,7 @@ class StreamQualityWrapper:
             idr_interval: How often an IDR message should be sent (in frames)
             awb: Mode for automatic white balance
         """
-        self.client.set_stream_params(
-            target_bitrate, refresh_interval, idr_interval, 0
-        )
+        self.client.set_stream_params(target_bitrate, refresh_interval, idr_interval, 0)
 
     def get_stream_params(self) -> typing.Dict[str, int]:
         """
@@ -355,6 +357,149 @@ class StreamQualityWrapper:
             enable: If true, enable congestion control
         """
         self.client.enable_congestion_control(enable)
+
+
+class PTZWrapper:
+    """
+    Wrapper for controlling the PTZ unit
+    """
+
+    def __init__(self, robot, logger):
+        self.client: PtzClient = robot.ensure_client(PtzClient.default_service_name)
+        self.logger = logger
+        self.ptzs = {}
+        descriptions = self.client.list_ptz()
+        for description in descriptions:
+            self.ptzs[description.name] = description
+
+    def list_ptz(self) -> typing.Dict[str, typing.Dict]:
+        """
+        List the available ptz units on the device
+
+        Returns:
+            Dict of descriptions of ptz units
+        """
+        desc_dicts = {}
+
+        descriptions = self.client.list_ptz()
+        for ptz_desc in descriptions:
+            ptz_dict = self._description_to_dict(ptz_desc)
+            desc_dicts[ptz_dict["name"]] = ptz_dict
+            # Also update the internal list of raw ptz definitions
+            self.ptzs[ptz_desc.name] = ptz_desc
+
+        return desc_dicts
+
+    def _get_ptz_description(self, name):
+        """
+        Get the bosdyn version of the ptz description
+
+        Args:
+            name: Get description for this ptz
+
+        Returns:
+            PtzDescription
+        """
+        if name not in self.ptzs:
+            self.logger.warn(
+                f"Tried to retrieve description for ptz {name} but it does not exist."
+            )
+            return None
+
+        return self.ptzs[name]
+
+    def _limits_to_dict(self, limits) -> typing.Dict[str, float]:
+        """
+        Convert ptz limits to a dict
+
+        Args:
+            limits: Limits to convert
+
+        Returns:
+            Dict with the converted proto
+        """
+        # Not sure if this is the correct way to check if the proto is blank, but IsInitialized doesn't work
+        if not str(limits.min) and not str(limits.max):
+            return {}
+
+        return {"min": limits.min.value, "max": limits.max.value}
+
+    def _description_to_dict(
+        self, description
+    ) -> typing.Dict[str, typing.Union[str, typing.Dict[str, float]]]:
+        """
+        Convert a ptz description to a dict
+        Args:
+            description: Description to convert
+
+        Returns:
+            Dictionary with the proto converted to dict
+        """
+        if not description:
+            return {}
+
+        return {
+            "name": description.name,
+            "pan_limit": self._limits_to_dict(description.pan_limit),
+            "tilt_limit": self._limits_to_dict(description.tilt_limit),
+            "zoom_limit": self._limits_to_dict(description.zoom_limit),
+        }
+
+    def get_ptz_position(self, ptz_name) -> typing.Dict[str, typing.Dict]:
+        """
+        Get the position of the ptz with the given name
+
+        Args:
+            ptz_name: Name of the ptz
+
+        Returns:
+            Dictionary containing the state of the ptz
+        """
+        return self._description_to_dict(
+            self.client.get_ptz_position(PtzDescription(name=ptz_name))
+        )
+
+    def set_ptz_position(self, ptz_name, pan, tilt, zoom):
+        """
+        Set the position of the specified ptz
+
+        Args:
+            ptz_name: Name of the ptz
+            pan: Set the pan to this value in degrees
+            tilt: Set the tilt to this value in degrees
+            zoom: Set the zoom to this zoom level
+        """
+        self.client.set_ptz_position(
+            self._get_ptz_description(ptz_name), pan, tilt, zoom
+        )
+
+    def get_ptz_velocity(self, ptz_name) -> typing.Dict[str, typing.Dict]:
+        """
+        Get the velocity of the ptz with the given name
+
+        Args:
+            ptz_name: Name of the ptz
+
+        Returns:
+            Dictionary containing the state of the ptz
+        """
+        self._description_to_dict(
+            self.client.get_ptz_velocity(PtzDescription(name=ptz_name))
+        )
+
+    def set_ptz_velocity(self, ptz_name, pan, tilt, zoom):
+        """
+        Set the velocity of the various axes of the specified ptz
+
+        Args:
+            ptz_name: Name of the ptz
+            pan: Set the pan to this value in degrees per second
+            tilt: Set the tilt to this value in degrees per second
+            zoom: Set the zoom to this value in zoom level per second
+        """
+        self.client.set_ptz_velocity(
+            self._get_ptz_description(ptz_name), pan, tilt, zoom
+        )
 
 
 class ImageStreamWrapper:
@@ -469,7 +614,7 @@ class SpotCamWrapper:
         self.health = HealthWrapper(self.robot, self._logger)
         self.audio = AudioWrapper(self.robot, self._logger)
         self.stream_quality = StreamQualityWrapper(self.robot, self._logger)
-        print(self.stream_quality.get_stream_params())
+        self.ptz = PTZWrapper(self.robot, self._logger)
 
         self._logger.info("Finished setting up spot cam wrapper components")
 

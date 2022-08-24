@@ -21,6 +21,10 @@ add_message_files(
   BITStatus.msg
   Degradation.msg
   PowerStatus.msg
+  PTZDescription.msg
+  PTZDescriptionArray.msg
+  PTZLimits.msg
+  PTZState.msg
   StreamParams.msg
   Temperature.msg
   TemperatureArray.msg
