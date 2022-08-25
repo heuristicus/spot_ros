@@ -25,6 +25,7 @@ add_message_files(
   PTZDescriptionArray.msg
   PTZLimits.msg
   PTZState.msg
+  PTZStateArray.msg
   StreamParams.msg
   Temperature.msg
   TemperatureArray.msg
@@ -38,6 +39,7 @@ add_service_files(
   SetFloat.srv
   SetIRColormap.srv
   SetIRMeterOverlay.srv
+  SetPTZState.srv
   SetStreamParams.srv
   SetString.srv
 )

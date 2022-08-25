@@ -445,6 +445,62 @@ class PTZWrapper:
             "zoom_limit": self._limits_to_dict(description.zoom_limit),
         }
 
+    def _state_to_dict(self, state) -> typing.Dict[str, typing.Dict]:
+        """
+        Convert the position or velocity of a ptz to a dict
+
+        Args:
+            state: PTZ state
+
+        Returns:
+            Dictionary of the PTZ state
+        """
+        return {
+            "ptz": self._description_to_dict(state.ptz),
+            "pan": state.pan.value,
+            "tilt": state.tilt.value,
+            "zoom": state.zoom.value,
+        }
+
+    def _clamp_value_to_limits(self, value, limits: PtzDescription.Limits):
+        """
+        Clamp the given value to the specified limits. If the limits are unspecified (i.e. both 0), the value is not
+        clamped
+
+        Args:
+            value: Value to clamp
+            limits: PTZ description limit proto
+
+        Returns:
+            Value clamped to limits
+        """
+        if limits.max.value == 0 and limits.min.value == 0:
+            # If both max and min are zero, this means the limit is unset. The documentation states that if a limit
+            # is unset, then all positions are valid.
+            # https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#ptzdescription
+            return value
+
+        return max(min(value, limits.max.value), limits.min.value)
+
+    def _clamp_request_to_limits(
+        self, ptz_name, pan, tilt, zoom
+    ) -> typing.Tuple[float, float, float]:
+        """
+
+        Args:
+            ptz_name: Name of the ptz for which the pan, tilt, and zoom should be clamped
+
+        Returns:
+            Tuple of pan, tilt, zoom, clamped to the limits of the requested ptz
+        """
+        ptz_desc = self._get_ptz_description(ptz_name)
+
+        return (
+            self._clamp_value_to_limits(pan, ptz_desc.pan_limit),
+            self._clamp_value_to_limits(tilt, ptz_desc.tilt_limit),
+            self._clamp_value_to_limits(zoom, ptz_desc.zoom_limit),
+        )
+
     def get_ptz_position(self, ptz_name) -> typing.Dict[str, typing.Dict]:
         """
         Get the position of the ptz with the given name
@@ -455,7 +511,7 @@ class PTZWrapper:
         Returns:
             Dictionary containing the state of the ptz
         """
-        return self._description_to_dict(
+        return self._state_to_dict(
             self.client.get_ptz_position(PtzDescription(name=ptz_name))
         )
 
@@ -469,6 +525,7 @@ class PTZWrapper:
             tilt: Set the tilt to this value in degrees
             zoom: Set the zoom to this zoom level
         """
+        pan, tilt, zoom = self._clamp_request_to_limits(ptz_name, pan, tilt, zoom)
         self.client.set_ptz_position(
             self._get_ptz_description(ptz_name), pan, tilt, zoom
         )
@@ -483,7 +540,7 @@ class PTZWrapper:
         Returns:
             Dictionary containing the state of the ptz
         """
-        self._description_to_dict(
+        return self._state_to_dict(
             self.client.get_ptz_velocity(PtzDescription(name=ptz_name))
         )
 
@@ -497,9 +554,16 @@ class PTZWrapper:
             tilt: Set the tilt to this value in degrees per second
             zoom: Set the zoom to this value in zoom level per second
         """
+        # We do not clamp the velocity to the limits, as it is a rate
         self.client.set_ptz_velocity(
             self._get_ptz_description(ptz_name), pan, tilt, zoom
         )
+
+    def initialise_lens(self):
+        """
+        Initialises or resets ptz autofocus
+        """
+        self.client.initialize_lens()
 
 
 class ImageStreamWrapper:

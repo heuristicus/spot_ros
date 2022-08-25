@@ -4,7 +4,11 @@ import typing
 import wave
 
 import rospy
-from bosdyn.client.exceptions import InvalidRequestError, InternalServerError
+from bosdyn.client.exceptions import (
+    InvalidRequestError,
+    InternalServerError,
+    RetryableUnavailableError,
+)
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from spot_cam.msg import (
@@ -15,6 +19,7 @@ from spot_cam.msg import (
     PTZDescriptionArray,
     PTZLimits,
     PTZState,
+    PTZStateArray,
     StreamParams,
     Temperature,
     TemperatureArray,
@@ -26,10 +31,12 @@ from spot_cam.srv import (
     SetFloat,
     SetIRColormap,
     SetIRMeterOverlay,
+    SetPTZState,
     SetStreamParams,
     SetString,
 )
 from std_msgs.msg import Float32MultiArray, Float32
+from std_srvs.srv import Trigger
 
 from spot_cam.spot_cam_wrapper import SpotCamWrapper
 from spot_driver.ros_helpers import getSystemFaults
@@ -55,8 +62,8 @@ class LightingHandlerROS(ROSHandler):
             "spot/cam/set_leds", Float32, callback=self.leds_callback
         )
         # Allow time for publisher to initialise before publishing led state
-        rospy.sleep(0.3)
         self._publish_leds()
+        self.logger.info("Initialised lighting handler")
 
     def leds_callback(self, msg: Float32):
         """
@@ -105,6 +112,7 @@ class PowerHandlerROS(ROSHandler):
             "spot/cam/cycle_power", PowerStatus, self.cycle_callback
         )
         self._publish_power()
+        self.logger.info("Initialised power handler")
 
     def power_callback(self, msg: PowerStatus):
         """
@@ -207,6 +215,7 @@ class CompositorHandlerROS(ROSHandler):
         self.set_ir_colormap_service = rospy.Service(
             "/spot/cam/set_ir_colormap", SetIRColormap, self.handle_set_ir_colormap
         )
+        self.logger.info("Initialised compositor handler")
 
     def handle_set_screen(self, req: SetString):
         """
@@ -288,6 +297,7 @@ class HealthHandlerROS(ROSHandler):
 
         self.status_thread = threading.Thread(target=self._publish_status_loop)
         self.status_thread.start()
+        self.logger.info("Initialised health handler")
 
     def get_status(self):
         """
@@ -308,7 +318,10 @@ class HealthHandlerROS(ROSHandler):
         """
         Publish the current status of the device
         """
-        self.status_publisher.publish(self.get_status())
+        try:
+            self.status_publisher.publish(self.get_status())
+        except RetryableUnavailableError as e:
+            self.logger.error(f"Error while getting BIT status: {e}")
 
     def _publish_status_loop(self):
         rate = rospy.Rate(1)
@@ -363,6 +376,7 @@ class AudioHandlerROS(ROSHandler):
         self.delete_sound_service = rospy.Service(
             "/spot/cam/audio/delete", SetString, self.handle_delete_sound
         )
+        self.logger.info("Initialised audio handler")
 
     def handle_set_volume(self, req):
         """
@@ -476,8 +490,8 @@ class StreamQualityHandlerROS(ROSHandler):
         )
 
         # Allow time for publisher initialisation
-        rospy.sleep(0.3)
         self.publish_stream_params()
+        self.logger.info("Initialised stream quality handler")
 
     def handle_params(self, req):
         """
@@ -588,7 +602,30 @@ class PTZHandlerROS(ROSHandler):
         self.ptz_list_publisher = rospy.Publisher(
             "/spot/cam/ptz/list", PTZDescriptionArray, queue_size=1, latch=True
         )
+        self.ptz_velocity_publisher = rospy.Publisher(
+            "/spot/cam/ptz/velocities", PTZStateArray, queue_size=1
+        )
+        self.ptz_position_publisher = rospy.Publisher(
+            "/spot/cam/ptz/positions", PTZStateArray, queue_size=1
+        )
+        self.ptz_position_service = rospy.Service(
+            "/spot/cam/ptz/set_position", SetPTZState, self.handle_set_ptz_position
+        )
+        self.ptz_velocity_service = rospy.Service(
+            "/spot/cam/ptz/set_velocity", SetPTZState, self.handle_set_ptz_velocity
+        )
+        self.autofocus_service = rospy.Service(
+            "/spot/cam/ptz/reset_autofocus", Trigger, self.handle_reset_autofocus
+        )
         self.publish_ptz_list()
+
+        self.position_thread = threading.Thread(target=self._publish_ptz_positions)
+        self.position_thread.start()
+
+        self.velocity_thread = threading.Thread(target=self._publish_ptz_velocities)
+        self.velocity_thread.start()
+
+        self.logger.info("Initialised ptz handler")
 
     def _limit_to_ros(self, limits):
         """
@@ -637,6 +674,104 @@ class PTZHandlerROS(ROSHandler):
         """
         return self.client.list_ptz()
 
+    def handle_set_ptz_velocity(self, req):
+        """
+        Handle a request to set the ptz position
+        """
+        self.set_ptz_velocity(
+            req.command.ptz.name, req.command.pan, req.command.tilt, req.command.zoom
+        )
+
+        return (
+            True,
+            f"Successfully set ptz {req.command.ptz.name} to requested velocity",
+        )
+
+    def set_ptz_velocity(self, ptz_name, pan, tilt, zoom):
+        """
+        Set the position of the specified ptz
+
+        Args:
+            ptz_name: Name of the ptz to move
+            pan: Pan in degrees per second
+            tilt: Tilt in degrees per second
+            zoom: Zoom in zoom levels per second
+        """
+        self.client.set_ptz_velocity(ptz_name, pan, tilt, zoom)
+
+    def _publish_ptz_velocities(self):
+        rate = rospy.Rate(20)
+        while not rospy.is_shutdown():
+            state_arr = PTZStateArray()
+            for ptz_name in self.client.ptzs.keys():
+                state = self.client.get_ptz_velocity(ptz_name)
+                ros_state = PTZState()
+                ros_state.ptz = self._description_to_ros(state["ptz"])
+                ros_state.pan = state["pan"]
+                ros_state.tilt = state["tilt"]
+                ros_state.zoom = state["zoom"]
+                state_arr.ptzs.append(ros_state)
+
+            self.ptz_velocity_publisher.publish(state_arr)
+            rate.sleep()
+
+    def handle_set_ptz_position(self, req):
+        """
+        Handle a request to set the ptz position
+        """
+        self.set_ptz_position(
+            req.command.ptz.name, req.command.pan, req.command.tilt, req.command.zoom
+        )
+        return (
+            True,
+            f"Successfully set ptz {req.command.ptz.name} to requested velocity",
+        )
+
+    def set_ptz_position(self, ptz_name, pan, tilt, zoom):
+        """
+        Set the position of the specified ptz
+
+        Args:
+            ptz_name: Name of the ptz to move
+            pan: Pan in degrees
+            tilt: Tilt in degrees
+            zoom: Zoom in zoom levels
+        """
+        self.client.set_ptz_position(ptz_name, pan, tilt, zoom)
+
+    def _publish_ptz_positions(self):
+        rate = rospy.Rate(20)
+        while not rospy.is_shutdown():
+            state_arr = PTZStateArray()
+            for ptz_name in self.client.ptzs.keys():
+                state = self.client.get_ptz_position(ptz_name)
+                ros_state = PTZState()
+                ros_state.ptz = self._description_to_ros(state["ptz"])
+                ros_state.pan = state["pan"]
+                ros_state.tilt = state["tilt"]
+                ros_state.zoom = state["zoom"]
+                state_arr.ptzs.append(ros_state)
+
+            self.ptz_position_publisher.publish(state_arr)
+            rate.sleep()
+
+    def handle_reset_autofocus(self, _):
+        """
+        Handle a request to initialise or reset the ptz lens autofocus
+        """
+        try:
+            self.initialise_lens()
+        except Exception as e:
+            return False, "Failed to reset or initialise autofocus"
+
+        return True, "Reset autofocus"
+
+    def initialise_lens(self):
+        """
+        Initialise or reset the ptz lens autofocus
+        """
+        self.client.initialise_lens()
+
 
 class ImageStreamHandlerROS(ROSHandler):
     """
@@ -651,6 +786,7 @@ class ImageStreamHandlerROS(ROSHandler):
         self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
         self.loop_thread = threading.Thread(target=self._publish_images_loop)
         self.loop_thread.start()
+        self.logger.info("Initialised image stream handler")
 
     def _publish_images_loop(self):
         """
@@ -671,7 +807,7 @@ class ImageStreamHandlerROS(ROSHandler):
             loop_rate.sleep()
 
 
-class SpotCam:
+class SpotCamROS:
     def __init__(self):
         self.username = rospy.get_param("~username", "default_value")
         self.password = rospy.get_param("~password", "default_value")
