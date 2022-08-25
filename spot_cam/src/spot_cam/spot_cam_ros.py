@@ -627,34 +627,58 @@ class PTZHandlerROS(ROSHandler):
 
         self.logger.info("Initialised ptz handler")
 
-    def _limit_to_ros(self, limits):
+    def _ptz_limit_to_ros(self, limits) -> PTZLimits:
         """
-        Convert a limit dict to ROS
+        Convert a limit proto to ROS
+
+        Args:
+            limits: A limits proto
 
         Returns:
             PTZLimits
         """
-        limits_ros = PTZLimits()
+        return PTZLimits(min=limits.min.value, max=limits.max.value)
 
-        limits_ros.min = limits["min"] if "min" in limits else 0
-        limits_ros.max = limits["max"] if "max" in limits else 0
-
-        return limits_ros
-
-    def _description_to_ros(self, desc_dict):
+    def _ptz_description_to_ros(self, description) -> PTZDescription:
         """
-        Convert a description dict to ROS
+        Convert a ptz description proto to ROS
+
+        Args:
+            description: ptz description proto
 
         Returns:
             PTZDescription
         """
         desc = PTZDescription()
-        desc.name = desc_dict["name"]
-        desc.pan_limit = self._limit_to_ros(desc_dict["pan_limit"])
-        desc.tilt_limit = self._limit_to_ros(desc_dict["tilt_limit"])
-        desc.zoom_limit = self._limit_to_ros(desc_dict["zoom_limit"])
+        desc.name = description.name
+        desc.pan_limit = self._ptz_limit_to_ros(description.pan_limit)
+        desc.tilt_limit = self._ptz_limit_to_ros(description.tilt_limit)
+        desc.zoom_limit = self._ptz_limit_to_ros(description.zoom_limit)
 
         return desc
+
+    def _ptz_state_to_ros(self, state, set_stamp=True) -> PTZState:
+        """
+        Convert a ptz velocity or position to ros
+
+        Args:
+            state: ptz velocity/position proto
+            set_stamp: If true, set the timestamp for the proto as the current time
+
+        Returns:
+            PTZState
+        """
+        ros_state = PTZState()
+
+        if set_stamp:
+            ros_state.header.stamp = rospy.Time.now()
+
+        ros_state.ptz = self._ptz_description_to_ros(state.ptz)
+        ros_state.pan = state.pan.value
+        ros_state.tilt = state.tilt.value
+        ros_state.zoom = state.zoom.value
+
+        return ros_state
 
     def publish_ptz_list(self):
         """
@@ -662,9 +686,7 @@ class PTZHandlerROS(ROSHandler):
         """
         self.ptz_list_publisher.publish(
             PTZDescriptionArray(
-                ptzs=[
-                    self._description_to_ros(desc) for desc in self.list_ptzs().values()
-                ]
+                ptzs=[self._ptz_description_to_ros(desc) for desc in self.list_ptzs()]
             )
         )
 
@@ -704,13 +726,8 @@ class PTZHandlerROS(ROSHandler):
         while not rospy.is_shutdown():
             state_arr = PTZStateArray()
             for ptz_name in self.client.ptzs.keys():
-                state = self.client.get_ptz_velocity(ptz_name)
-                ros_state = PTZState()
-                ros_state.ptz = self._description_to_ros(state["ptz"])
-                ros_state.pan = state["pan"]
-                ros_state.tilt = state["tilt"]
-                ros_state.zoom = state["zoom"]
-                state_arr.ptzs.append(ros_state)
+                state = self._ptz_state_to_ros(self.client.get_ptz_velocity(ptz_name))
+                state_arr.ptzs.append(state)
 
             self.ptz_velocity_publisher.publish(state_arr)
             rate.sleep()
@@ -744,13 +761,8 @@ class PTZHandlerROS(ROSHandler):
         while not rospy.is_shutdown():
             state_arr = PTZStateArray()
             for ptz_name in self.client.ptzs.keys():
-                state = self.client.get_ptz_position(ptz_name)
-                ros_state = PTZState()
-                ros_state.ptz = self._description_to_ros(state["ptz"])
-                ros_state.pan = state["pan"]
-                ros_state.tilt = state["tilt"]
-                ros_state.zoom = state["zoom"]
-                state_arr.ptzs.append(ros_state)
+                state = self._ptz_state_to_ros(self.client.get_ptz_position(ptz_name))
+                state_arr.ptzs.append(state)
 
             self.ptz_position_publisher.publish(state_arr)
             rate.sleep()

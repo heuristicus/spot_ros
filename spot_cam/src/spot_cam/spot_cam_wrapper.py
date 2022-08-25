@@ -379,16 +379,15 @@ class PTZWrapper:
         Returns:
             Dict of descriptions of ptz units
         """
-        desc_dicts = {}
+        ptzs = []
 
         descriptions = self.client.list_ptz()
         for ptz_desc in descriptions:
-            ptz_dict = self._description_to_dict(ptz_desc)
-            desc_dicts[ptz_dict["name"]] = ptz_dict
+            ptzs.append(ptz_desc)
             # Also update the internal list of raw ptz definitions
             self.ptzs[ptz_desc.name] = ptz_desc
 
-        return desc_dicts
+        return ptzs
 
     def _get_ptz_description(self, name):
         """
@@ -407,60 +406,6 @@ class PTZWrapper:
             return None
 
         return self.ptzs[name]
-
-    def _limits_to_dict(self, limits) -> typing.Dict[str, float]:
-        """
-        Convert ptz limits to a dict
-
-        Args:
-            limits: Limits to convert
-
-        Returns:
-            Dict with the converted proto
-        """
-        # Not sure if this is the correct way to check if the proto is blank, but IsInitialized doesn't work
-        if not str(limits.min) and not str(limits.max):
-            return {}
-
-        return {"min": limits.min.value, "max": limits.max.value}
-
-    def _description_to_dict(
-        self, description
-    ) -> typing.Dict[str, typing.Union[str, typing.Dict[str, float]]]:
-        """
-        Convert a ptz description to a dict
-        Args:
-            description: Description to convert
-
-        Returns:
-            Dictionary with the proto converted to dict
-        """
-        if not description:
-            return {}
-
-        return {
-            "name": description.name,
-            "pan_limit": self._limits_to_dict(description.pan_limit),
-            "tilt_limit": self._limits_to_dict(description.tilt_limit),
-            "zoom_limit": self._limits_to_dict(description.zoom_limit),
-        }
-
-    def _state_to_dict(self, state) -> typing.Dict[str, typing.Dict]:
-        """
-        Convert the position or velocity of a ptz to a dict
-
-        Args:
-            state: PTZ state
-
-        Returns:
-            Dictionary of the PTZ state
-        """
-        return {
-            "ptz": self._description_to_dict(state.ptz),
-            "pan": state.pan.value,
-            "tilt": state.tilt.value,
-            "zoom": state.zoom.value,
-        }
 
     def _clamp_value_to_limits(self, value, limits: PtzDescription.Limits):
         """
@@ -501,7 +446,7 @@ class PTZWrapper:
             self._clamp_value_to_limits(zoom, ptz_desc.zoom_limit),
         )
 
-    def get_ptz_position(self, ptz_name) -> typing.Dict[str, typing.Dict]:
+    def get_ptz_position(self, ptz_name) -> PtzPosition:
         """
         Get the position of the ptz with the given name
 
@@ -509,11 +454,9 @@ class PTZWrapper:
             ptz_name: Name of the ptz
 
         Returns:
-            Dictionary containing the state of the ptz
+            ptz position proto
         """
-        return self._state_to_dict(
-            self.client.get_ptz_position(PtzDescription(name=ptz_name))
-        )
+        return self.client.get_ptz_position(PtzDescription(name=ptz_name))
 
     def set_ptz_position(self, ptz_name, pan, tilt, zoom):
         """
@@ -530,7 +473,7 @@ class PTZWrapper:
             self._get_ptz_description(ptz_name), pan, tilt, zoom
         )
 
-    def get_ptz_velocity(self, ptz_name) -> typing.Dict[str, typing.Dict]:
+    def get_ptz_velocity(self, ptz_name) -> PtzVelocity:
         """
         Get the velocity of the ptz with the given name
 
@@ -538,11 +481,9 @@ class PTZWrapper:
             ptz_name: Name of the ptz
 
         Returns:
-            Dictionary containing the state of the ptz
+            ptz velocity proto
         """
-        return self._state_to_dict(
-            self.client.get_ptz_velocity(PtzDescription(name=ptz_name))
-        )
+        return self.client.get_ptz_velocity(PtzDescription(name=ptz_name))
 
     def set_ptz_velocity(self, ptz_name, pan, tilt, zoom):
         """
