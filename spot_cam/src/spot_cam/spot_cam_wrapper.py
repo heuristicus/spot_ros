@@ -145,6 +145,15 @@ class CompositorWrapper:
         """
         return [screen.name for screen in self.client.list_screens()]
 
+    def get_visible_cameras(self):
+        """
+        Get the camera data for the camera currently visible on the stream
+
+        Returns:
+            List of visible camera streams
+        """
+        return self.client.get_visible_cameras()
+
     def set_screen(self, screen):
         """
         Set the screen to be streamed over the network
@@ -534,6 +543,8 @@ class PTZWrapper:
 class ImageStreamWrapper:
     """
     A wrapper for the image stream from WebRTC
+
+    Can view the same stream at https://192.168.50.3:31102/h264.sdp.html (depending on the IP of the robot)
 
     Contains functions adapted from
     https://github.com/boston-dynamics/spot-sdk/blob/master/python/examples/spot_cam/webrtc.py

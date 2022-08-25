@@ -37,7 +37,7 @@ from spot_cam.srv import (
     SetStreamParams,
     SetString,
 )
-from std_msgs.msg import Float32MultiArray, Float32
+from std_msgs.msg import Float32MultiArray, Float32, String
 from std_srvs.srv import Trigger
 
 from spot_cam.spot_cam_wrapper import SpotCamWrapper
@@ -214,6 +214,10 @@ class CompositorHandlerROS(ROSHandler):
             SetIRMeterOverlay,
             self.handle_set_ir_meter_overlay,
         )
+        self.screen_list_pub = rospy.Publisher(
+            "/spot/cam/screens", String, queue_size=1, latch=True
+        )
+        self.screen_list_pub.publish(str(self.client.list_screens()))
         self.set_ir_colormap_service = rospy.Service(
             "/spot/cam/set_ir_colormap", SetIRColormap, self.handle_set_ir_colormap
         )
@@ -328,7 +332,10 @@ class HealthHandlerROS(ROSHandler):
     def _publish_status_loop(self):
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
-            self.publish_status()
+            try:
+                self.publish_status()
+            except RetryableUnavailableError as e:
+                self.logger.warning(f"Failed to get health status: {e}")
             rate.sleep()
 
     def get_temperatures(self):
@@ -354,7 +361,11 @@ class HealthHandlerROS(ROSHandler):
     def _publish_temperatures_loop(self):
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
-            self.publish_temperatures()
+            try:
+                self.publish_temperatures()
+            except RetryableUnavailableError as e:
+                self.logger.warning(f"Failed to get temperatures: {e}")
+
             rate.sleep()
 
 
@@ -668,9 +679,13 @@ class TransformHandlerROS(ROSHandler):
     def publish_transforms(self):
         rate = rospy.Rate(20)
         while not rospy.is_shutdown():
-            self.tf_broadcaster.sendTransform(
-                self._get_camera_transforms(self.STATIC_CAMERAS, exclude=True)
-            )
+            try:
+                self.tf_broadcaster.sendTransform(
+                    self._get_camera_transforms(self.STATIC_CAMERAS, exclude=True)
+                )
+            except RetryableUnavailableError as e:
+                self.logger.warning(f"Failed to list cameras: {e}")
+
             rate.sleep()
 
     def _get_camera_transforms(
@@ -835,8 +850,13 @@ class PTZHandlerROS(ROSHandler):
         while not rospy.is_shutdown():
             state_arr = PTZStateArray()
             for ptz_name in self.client.ptzs.keys():
-                state = self._ptz_state_to_ros(self.client.get_ptz_velocity(ptz_name))
-                state_arr.ptzs.append(state)
+                try:
+                    state = self._ptz_state_to_ros(
+                        self.client.get_ptz_velocity(ptz_name)
+                    )
+                    state_arr.ptzs.append(state)
+                except RetryableUnavailableError as e:
+                    self.logger.warning(f"Failed to get velocity for {ptz_name}: {e}")
 
             self.ptz_velocity_publisher.publish(state_arr)
             rate.sleep()
@@ -870,8 +890,13 @@ class PTZHandlerROS(ROSHandler):
         while not rospy.is_shutdown():
             state_arr = PTZStateArray()
             for ptz_name in self.client.ptzs.keys():
-                state = self._ptz_state_to_ros(self.client.get_ptz_position(ptz_name))
-                state_arr.ptzs.append(state)
+                try:
+                    state = self._ptz_state_to_ros(
+                        self.client.get_ptz_position(ptz_name)
+                    )
+                    state_arr.ptzs.append(state)
+                except RetryableUnavailableError as e:
+                    self.logger.warning(f"Failed to get position for {ptz_name}: {e}")
 
             self.ptz_position_publisher.publish(state_arr)
             rate.sleep()
@@ -902,7 +927,10 @@ class ImageStreamHandlerROS(ROSHandler):
 
     def __init__(self, wrapper: SpotCamWrapper):
         super().__init__()
-        self.client = wrapper.image
+        self.image_client = wrapper.image
+        # Need the compositor to get information about what camera is currently on screen so we can correctly set the
+        # frame id of the image
+        self.compositor_client = wrapper.compositor
         self.cv_bridge = CvBridge()
         self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
         self.loop_thread = threading.Thread(target=self._publish_images_loop)
@@ -914,16 +942,32 @@ class ImageStreamHandlerROS(ROSHandler):
         We run this handler in a separate thread so it can loop and publish whenever the image is updated
         """
         loop_rate = rospy.Rate(50)
-        last_image_time = self.client.last_image_time
+        last_image_time = self.image_client.last_image_time
         while not rospy.is_shutdown():
-            if last_image_time != self.client.last_image_time:
-                image = self.cv_bridge.cv2_to_imgmsg(self.client.last_image, "bgr8")
+            if last_image_time != self.image_client.last_image_time:
+
+                image = self.cv_bridge.cv2_to_imgmsg(
+                    self.image_client.last_image, "bgr8"
+                )
                 image.header.stamp = (
                     rospy.Time.now()
                 )  # Not strictly correct... but close enough?
+                try:
+                    visible_cameras = self.compositor_client.get_visible_cameras()
+                    if len(visible_cameras) == 1:
+                        # Can't set the frame id unless there is only a single camera displayed. There is no frame for a
+                        # combined image
+                        # The camera name here is in the form name:window, we just want the camera name
+                        # https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#getvisiblecamerasresponse-stream
+                        image.header.frame_id = visible_cameras[0].camera.name.split(
+                            ":"
+                        )[0]
+                except RetryableUnavailableError as e:
+                    self.logger.warning(f"Failed to get visible cameras: {e}")
+
                 # TODO: This has to do frame switching in the published message headers depending on the compositor view
                 self.image_pub.publish(image)
-                last_image_time = self.client.last_image_time
+                last_image_time = self.image_client.last_image_time
 
             loop_rate.sleep()
 
