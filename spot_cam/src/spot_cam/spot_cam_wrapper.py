@@ -19,6 +19,8 @@ from bosdyn.client.spot_cam.health import HealthClient
 from bosdyn.client.spot_cam.audio import AudioClient
 from bosdyn.client.spot_cam.streamquality import StreamQualityClient
 from bosdyn.client.spot_cam.ptz import PtzClient
+from bosdyn.client.spot_cam.media_log import MediaLogClient
+from bosdyn.client.payload import PayloadClient
 from bosdyn.api.spot_cam.ptz_pb2 import PtzDescription, PtzVelocity, PtzPosition
 from bosdyn.api.spot_cam import audio_pb2
 
@@ -123,6 +125,10 @@ class PowerWrapper:
 
 
 class CompositorWrapper:
+    """
+    Wrapper for compositor interaction
+    """
+
     def __init__(self, robot: Robot, logger):
         self.logger = logger
         self.client: CompositorClient = robot.ensure_client(
@@ -357,6 +363,24 @@ class StreamQualityWrapper:
             enable: If true, enable congestion control
         """
         self.client.enable_congestion_control(enable)
+
+
+class MediaLogWrapper:
+    """
+    Wrapper for interacting with the media log. And importantly, information about the cameras themselves
+    """
+
+    def __init__(self, robot, logger):
+        self.client: MediaLogClient = robot.ensure_client(
+            MediaLogClient.default_service_name
+        )
+        self.logger = logger
+
+    def list_cameras(self) -> typing.List:
+        """
+        List the cameras on the spot cam
+        """
+        return self.client.list_cameras()
 
 
 class PTZWrapper:
@@ -611,7 +635,21 @@ class SpotCamWrapper:
             self.robot, self._hostname, self._username, self._password, self._logger
         )
 
-        # TODO: Work out how to distinguish between spot cam, spot cam +, and spot cam + IR
+        self.payload_client: PayloadClient = self.robot.ensure_client(
+            PayloadClient.default_service_name
+        )
+        self.payload_details = None
+        for payload in self.payload_client.list_payloads():
+            if payload.is_enabled and "Spot CAM" in payload.name:
+                self.payload_details = payload
+
+        if not self.payload_details:
+            raise SystemError(
+                "Expected an enabled payload with Spot CAM in the name. This does not appear to exist. "
+                "Please verify that the spot cam is correctly configured in the payload list on the "
+                "admin interface"
+            )
+
         self.lighting = LightingWrapper(self.robot, self._logger)
         self.power = PowerWrapper(self.robot, self._logger)
         self.compositor = CompositorWrapper(self.robot, self._logger)
@@ -619,6 +657,7 @@ class SpotCamWrapper:
         self.health = HealthWrapper(self.robot, self._logger)
         self.audio = AudioWrapper(self.robot, self._logger)
         self.stream_quality = StreamQualityWrapper(self.robot, self._logger)
+        self.media_log = MediaLogWrapper(self.robot, self._logger)
         self.ptz = PTZWrapper(self.robot, self._logger)
 
         self._logger.info("Finished setting up spot cam wrapper components")

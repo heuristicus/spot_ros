@@ -3,6 +3,8 @@ import threading
 import typing
 import wave
 
+import tf2_ros
+from geometry_msgs.msg import TransformStamped
 import rospy
 from bosdyn.client.exceptions import (
     InvalidRequestError,
@@ -591,6 +593,113 @@ class StreamQualityHandlerROS(ROSHandler):
         self.client.enable_congestion_control(enable)
 
 
+class TransformHandlerROS(ROSHandler):
+    """
+    Handles publication of transforms for the cameras
+    """
+
+    STATIC_CAMERAS = [
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "pano",
+        "tiled-ring",
+        "projected-ring",
+    ]
+    # Unclear where this is defined. Documentation (
+    # https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#camera) says it can be retrieved from a
+    # frametreesnapshot provided by the payload registration service, but there doesn't seem to be a function there
+    # which returns one of those.
+    PAYLOAD_FRAME = "spot_cam_payload_frame"
+
+    def __init__(self, wrapper: SpotCamWrapper):
+        super().__init__()
+        self.client = wrapper.media_log
+        self.payload_info = wrapper.payload_details
+
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
+        self.tf_static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+
+        self.static_transforms = []
+        # Generate a static transform for the spot cam payload itself relative to the body
+        self.payload_transform = self._se3_proto_to_tf(
+            self.payload_info.body_tform_payload
+        )
+        self.payload_transform.header.frame_id = "body"
+        self.payload_transform.child_frame_id = self.PAYLOAD_FRAME
+        self.static_transforms.append(self.payload_transform)
+
+        # Generate static transforms for the fixed cameras
+        self.static_transforms.extend(self._get_camera_transforms(self.STATIC_CAMERAS))
+
+        # Publish all the static transforms in a block. Doing each one individually can cause issues.
+        self.tf_static_broadcaster.sendTransform(self.static_transforms)
+
+        self.transform_thread = threading.Thread(target=self.publish_transforms)
+        self.transform_thread.start()
+
+    def _se3_proto_to_tf(self, se3, set_stamp=True) -> TransformStamped:
+        """
+        Convert an se3 proto to a transform stamped
+
+        Args:
+            se3: se3 proto
+            set_stamp: If true, set the timestamp to the time of generation
+
+        Returns:
+            TransformStamped
+        """
+        tfm = TransformStamped()
+        tfm.header.stamp = rospy.Time.now()
+        tfm.transform.translation.x = se3.position.x
+        tfm.transform.translation.y = se3.position.y
+        tfm.transform.translation.z = se3.position.z
+        tfm.transform.rotation.w = se3.rotation.w
+        tfm.transform.rotation.x = se3.rotation.x
+        tfm.transform.rotation.y = se3.rotation.y
+        tfm.transform.rotation.z = se3.rotation.z
+
+        return tfm
+
+    def publish_transforms(self):
+        rate = rospy.Rate(20)
+        while not rospy.is_shutdown():
+            self.tf_broadcaster.sendTransform(
+                self._get_camera_transforms(self.STATIC_CAMERAS, exclude=True)
+            )
+            rate.sleep()
+
+    def _get_camera_transforms(
+        self, camera_names: typing.Optional[typing.List[str]], exclude=False
+    ) -> typing.List[TransformStamped]:
+        """
+        Get a list of camera transforms
+
+        Args:
+            camera_names: List of names of cameras for which transforms should be returned
+            exclude: If true, return transforms for those cameras which are not present in the provided list of names
+
+        Returns:
+            List of TransformStamped
+        """
+        transforms = []
+        for camera in self.client.list_cameras():
+            if (not exclude and camera.name in camera_names) or (
+                exclude and camera.name not in camera_names
+            ):
+                camera_transform = self._se3_proto_to_tf(camera.base_tform_sensor)
+                camera_transform.child_frame_id = camera.name
+                # This is the transform from the payload frame to the camera frame
+                camera_transform.header.frame_id = self.PAYLOAD_FRAME
+                transforms.append(camera_transform)
+
+        return transforms
+
+
 class PTZHandlerROS(ROSHandler):
     """
     Handles interaction with a ptz
@@ -838,6 +947,7 @@ class SpotCamROS:
         self.health = HealthHandlerROS(self.wrapper)
         self.audio = AudioHandlerROS(self.wrapper)
         self.stream_quality = StreamQualityHandlerROS(self.wrapper)
+        self.transforms = TransformHandlerROS(self.wrapper)
         self.ptz = PTZHandlerROS(self.wrapper)
 
         rospy.on_shutdown(self.shutdown)
