@@ -821,7 +821,7 @@ class SpotWrapper():
         except Exception as e:
             return False, "Exception occured during arm movement: " + str(e)
 
-    def force_trajectory(self, forces_torques):
+    def force_trajectory(self, data):
         try:
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
@@ -840,25 +840,29 @@ class SpotWrapper():
                 # Demonstrate an example force trajectory by ramping up and down a vertical force over
                 # 10 seconds
 
-                f_x0 = forces_torques[0]  # Newtons
-                f_y0 = forces_torques[1]
-                f_z0 = forces_torques[2]
+                f_x0 = data.forces_pt0[0]  # Newtons
+                f_y0 = data.forces_pt0[1]
+                f_z0 = data.forces_pt0[2]
 
-                f_x1 = forces_torques[3]  # Newtons
-                f_y1 = forces_torques[4]
-                f_z1 = forces_torques[5]  # -10 push down
+                torque_x0 = data.torques_pt0[0]
+                torque_y0 = data.torques_pt0[1]
+                torque_z0 = data.torques_pt0[2]
+
+                f_x1 = data.forces_pt1[0]  # Newtons
+                f_y1 = data.forces_pt1[1]
+                f_z1 = data.forces_pt1[2]  # -10 push down
 
                 # We won't have any rotational torques
-                torque_x = forces_torques[6]
-                torque_y = forces_torques[7]
-                torque_z = forces_torques[8]
+                torque_x1 = data.torques_pt1[0]
+                torque_y1 = data.torques_pt1[1]
+                torque_z1 = data.torques_pt1[2]
 
                 # Duration in seconds.
                 traj_duration = 5
 
                 # First point of trajectory
                 force_vector0 = geometry_pb2.Vec3(x=f_x0, y=f_y0, z=f_z0)
-                torque_vector0 = geometry_pb2.Vec3(x=torque_x, y=torque_y, z=torque_z)
+                torque_vector0 = geometry_pb2.Vec3(x=torque_x0, y=torque_y0, z=torque_z0)
                 
                 wrench0 = geometry_pb2.Wrench(force=force_vector0, torque=torque_vector0)
                 t0 = seconds_to_duration(0)
@@ -867,7 +871,7 @@ class SpotWrapper():
                 
                 # Second point on the trajectory
                 force_vector1 = geometry_pb2.Vec3(x=f_x1, y=f_y1, z=f_z1)
-                torque_vector1 = geometry_pb2.Vec3(x=torque_x, y=torque_y, z=torque_z)
+                torque_vector1 = geometry_pb2.Vec3(x=torque_x1, y=torque_y1, z=torque_z1)
 
                 wrench1 = geometry_pb2.Wrench(force=force_vector1, torque=torque_vector1)
                 t1 = seconds_to_duration(traj_duration)
@@ -901,7 +905,9 @@ class SpotWrapper():
                 time.sleep(10.0)
 
         except Exception as e:
-            return False, "Exception occured during arm movement" + str(e)
+            return False, "Exception occured during arm movement"
+
+        return True, "Moved arm successfully"
         
     def gripper_open(self):
         try:
@@ -943,7 +949,6 @@ class SpotWrapper():
 
         return True, "Closed gripper successfully"
     
-    
     def gripper_angle_open(self, gripper_ang):
         try:
             success, msg = self.ensure_arm_power_and_stand()
@@ -952,7 +957,7 @@ class SpotWrapper():
                 return False, msg
             else:
                 # Open gripper at an angle
-                command = RobotCommandBuilder.claw_gripper_open_angle_command(gripper_q)
+                command = RobotCommandBuilder.claw_gripper_open_angle_command(gripper_ang)
 
                 # Command issue with RobotCommandClient
                 self._robot_command_client.robot_command(command)
@@ -983,41 +988,31 @@ class SpotWrapper():
                 qx = 0
                 qy = 0
                 qz = 0
-                body_Q_hand = geometry_pb2.Quaternion(w=qw, x=qx, y=qy, z=qz)
-
-                # Build the SE(3) pose of the desired hand position in the moving body frame.
-                body_T_hand = geometry_pb2.SE3Pose(position=hand_pos_rt_body, rotation=body_Q_hand)
-
-                # Transform the desired from the moving body frame to the odom frame.
-                robot_state = self._robot_state_client.get_robot_state()
-
-                odom_T_body = frame_helpers.get_a_tform_b(robot_state.kinematic_state.transforms_snapshot,
-                                            ODOM_FRAME_NAME, GRAV_ALIGNED_BODY_FRAME_NAME)
-                odom_T_hand = odom_T_body * math_helpers.SE3Pose.from_obj(body_T_hand)
 
                 # duration in seconds
                 seconds = 5
 
                 # Create the arm command.
                 arm_command = RobotCommandBuilder.arm_pose_command(
-                    odom_T_hand.x, odom_T_hand.y, odom_T_hand.z, odom_T_hand.rot.w, odom_T_hand.rot.x,
-                    odom_T_hand.rot.y, odom_T_hand.rot.z, ODOM_FRAME_NAME, seconds)
+                    x, y, z, qw, qx, qy, qz, BODY_FRAME_NAME, seconds)
                 self._logger.info("Create arm command")
 
-                # Tell the robot's body to follow the arm
-                follow_arm_command = RobotCommandBuilder.follow_arm_command()
-                
-                command = self._robot_command(RobotCommandBuilder.build_synchro_command(follow_arm_command, arm_command))
-                self._logger.info("After building command")
-
                 # Send the request
-                self._robot_command_client.robot_command(command)
-                robot.logger.info('Moving arm to position.')
+                self._robot_command_client.robot_command(arm_command)
+                self._logger.info('Moving arm to position.')
 
                 time.sleep(6.0)
 
+                # Tell the robot's body to follow the arm
+                follow_arm_command = RobotCommandBuilder.follow_arm_command()
+                self._logger.info("After building second command")
+                self._robot_command_client.robot_command(follow_arm_command)
+                self._logger.info("Sending second command")
+
+                
+
         except Exception as e:
-            return False, "Exception occured while arm was moving"
+            return False, "Exception occured while arm was moving" + str(type(e)) + " " + str(e)
 
         return True, "Moved arm successfully"
     

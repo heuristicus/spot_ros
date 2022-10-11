@@ -76,7 +76,6 @@ class SpotROS():
             results: FutureWrapper object of AsyncPeriodicQuery callback
         """
         state = self.spot_wrapper.robot_state
-
         if state:
             ## joint states ##
             joint_state = GetJointStatesFromState(state, self.spot_wrapper)
@@ -535,7 +534,7 @@ class SpotROS():
     
     def handle_force_trajectory(self, srv_data: ArmForceTrajectoryRequest):
         """ROS service handler to send a force trajectory up or down a vertical force"""
-        resp = self.spot_wrapper.force_trajectory(forces_torques = srv_data.force_torque)
+        resp = self.spot_wrapper.force_trajectory(data=srv_data)
         return ArmForceTrajectoryResponse(resp[0], resp[1])
     
     def handle_gripper_open(self, srv_data):
@@ -560,7 +559,7 @@ class SpotROS():
     
     def handle_body_follow_arm(self, srv_data):
         """ROS service to send a pose to the end effector"""
-        resp = self.spot_wrapper.hand_position_3d()
+        resp = self.spot_wrapper.body_follow_arm()
         return TriggerResponse(resp[0], resp[1])
     
     def handle_hand_pose(self, srv_data: HandPoseRequest):
