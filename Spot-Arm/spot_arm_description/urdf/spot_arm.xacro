@@ -4,7 +4,7 @@
 <xacro:include filename="$(find spot_arm_description)/urdf/materials.xacro" />
 <xacro:include filename="$(find spot_arm_description)/urdf/spot_arm.trans" />
 <xacro:include filename="$(find spot_arm_description)/urdf/spot_arm.gazebo" />
-<link name="base_link">
+<link name="base_arm_link">
   <inertial>
     <origin rpy="0 0 0" xyz="1.2371844231029972e-17 0.0 0.0325"/>
     <mass value="5.770791545379091"/>
@@ -172,9 +172,15 @@
   </collision>
 </link>
 
+<joint name="base_arm_joint" type="fixed">
+        <origin xyz="0.29 0 0.08" rpy="0 0 0" />
+        <parent link="body" />
+        <child link="base_arm_link" />
+    </joint>
+
 <joint name="Joint1" type="revolute">
   <origin rpy="0 0 0" xyz="0.0 0.0 0.065"/>
-  <parent link="base_link"/>
+  <parent link="base_arm_link"/>
   <child link="link1"/>
   <axis xyz="0.0 0.0 1.0"/>
   <limit effort="100" lower="-3.141593" upper="2.617994" velocity="100"/>
