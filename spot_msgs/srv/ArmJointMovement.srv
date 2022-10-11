@@ -1,4 +1,4 @@
-float64[6] joint_target
+float64[] joint_target
 ---
 bool success
 string message

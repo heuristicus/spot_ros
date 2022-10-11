@@ -1,7 +1,7 @@
 <launch>
 
 <rosparam file="$(find spot_arm_description)/launch/controller.yaml" command="load"/>
-<node args="Joint1_position_controller Joint2_position_controller Joint3_position_controller Joint4_position_controller Joint5_position_controller Joint6_position_controller Joint7_position_controller joint_state_controller " name="controller_spawner" ns="spot_arm" output="screen" pkg="controller_manager" respawn="false" type="spawner" />
+<node args="Joint1_position_controller Joint2_position_controller Joint3_position_controller Joint4_position_controller Joint5_position_controller Joint6_position_controller Joint7_position_controller joint_state_controller " name="controller_spawner" ns="spot_arm" output="screen" pkg="controller_manager" respawn="false" type="spawner"
 <node name="robot_state_publisher" output="screen" pkg="robot_state_publisher" respawn="false" type="robot_state_publisher">
   <remap from="/joint_states" to="/spot_arm/joint_states"/>
 </node>
