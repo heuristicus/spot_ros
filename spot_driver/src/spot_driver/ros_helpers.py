@@ -39,6 +39,17 @@ friendly_joint_names["hr.hx"] = "rear_right_hip_x"
 friendly_joint_names["hr.hy"] = "rear_right_hip_y"
 friendly_joint_names["hr.kn"] = "rear_right_knee"
 
+# arm joints
+friendly_joint_names["arm0.sh0"] = "Joint1"
+friendly_joint_names["arm0.sh1"] = "Joint2"
+#friendly_joint_names["arm0.hr0"] = ""
+friendly_joint_names["arm0.el0"] = "Joint3"
+friendly_joint_names["arm0.el1"] = "Joint4"
+friendly_joint_names["arm0.wr0"] = "Joint5"
+friendly_joint_names["arm0.wr1"] = "Joint6"
+friendly_joint_names["arm0.f1x"] = "Joint7"
+
+
 class DefaultCameraInfo(CameraInfo):
     """Blank class extending CameraInfo ROS topic that defaults most parameters"""
     def __init__(self):
@@ -191,6 +202,8 @@ def GetJointStatesFromState(state, spot_wrapper):
     local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
     joint_state.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     for joint in state.kinematic_state.joint_states:
+        if joint.name == 'arm0.hr0':
+            continue
         joint_state.name.append(friendly_joint_names.get(joint.name, "ERROR"))
         joint_state.position.append(joint.position.value)
         joint_state.velocity.append(joint.velocity.value)

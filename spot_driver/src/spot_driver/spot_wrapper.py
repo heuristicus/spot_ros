@@ -10,7 +10,7 @@ from bosdyn.geometry import EulerZXY
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder, blocking_stand
 from bosdyn.client.graph_nav import GraphNavClient
-from bosdyn.client.frame_helpers import get_odom_tform_body, ODOM_FRAME_NAME
+from bosdyn.client.frame_helpers import get_odom_tform_body, ODOM_FRAME_NAME, BODY_FRAME_NAME
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
 from bosdyn.client.image import ImageClient, build_image_request
@@ -1030,28 +1030,28 @@ class SpotWrapper():
             else:
                 # Move the arm to a spot in front of the robot given a pose for the gripper.
                 # Build a position to move the arm to (in meters, relative to the body frame origin.)
-                x = pose_points[0] #1.45
-                y = pose_points[1] #0.2
-                z = pose_points[1] #0.85
+                x = pose_points.position.x
+                y = pose_points.position.y
+                z = pose_points.position.z 
                 position = geometry_pb2.Vec3(x=x, y=y, z=z)
 
-                # Rotation as a quaternion.
-                qw = 1
-                qx = 0
-                qy = 0
-                qz = 0
+                # # Rotation as a quaternion.
+                qw = pose_points.orientation.w
+                qx = pose_points.orientation.x
+                qy = pose_points.orientation.y
+                qz = pose_points.orientation.z
                 rotation = geometry_pb2.Quaternion(w=qw, x=qx, y=qy, z=qz)
 
                 seconds = 5.0
                 duration = seconds_to_duration(seconds)
-
+                
                 # Build the SE(3) pose of the desired hand position in the moving body frame.
                 hand_pose = geometry_pb2.SE3Pose(position=position, rotation=rotation)
                 hand_pose_traj_point = trajectory_pb2.SE3TrajectoryPoint(pose=hand_pose, time_since_reference=duration)                
                 hand_trajectory = trajectory_pb2.SE3Trajectory(points=[hand_pose_traj_point])
                 
                 arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
-                    root_frame_name=ODOM_FRAME_NAME, pose_trajectory_in_task=hand_trajectory)
+                    root_frame_name=BODY_FRAME_NAME, pose_trajectory_in_task=hand_trajectory)
                 arm_command = arm_command_pb2.ArmCommand.Request(
                     arm_cartesian_command=arm_cartesian_command)
                 synchronized_command = synchronized_command_pb2.SynchronizedCommand.Request(
@@ -1065,13 +1065,16 @@ class SpotWrapper():
                 self._logger.info("After building command")
 
                 # Send the request
-                self._robot_command_client.robot_command(command)
+                try:
+                    self._robot_command_client.robot_command(command)
+                except Exception as e:
+                    print('1')
                 self._logger.info('Moving arm to position.')
 
                 time.sleep(6.0)
 
         except Exception as e:
-            return False, "Exception occured while arm was moving"
+            return False, str(e)
 
         return True, "Moved arm successfully"
    

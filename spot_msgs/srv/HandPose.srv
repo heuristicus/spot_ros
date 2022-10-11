@@ -1,4 +1,4 @@
-float64[] pose_point
+geometry_msgs/Pose pose_point
 ---
 bool success
 string message
