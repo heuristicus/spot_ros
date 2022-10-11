@@ -879,7 +879,6 @@ class SpotWrapper():
                                                                 time_since_reference=t1)
 
                 # Build the trajectory
-                self._logger.info("Building the trajectory")
                 trajectory = trajectory_pb2.WrenchTrajectory(points=[traj_point0, traj_point1])
                 
                 # Build the trajectory request, putting all axes into force mode
@@ -995,7 +994,6 @@ class SpotWrapper():
                 # Create the arm command.
                 arm_command = RobotCommandBuilder.arm_pose_command(
                     x, y, z, qw, qx, qy, qz, BODY_FRAME_NAME, seconds)
-                self._logger.info("Create arm command")
 
                 # Send the request
                 self._robot_command_client.robot_command(arm_command)
@@ -1005,16 +1003,15 @@ class SpotWrapper():
 
                 # Tell the robot's body to follow the arm
                 follow_arm_command = RobotCommandBuilder.follow_arm_command()
-                self._logger.info("After building second command")
                 self._robot_command_client.robot_command(follow_arm_command)
-                self._logger.info("Sending second command")
+                self._logger.info("Sending follow arm command")
 
                 
 
         except Exception as e:
             return False, "Exception occured while arm was moving" + str(type(e)) + " " + str(e)
 
-        return True, "Moved arm successfully"
+        return True, "Moved arm and switched to follow arm successfully"
     
     def hand_pose(self, pose_points):
         try:
@@ -1056,8 +1053,6 @@ class SpotWrapper():
                 robot_command = robot_command_pb2.RobotCommand(synchronized_command=synchronized_command)
 
                 command = self._robot_command(RobotCommandBuilder.build_synchro_command(robot_command))
-
-                self._logger.info("After building command")
 
                 # Send the request
                 try:

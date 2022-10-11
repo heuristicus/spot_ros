@@ -1,13 +1,3 @@
-# Added ROS Driver for Arm
-
-Services added to control joints of the arm and the gripper.
-https://github.com/estherRay/spot_ros/blob/master/spot_arm.mp4
-
-# URDF and MoveIt simulation of Spot's arm
-
-Available in other repo: https://github.com/estherRay/Spot-Arm
-
-
 # Spot ROS Driver
 
 ![CP Spot](cp_spot.jpg)
@@ -110,3 +100,7 @@ catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/usr/bin
 4. re-run `source devel/setup.bash`
 
 5. start the driver with `roslaunch spot_driver driver.launch`
+
+# MoveIt simulation of Spot's arm
+
+Can be found in other repo: https://github.com/estherRay/Spot-Arm
