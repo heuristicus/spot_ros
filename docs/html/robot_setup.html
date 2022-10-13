@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spot Platform Configuration &mdash; Spot ROS User Documentation 0.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Configuring the ROS Driver" href="driver_configuration.html" />
+    <link rel="prev" title="Spot ROS Computer Setup" href="ros_setup.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Spot ROS User Documentation
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Spot ROS Computer Setup</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Spot Platform Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#login-to-spot-as-an-administrator">Login to Spot as an Administrator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#check-the-software-version">Check the Software Version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-a-new-user-optional">Create a New User (Optional)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-networking">Setup Networking</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#change-your-pc-s-ip-address">Change your PC’s IP address</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-wi-fi-optional">Setup Wi-Fi (Optional)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Configuring the ROS Driver</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Spot ROS Driver Usage</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Spot ROS User Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Spot Platform Configuration</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/robot_setup.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="spot-platform-configuration">
+<h1>Spot Platform Configuration<a class="headerlink" href="#spot-platform-configuration" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This driver has only been fully tested up to version 2.0.1.  Any version after this may have unexpected behviour</p>
+</div>
+<div class="section" id="login-to-spot-as-an-administrator">
+<span id="spot-login"></span><h2>Login to Spot as an Administrator<a class="headerlink" href="#login-to-spot-as-an-administrator" title="Permalink to this headline">¶</a></h2>
+<p>Connect to the wireless access point created by the robot.  The data for this is inside the battery bay of the robot.  Once connected, login as the admin user by going to the robot’s IP address (<a class="reference external" href="https://192.168.80.3">https://192.168.80.3</a>) in your web browser and entering the admin login that is also available in the battery bay.</p>
+</div>
+<div class="section" id="check-the-software-version">
+<h2>Check the Software Version<a class="headerlink" href="#check-the-software-version" title="Permalink to this headline">¶</a></h2>
+<p>Currently, the Spot driver only supports API v1 data, but it is recommended to upgrade the robot to version 2.0 or later to get a number of improvements.</p>
+<p>To check the current version of your robot, <a class="reference internal" href="#spot-login"><span class="std std-ref">Login to Spot as an Administrator</span></a>, then press Software Update to see the current version.</p>
+<img alt="_images/software_version.png" src="_images/software_version.png" />
+<p>If your software is outdated, it is highly recommended to update using the process recommended by Boston Dynamics.</p>
+</div>
+<div class="section" id="create-a-new-user-optional">
+<h2>Create a New User (Optional)<a class="headerlink" href="#create-a-new-user-optional" title="Permalink to this headline">¶</a></h2>
+<p>For connecting to the robot with ROS, it is recommended to create a new, non-administrator user.  This allows for more security and user-management in the future.</p>
+<p>To setup a new user, <a class="reference internal" href="#spot-login"><span class="std std-ref">Login to Spot as an Administrator</span></a>, then navigate to the User Management page and press ADD USER.</p>
+<p>Ender a valid username and password.  The user does not have to be an administrator to use the ROS driver.</p>
+<img alt="_images/add_user_1.png" src="_images/add_user_1.png" />
+<p>Once your new user is setup, you will see it appear under the USER MANAGEMENT page.</p>
+<img alt="_images/add_user_2.png" src="_images/add_user_2.png" />
+</div>
+<div class="section" id="setup-networking">
+<h2>Setup Networking<a class="headerlink" href="#setup-networking" title="Permalink to this headline">¶</a></h2>
+<p>There is a large amount of data that will be streaming to the robot over the network.  It is <em>highly recommended</em> to connect the Spot to the ROS PC through a gigabit ethernet interface.</p>
+<div class="section" id="change-your-pc-s-ip-address">
+<h3>Change your PC’s IP address<a class="headerlink" href="#change-your-pc-s-ip-address" title="Permalink to this headline">¶</a></h3>
+<p>If you are able to, you can set your computer’s IPaddress is in the range of 10.0.0.*, 10.0.0.100 for example.  The robot will be available on 10.0.0.3.</p>
+</div>
+</div>
+<div class="section" id="setup-wi-fi-optional">
+<h2>Setup Wi-Fi (Optional)<a class="headerlink" href="#setup-wi-fi-optional" title="Permalink to this headline">¶</a></h2>
+<p>Using wireless for ROS is not recommended.  There are cases where changing the robot’s wireless settings an be useful.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This section is for referene only as there are some quirks with this wireless configuration.</p>
+</div>
+<p>First, <a class="reference internal" href="#spot-login"><span class="std std-ref">Login to Spot as an Administrator</span></a>, and go to the Networking tab.  Choose WIFI</p>
+<img alt="_images/wifi_1.png" src="_images/wifi_1.png" />
+<p>If you want to change the Access Point hosted by the robot, it can be configured here.  The following steps assume you are trying to connect the robot to an existing network.</p>
+<p>Change the network type to Client and enter a valid IP address.  Make sure the IP you choose is:</p>
+<ul class="simple">
+<li>Different than your ROS PC’s IP</li>
+<li>Different from all network sensor IPs</li>
+<li>Outside of DHCP range for any DHCP server in your network</li>
+<li>Not in the reserved ranges noted above</li>
+</ul>
+<p>Set the Route Prefix to match your network.  This is commonly called the “netmask”.  You will also want to set the Stored Default Route address correctly or you will likely have network issues.</p>
+<img alt="_images/wifi_2.png" src="_images/wifi_2.png" />
+<p>Once that is setup, go back to the Ethernet tab and set your DNS nameservers.  This is a global setting, not speific to WiFi.</p>
+<p>You will also want to disabble “Is Current Default Route” under the Ethernet tab and enable it under the WIFI tab.</p>
+<img alt="_images/wifi_3.png" src="_images/wifi_3.png" />
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ros_setup.html" class="btn btn-neutral float-left" title="Spot ROS Computer Setup" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="driver_configuration.html" class="btn btn-neutral float-right" title="Configuring the ROS Driver" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Clearpath Robotics.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
