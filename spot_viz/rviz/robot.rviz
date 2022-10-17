@@ -7,7 +7,7 @@ Panels:
         - /Global Options1
         - /Status1
       Splitter Ratio: 0.5
-    Tree Height: 437
+    Tree Height: 802
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -26,7 +26,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: FrontLeftDepthCloud
   - Class: spot_viz/SpotControlPanel
     Name: SpotControlPanel
 Preferences:
@@ -64,6 +64,110 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        body:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bottom_screws_center:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_bottom_screw_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_hip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_lower_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_upper_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_rail:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_right_hip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_lower_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_upper_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        frontier_mount:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        os_sensor:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        realsense_parent:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rear_left_hip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_left_lower_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_left_upper_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_rail:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rear_right_hip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_right_lower_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_right_upper_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -75,6 +179,80 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        back:
+          Value: true
+        back_fisheye:
+          Value: true
+        base_link:
+          Value: true
+        body:
+          Value: true
+        bottom_screws_center:
+          Value: true
+        camera_bottom_screw_frame:
+          Value: true
+        camera_link:
+          Value: true
+        flat_body:
+          Value: true
+        front_left_hip:
+          Value: true
+        front_left_lower_leg:
+          Value: true
+        front_left_upper_leg:
+          Value: true
+        front_rail:
+          Value: true
+        front_right_hip:
+          Value: true
+        front_right_lower_leg:
+          Value: true
+        front_right_upper_leg:
+          Value: true
+        frontier_mount:
+          Value: true
+        frontleft:
+          Value: true
+        frontleft_fisheye:
+          Value: true
+        frontright:
+          Value: true
+        frontright_fisheye:
+          Value: true
+        gpe:
+          Value: true
+        head:
+          Value: true
+        left:
+          Value: true
+        left_fisheye:
+          Value: true
+        odom:
+          Value: true
+        os_sensor:
+          Value: true
+        realsense_parent:
+          Value: true
+        rear_left_hip:
+          Value: true
+        rear_left_lower_leg:
+          Value: true
+        rear_left_upper_leg:
+          Value: true
+        rear_rail:
+          Value: true
+        rear_right_hip:
+          Value: true
+        rear_right_lower_leg:
+          Value: true
+        rear_right_upper_leg:
+          Value: true
+        right:
+          Value: true
+        right_fisheye:
+          Value: true
+        vision:
+          Value: true
       Marker Alpha: 1
       Marker Scale: 0.25
       Name: TF
@@ -82,7 +260,60 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        odom:
+          body:
+            base_link:
+              {}
+            flat_body:
+              {}
+            front_left_hip:
+              front_left_upper_leg:
+                front_left_lower_leg:
+                  {}
+            front_rail:
+              frontier_mount:
+                bottom_screws_center:
+                  {}
+                os_sensor:
+                  {}
+                realsense_parent:
+                  camera_bottom_screw_frame:
+                    camera_link:
+                      {}
+            front_right_hip:
+              front_right_upper_leg:
+                front_right_lower_leg:
+                  {}
+            head:
+              back:
+                back_fisheye:
+                  {}
+              frontleft:
+                frontleft_fisheye:
+                  {}
+              frontright:
+                frontright_fisheye:
+                  {}
+              left:
+                left_fisheye:
+                  {}
+              right:
+                right_fisheye:
+                  {}
+            rear_left_hip:
+              rear_left_upper_leg:
+                rear_left_lower_leg:
+                  {}
+            rear_rail:
+              {}
+            rear_right_hip:
+              rear_right_upper_leg:
+                rear_right_lower_leg:
+                  {}
+            vision:
+              {}
+          gpe:
+            {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -93,8 +324,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 2.4536328315734863
-            Min Value: -0.15558075904846191
+            Max Value: 1.5422112941741943
+            Min Value: -13.729979515075684
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -129,8 +360,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 2.6121129989624023
-            Min Value: -0.1127399206161499
+            Max Value: 2.3710060119628906
+            Min Value: -6.938358306884766
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -165,8 +396,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.413526177406311
-            Min Value: -0.12897947430610657
+            Max Value: 1.8236514329910278
+            Min Value: -2.351337194442749
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -201,8 +432,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.4527443647384644
-            Min Value: -0.12478607892990112
+            Max Value: 2.603226661682129
+            Min Value: -3.571293830871582
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -237,8 +468,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 0.6556414365768433
-            Min Value: -0.08529064059257507
+            Max Value: 1.576756477355957
+            Min Value: -2.3970136642456055
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -271,13 +502,13 @@ Visualization Manager:
       Name: DepthClouds
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
-      Enabled: true
+      Enabled: false
       Name: InteractiveMarkers
       Show Axes: false
       Show Descriptions: true
       Show Visual Aids: false
       Update Topic: /twist_marker_server/update
-      Value: true
+      Value: false
     - Class: rviz/TF
       Enabled: false
       Frame Timeout: 15
@@ -313,7 +544,7 @@ Visualization Manager:
       X std deviation: 0.5
       Y std deviation: 0.5
     - Class: rviz/SetGoal
-      Topic: /move_base_simple/goal
+      Topic: /spot/go_to_pose
     - Class: rviz/PublishPoint
       Single click: true
       Topic: /clicked_point
@@ -321,7 +552,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.597156524658203
+      Distance: 10
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -329,25 +560,25 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.09166686236858368
-        Y: 0.17000189423561096
-        Z: 0.21145612001419067
+        X: 0
+        Y: 0
+        Z: 0
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5303988456726074
+      Pitch: 0.7853981852531433
       Target Frame: <Fixed Frame>
-      Yaw: 4.322348594665527
+      Yaw: 0.7853981852531433
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
   Height: 1016
   Hide Left Dock: false
-  Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd0000000400000000000002ad0000035afc0200000012fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000001f2000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000002300000018e0000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000000a0049006d00610067006501000002f4000000ca0000000000000000fb0000000a0049006d00610067006501000002f4000000ca0000000000000000fb0000000a0049006d006100670065000000013f000000660000000000000000fb0000000a0049006d0061006700650000000164000000940000000000000000fb0000000a0049006d00610067006500000001a3000000e80000000000000000fc00000227000001970000000000fffffffa000000000100000002fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb0000000a0049006d0061006700650000000000000002ad0000000000000000fb0000002000530070006f00740043006f006e00740072006f006c00500061006e0065006c0100000235000001620000016200ffffff000000010000010f00000396fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000002800000396000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003efc0100000002fb0000000800540069006d0065010000000000000780000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000004cd0000035a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd0000000400000000000001680000035ffc0200000011fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000035f000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000002300000018e0000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000000a0049006d00610067006501000002f4000000ca0000000000000000fb0000000a0049006d00610067006501000002f4000000ca0000000000000000fb0000000a0049006d006100670065000000013f000000660000000000000000fb0000000a0049006d0061006700650000000164000000940000000000000000fb0000000a0049006d00610067006500000001a3000000e80000000000000000fc00000227000001970000000000fffffffa000000000100000002fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb0000000a0049006d0061006700650000000000000002ad000000000000000000000001000001b80000035ffc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fc0000003d0000035f000002b70100001cfa000000000100000002fb0000002000530070006f00740043006f006e00740072006f006c00500061006e0065006c0100000000ffffffff000001b800fffffffb0000000a0056006900650077007301000005c8000001b80000010000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000078000000039fc0100000002fb0000000800540069006d0065010000000000000780000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000004540000035f00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   SpotControlPanel:
@@ -357,7 +588,7 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: true
+    collapsed: false
   Width: 1920
   X: 0
   Y: 27

@@ -33,14 +33,21 @@ add_message_files(
   PowerState.msg
   SystemFaultState.msg
   DockState.msg
+  ObstacleParams.msg
+  TerrainParams.msg
+  TerrainState.msg
 )
 
 add_service_files(
   FILES
   ListGraph.srv
   SetLocomotion.srv
+  SetSwingHeight.srv
   SetVelocity.srv
   ClearBehaviorFault.srv
+  SetObstacleParams.srv
+  SetTerrainParams.srv
+  PosedStand.srv
   Dock.srv
   GetDockState.srv
 )
@@ -48,6 +55,7 @@ add_service_files(
 add_action_files(
   FILES
   NavigateTo.action
+  PoseBody.action
   Trajectory.action
 )
 

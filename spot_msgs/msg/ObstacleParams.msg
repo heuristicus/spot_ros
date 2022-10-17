@@ -1,0 +1,7 @@
+# see https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference.html?highlight=power_state#obstacleparams
+bool disable_vision_foot_obstacle_avoidance
+bool disable_vision_foot_constraint_avoidance
+bool disable_vision_body_obstacle_avoidance
+float32 obstacle_avoidance_padding
+bool disable_vision_foot_obstacle_body_assist
+bool disable_vision_negative_obstacles
