@@ -10,7 +10,7 @@ pip3 install bosdyn-client bosdyn-mission bosdyn-api bosdyn-core
 
 ## Documentation
 
-Check-out the usage and user documentation [HERE](heuristicus.github.io/spot_ros)
+Check-out the usage and user documentation [HERE](https://www.heuristicus.github.io/spot_ros)
 
 
 ## Environment Variables
