@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spot ROS Driver Usage &mdash; Spot ROS User Documentation 0.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Configuring the ROS Driver" href="driver_configuration.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Spot ROS User Documentation
+          </a>
+              <div class="version">
+                0.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Spot ROS Computer Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Spot Platform Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Configuring the ROS Driver</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Spot ROS Driver Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#verify-the-urdf">Verify the URDF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configure-your-networking">Configure Your Networking</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#etc-network-interfaces">/etc/network/interfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#network-manager">Network Manager</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#running-the-driver">Running the Driver</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#view-the-robot">View the Robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#taking-control-of-the-robot">Taking Control of the Robot</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#body-and-estop-control">Body and eStop Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#enable-motor-power">Enable Motor Power</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#stand-the-robot-up">Stand the Robot Up</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#controling-the-velocity">Controling the Velocity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ros-topics">ROS Topics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#interactive-marker">Interactive Marker</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#controlling-the-body">Controlling the Body</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ros-topic">ROS Topic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#actionserver">Actionserver</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rviz">Rviz</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#moving-to-a-pose">Moving to a pose</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">ROS Topic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Actionserver</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Rviz</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-velocity-limits">Setting velocity limits</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#cameras-and-depth-clouds">Cameras and Depth Clouds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#monitoring-the-platform">Monitoring the Platform</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Spot ROS User Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Spot ROS Driver Usage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/ros_usage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="spot-ros-driver-usage">
+<h1>Spot ROS Driver Usage<a class="headerlink" href="#spot-ros-driver-usage" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="verify-the-urdf">
+<h2>Verify the URDF<a class="headerlink" href="#verify-the-urdf" title="Permalink to this headline">¶</a></h2>
+<p>To verify that the spot_viz and spot_description packages are sourced properly, you can run</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">roslaunch</span> <span class="n">spot_viz</span> <span class="n">view_model</span><span class="o">.</span><span class="n">launch</span>
+</pre></div>
+</div>
+<p>This will load RVIZ with the robot description visible.  It should also show any additions you may have added to the robot’s URDF</p>
+<img alt="_images/view_model.png" src="_images/view_model.png" />
+</div>
+<div class="section" id="configure-your-networking">
+<h2>Configure Your Networking<a class="headerlink" href="#configure-your-networking" title="Permalink to this headline">¶</a></h2>
+<p>There are multiple ways that you can setup networking on your ROS computer.  This guide will cover two different common ways to do this</p>
+<div class="section" id="etc-network-interfaces">
+<h3>/etc/network/interfaces<a class="headerlink" href="#etc-network-interfaces" title="Permalink to this headline">¶</a></h3>
+<p>The first way is by editing /etc/network/interfaces.  Below is a section that will create a bridge between all of your network ports and assign a static address of 192.168.131.1.  This is a common setup for Clearpath robots.  Ensure to put your ROS computer into the same subnet that you set for the Spot platform.</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">auto</span> <span class="n">br0</span>
+
+<span class="n">iface</span> <span class="n">br0</span> <span class="n">inet</span> <span class="n">static</span>
+  <span class="n">bridge_ports</span> <span class="n">regex</span> <span class="p">(</span><span class="n">eth</span><span class="o">.*</span><span class="p">)</span><span class="o">|</span><span class="p">(</span><span class="n">en</span><span class="o">.*</span><span class="p">)</span>
+  <span class="n">address</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">131.1</span>
+  <span class="n">netmask</span> <span class="mf">255.255</span><span class="o">.</span><span class="mf">255.0</span>
+  <span class="n">bridge_maxwait</span> <span class="mi">0</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="network-manager">
+<h3>Network Manager<a class="headerlink" href="#network-manager" title="Permalink to this headline">¶</a></h3>
+<p>If you are using Ubuntu and it has a desktop environment, it will likely have Network Manager installed.  To create a new network connection, click the networking icon in the top right if your screen and choose Edit Connections.</p>
+<img alt="_images/network_1.png" src="_images/network_1.png" />
+<p>You will see all of the other network connections you’ve setup in the past.  Click Add on the right to create a new network connection for the robot.</p>
+<img alt="_images/network_2.png" src="_images/network_2.png" />
+<p>Select Ethernet as the connection type since we are connecting directly to the platform.</p>
+<img alt="_images/network_3.png" src="_images/network_3.png" />
+<p>Give the connection a name.</p>
+<img alt="_images/network_4.png" src="_images/network_4.png" />
+<p>Set the conneciton method to Manual.  This will give it a static address.</p>
+<img alt="_images/network_5.png" src="_images/network_5.png" />
+<p>Under the IPV4 config, choose a static address for the ROS computer. Ensure to put your ROS computer into the same subnet that you set for the Spot platform.</p>
+<img alt="_images/network_6.png" src="_images/network_6.png" />
+</div>
+</div>
+<div class="section" id="running-the-driver">
+<h2>Running the Driver<a class="headerlink" href="#running-the-driver" title="Permalink to this headline">¶</a></h2>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">roslaunch</span> <span class="n">spot_driver</span> <span class="n">driver</span><span class="o">.</span><span class="n">launch</span>
+</pre></div>
+</div>
+<p>When launching, there are some options you may need to configure for your setup.  They are:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="10%" />
+<col width="10%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Argument</th>
+<th class="head">Default</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>username</td>
+<td>dummyusername</td>
+<td>Use this username to authenticate with spot</td>
+</tr>
+<tr class="row-odd"><td>password</td>
+<td>dummypassword</td>
+<td>Use this password to authenticate with spot</td>
+</tr>
+<tr class="row-even"><td>hostname</td>
+<td>192.168.50.3</td>
+<td>The IP address at which spot can be found</td>
+</tr>
+<tr class="row-odd"><td>estop_timeout</td>
+<td>9.0</td>
+<td>Time allowed before rpc commands will time out.
+Comms between the robot and driver are checked at a rate of 1/3 of this time. If comms are down, a gentle estop will trigger</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="view-the-robot">
+<h2>View the Robot<a class="headerlink" href="#view-the-robot" title="Permalink to this headline">¶</a></h2>
+<p>Once the robot is connected, you should be able to visualize its odometry, joint positions, camera streams, etc. using RVIZ.  To view these streams, run</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">roslaunch</span> <span class="n">spot_viz</span> <span class="n">view_robot</span><span class="o">.</span><span class="n">launch</span>
+</pre></div>
+</div>
+<p>Remember that you will need to source your workspace before running this command.</p>
+<p>Once RVIZ is loaded, you should see something similar to this.</p>
+<img alt="_images/view_robot.png" src="_images/view_robot.png" />
+</div>
+<div class="section" id="taking-control-of-the-robot">
+<h2>Taking Control of the Robot<a class="headerlink" href="#taking-control-of-the-robot" title="Permalink to this headline">¶</a></h2>
+<p>To control Spot, you need to maintain control of the eStop and body lease, power on the drive motors, and command the robot to stand.</p>
+<p>The easiest way to do this is through the rviz control panel included in <code class="docutils literal notranslate"><span class="pre">view_robot.launch</span></code>. You can add the panel to an rviz configuration with Panels&gt;Add new panel and selecting <code class="docutils literal notranslate"><span class="pre">spot_viz/SpotControlPanel</span></code>.</p>
+<img alt="_images/rviz_panel.png" src="_images/rviz_panel.png" />
+<div class="section" id="body-and-estop-control">
+<h3>Body and eStop Control<a class="headerlink" href="#body-and-estop-control" title="Permalink to this headline">¶</a></h3>
+<p>A body lease gives the holder the ability to command the spot to make actions in the world.  The eStop gives the robot a way to guarantee that the commanding system is maintaining contact with the robot.  There are two ways to claim a body lease and eStop using this driver.</p>
+<ol class="arabic simple">
+<li>Automatically when the driver starts by enabling the <code class="docutils literal notranslate"><span class="pre">auto_claim</span></code> variable</li>
+<li>By calling the <code class="docutils literal notranslate"><span class="pre">/spot/claim</span></code> service after the driver is started</li>
+</ol>
+<p>You cannot claim a lease on the robot if something else already has a lease.  This is for security reasons.  Check the <code class="docutils literal notranslate"><span class="pre">status/leases</span></code> topic for information on current leases.</p>
+<p>You can release the lease by calling the <code class="docutils literal notranslate"><span class="pre">/spot/release</span></code> service</p>
+<p>The hard estop is at <code class="docutils literal notranslate"><span class="pre">/spot/estop/hard</span></code> this will kill power to the motors and must be released before you can send any commands to the robot. To release the estop, call <code class="docutils literal notranslate"><span class="pre">/spot/estop/release</span></code>. The robot will collapse.</p>
+<p>The gentle estop is at <code class="docutils literal notranslate"><span class="pre">/spot/estop/gentle</span></code>. This only stops whatever the robot is doing and will not cause a collapse. This stop does not have to be released.</p>
+<p>You can perform all of the estops by using the rviz GUI as well.</p>
+</div>
+<div class="section" id="enable-motor-power">
+<h3>Enable Motor Power<a class="headerlink" href="#enable-motor-power" title="Permalink to this headline">¶</a></h3>
+<p>Motor power needs to be enabled once you have a Lease on the body.  This can be done in two ways:</p>
+<ol class="arabic simple">
+<li>Automatically when the driver starts by enabling the <code class="docutils literal notranslate"><span class="pre">auto_power_on</span></code> variable</li>
+<li>By calling the <code class="docutils literal notranslate"><span class="pre">/spot/power_on</span></code> service after the driver is started</li>
+</ol>
+</div>
+<div class="section" id="stand-the-robot-up">
+<h3>Stand the Robot Up<a class="headerlink" href="#stand-the-robot-up" title="Permalink to this headline">¶</a></h3>
+<p>Once the motors are powered, stand the robot up so it is able to move through the world.  This can be done in two ways:</p>
+<ol class="arabic simple">
+<li>Automatically when the driver starts by enabling the <code class="docutils literal notranslate"><span class="pre">auto_stand</span></code> variable</li>
+<li>By calling the <code class="docutils literal notranslate"><span class="pre">/spot/stand</span></code> service after the driver is started</li>
+</ol>
+</div>
+</div>
+<div class="section" id="controling-the-velocity">
+<h2>Controling the Velocity<a class="headerlink" href="#controling-the-velocity" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Spot will attempt to avoid any obstacles it detects with its cameras, but no vision or actuation system is perfect.  Make sure to only move the robot in a safe area and in a controlled manner.</p>
+</div>
+<div class="section" id="ros-topics">
+<h3>ROS Topics<a class="headerlink" href="#ros-topics" title="Permalink to this headline">¶</a></h3>
+<p>To control Spot, you can send a Twist ROS message to command a velocity.  To test this, open a new terminal and source your ROS installation.  Then, run this command in your terminal</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rostopic</span> <span class="n">pub</span> <span class="o">/</span><span class="n">spot</span><span class="o">/</span><span class="n">cmd_vel</span> <span class="n">geometry_msgs</span><span class="o">/</span><span class="n">Twist</span> <span class="s2">&quot;linear:</span>
+  <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span>
+<span class="n">angular</span><span class="p">:</span>
+  <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">z</span><span class="p">:</span> <span class="mf">0.3</span><span class="s2">&quot; -r 10</span>
+</pre></div>
+</div>
+<p>That command will have spot rotate on the spot at 0.3 radians/second.  Note the -r at the end of the command.  That has ROS resend the message over again.  If you don’t resend the message, the driver will assume a timeout and stop commanding motion of the robot.</p>
+</div>
+<div class="section" id="interactive-marker">
+<h3>Interactive Marker<a class="headerlink" href="#interactive-marker" title="Permalink to this headline">¶</a></h3>
+<p>Inside of RVIZ, grab the red arrow that is around Spot’s body and pull it forward or backwards to have Spot walk.  If you rotate the blue circle around the body, Spot will turn on the spot.  This is a very simple way to move Spot</p>
+</div>
+</div>
+<div class="section" id="controlling-the-body">
+<h2>Controlling the Body<a class="headerlink" href="#controlling-the-body" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="ros-topic">
+<h3>ROS Topic<a class="headerlink" href="#ros-topic" title="Permalink to this headline">¶</a></h3>
+<p>The angle of the body relative to the feet is also controllable through a ROS topic, but there is no interactive marker yet.</p>
+<p>To control the body position through a terminal, send the following command:</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rostopic</span> <span class="n">pub</span> <span class="o">/</span><span class="n">spot</span><span class="o">/</span><span class="n">body_pose</span> <span class="n">geometry_msgs</span><span class="o">/</span><span class="n">Pose</span> <span class="s2">&quot;position:</span>
+  <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span>
+<span class="n">orientation</span><span class="p">:</span>
+  <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">w</span><span class="p">:</span> <span class="mf">1.0</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+<p>The x and y components of the position are ignored. The z component sets the body height. The body height value is based on displacement from the neutral position.</p>
+<p>Note that the -r is not needed for this command.  This sets the position the body should be in until changed.</p>
+</div>
+<div class="section" id="actionserver">
+<h3>Actionserver<a class="headerlink" href="#actionserver" title="Permalink to this headline">¶</a></h3>
+<p>The actionserver <code class="docutils literal notranslate"><span class="pre">/spot/pose_body</span></code> can be called to set the body pose.</p>
+<p>To test this, start an action client with</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rosrun</span> <span class="n">actionlib_tools</span> <span class="n">axclient</span><span class="o">.</span><span class="n">py</span> <span class="o">/</span><span class="n">spot</span><span class="o">/</span><span class="n">pose_body</span>
+</pre></div>
+</div>
+<p>You will see a window pop up, and you can specify the body pose with a Pose message, or by specifying roll, pitch and yaw, and a body height.</p>
+<p>If using a pose message, you can control the body height by setting the z component of position. The x and y components of position are ignored. If the pose message is non-zero, any roll/pitch/yaw specification will be ignored.</p>
+<p>If using the roll/pitch/yaw specification, enter values in degrees, and body height in metres. Body height is based on displacement from the neutral position.</p>
+<p>If you send an empty message, the body pose will be reset to neutral.</p>
+<p>Here is what the axclient window will look like:</p>
+<div class="code yaml highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">body_pose</span><span class="p">:</span>
+  <span class="n">position</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">orientation</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">w</span><span class="p">:</span> <span class="mf">0.0</span>
+<span class="n">roll</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">pitch</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">yaw</span><span class="p">:</span> <span class="mi">0</span>
+<span class="n">body_height</span><span class="p">:</span> <span class="mf">0.0</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="rviz">
+<h3>Rviz<a class="headerlink" href="#rviz" title="Permalink to this headline">¶</a></h3>
+<p>The spot control panel in rviz also provides a way of setting the body pose by providing roll, pitch and yaw.</p>
+</div>
+</div>
+<div class="section" id="moving-to-a-pose">
+<h2>Moving to a pose<a class="headerlink" href="#moving-to-a-pose" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3>ROS Topic<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">/spot/go_to_pose</span></code> topic can be used to move the robot by specifying a pose.</p>
+<p>To test, you can send a pose to the topic as follows, to move the robot one metre forwards from its current location.</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rostopic</span> <span class="n">pub</span> <span class="o">/</span><span class="n">spot</span><span class="o">/</span><span class="n">go_to_pose</span> <span class="n">geometry_msgs</span><span class="o">/</span><span class="n">PoseStamped</span> <span class="s2">&quot;header:</span>
+  <span class="n">seq</span><span class="p">:</span> <span class="mi">0</span>
+  <span class="n">stamp</span><span class="p">:</span>
+    <span class="n">secs</span><span class="p">:</span> <span class="mi">0</span>
+    <span class="n">nsecs</span><span class="p">:</span> <span class="mi">0</span>
+  <span class="n">frame_id</span><span class="p">:</span> <span class="s1">&#39;body&#39;</span>
+<span class="n">pose</span><span class="p">:</span>
+  <span class="n">position</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">:</span> <span class="mi">1</span>
+    <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">orientation</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">w</span><span class="p">:</span> <span class="mi">1</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id2">
+<h3>Actionserver<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">/spot/trajectory</span></code> actionserver gives you a little more control than the ros topic, and will also give you information about success or failure.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">If there is an obstacle along the trajectory the robot is trying to move along, it may fail as the trajectory command is different to the command that is used by the controller. In this case, the actionserver will return success despite not actually reaching the requested pose. As of 2021/09/10 the boston dynamics API does not appear to provide feedback which we can use to return failure when this happens.</p>
+</div>
+<p>In addition to the pose, you can specify <code class="docutils literal notranslate"><span class="pre">duration</span></code>, which specifies how long the command can run before timing out.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">precise_positioning</span></code> can be used to request that the robot move more precisely to the specified pose. If set to false, the robot will move to “near” the specified pose. It’s not clear what exactly defines being “near” to the pose, but you should not expect to reach the pose precisely. The robot will end up within ~0.5m of the pose, and not make much effort to align to the orientation.</p>
+<p>You can test the actionserver by using an action client</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rosrun</span> <span class="n">actionlib_tools</span> <span class="n">axclient</span> <span class="o">/</span><span class="n">spot</span><span class="o">/</span><span class="n">trajectory</span>
+</pre></div>
+</div>
+<p>And fill in the values as you like.</p>
+</div>
+<div class="section" id="id3">
+<h3>Rviz<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<p>You can connect the 2d nav goal tool to publish to the <code class="docutils literal notranslate"><span class="pre">/spot/go_to_pose</span></code> topic. The default rviz config provided with</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">roslaunch</span> <span class="n">spot_viz</span> <span class="n">view_robot</span><span class="o">.</span><span class="n">launch</span>
+</pre></div>
+</div>
+<p>Already has the tool configured, but you can also do this by right clicking the toolbar, selecting tool properties, then changing the nav goal topic to <code class="docutils literal notranslate"><span class="pre">/spot/go_to_pose</span></code>.</p>
+</div>
+<div class="section" id="setting-velocity-limits">
+<h3>Setting velocity limits<a class="headerlink" href="#setting-velocity-limits" title="Permalink to this headline">¶</a></h3>
+<p>You can set a velocity limit in m/s for the motion to poses using the <code class="docutils literal notranslate"><span class="pre">/spot/velocity_limit</span></code> service:</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rosservice</span> <span class="n">call</span> <span class="o">/</span><span class="n">spot</span><span class="o">/</span><span class="n">velocity_limit</span> <span class="s2">&quot;velocity_limit:</span>
+  <span class="n">linear</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span>
+  <span class="n">angular</span><span class="p">:</span>
+    <span class="n">x</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">y</span><span class="p">:</span> <span class="mf">0.0</span>
+    <span class="n">z</span><span class="p">:</span> <span class="mf">0.0</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+<p>Only the x and y components of linear velocity are considered, and the z component of angular.</p>
+</div>
+</div>
+<div class="section" id="cameras-and-depth-clouds">
+<h2>Cameras and Depth Clouds<a class="headerlink" href="#cameras-and-depth-clouds" title="Permalink to this headline">¶</a></h2>
+<p>Spot is equipped 5 RGB and depth-sensing cameras: 2 on the front, one on each side, and one in the rear.  All of these
+cameras publish at approximately 10Hz.  The cameras are grayscale.</p>
+<p>Note that the front cameras are mounted sideways, so they have a narrower horizontal FoV, but a larger vertical one.
+The camera data likewise rotated anticlockwise by 90 degrees.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">frontleft</span></code> camera and depth topics are from the camera physically located on the front-left of the robot.
+This camera is pointed to the robot’s right, so the depth cloud will appear in front of the robot’s right shoulder:</p>
+<img alt="_images/front-left-depth.png" src="_images/front-left-depth.png" />
+<p>Similarly the <code class="docutils literal notranslate"><span class="pre">frontright</span></code> camera and depth topics are from the camera physically located on the front-right of the
+robot.  This camera points to the robot’s left, so the depth cloud will appear in front of the robot’s left shoulder:</p>
+<img alt="_images/front-right-depth.png" src="_images/front-right-depth.png" />
+<p>The complete list of depth and camera topics is below:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="28%" />
+<col width="24%" />
+<col width="48%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Topic</th>
+<th class="head">Type</th>
+<th class="head">Comments</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>camera/frontleft/camera/image</td>
+<td>Image</td>
+<td>Data from the front-left camera, which points to the
+right. Image is rotated 90 degrees anticlockwise.</td>
+</tr>
+<tr class="row-odd"><td>camera/frontright/camera/image</td>
+<td>Image</td>
+<td>Data from the front-right camera, which points to the
+left. Image is rotated 90 degrees anticlockwise.</td>
+</tr>
+<tr class="row-even"><td>camera/left/camera/image</td>
+<td>Image</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>camera/right/camera/image</td>
+<td>Image</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>camera/back/camera/image</td>
+<td>Image</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>depth/frontleft/camera/image</td>
+<td>Image</td>
+<td>Data from the front-left camera, which points to the
+right.</td>
+</tr>
+<tr class="row-even"><td>depth/frontright/camera/image</td>
+<td>Image</td>
+<td>Data from the front-right camera, which points to the
+left.</td>
+</tr>
+<tr class="row-odd"><td>depth/left/camera/image</td>
+<td>Image</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>depth/right/camera/image</td>
+<td>Image</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>depth/back/camera/image</td>
+<td>Image</td>
+<td>&#160;</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="monitoring-the-platform">
+<h2>Monitoring the Platform<a class="headerlink" href="#monitoring-the-platform" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="22%" />
+<col width="26%" />
+<col width="52%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Topic</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>status/metrics</td>
+<td>Metrics</td>
+<td>General metrics for the system like distance walked</td>
+</tr>
+<tr class="row-odd"><td>status/leases</td>
+<td>LeaseArray</td>
+<td>A list of what leases are held on the system</td>
+</tr>
+<tr class="row-even"><td>odometry/twist</td>
+<td>TwistWithCovarianceStamped</td>
+<td>The estimated ofometry of the platform</td>
+</tr>
+<tr class="row-odd"><td>status/feet</td>
+<td>FootStateArray</td>
+<td>The status and position of each foot</td>
+</tr>
+<tr class="row-even"><td>status/estop</td>
+<td>EStopStateArray</td>
+<td>The status of the eStop system</td>
+</tr>
+<tr class="row-odd"><td>status/wifi</td>
+<td>WiFiState</td>
+<td>Status of the wifi system</td>
+</tr>
+<tr class="row-even"><td>status/power_state</td>
+<td>PowerState</td>
+<td>General power information</td>
+</tr>
+<tr class="row-odd"><td>status/battery_states</td>
+<td>BatteryStateArray</td>
+<td>Information for the battery and all cells in the system</td>
+</tr>
+<tr class="row-even"><td>status/behavior_faults</td>
+<td>BehaviorFaultState</td>
+<td>A listing of behavior faults in the system</td>
+</tr>
+<tr class="row-odd"><td>status/system_faults</td>
+<td>SystemFaultState</td>
+<td>A listing of system faults in the system</td>
+</tr>
+<tr class="row-even"><td>status/feedback</td>
+<td>Feedback</td>
+<td>Feedback from the Spot robot</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this headline">¶</a></h2>
+<p>These instructions are a minimum subset of instructions to get this driver working and do not contain all necessary debugging steps.  Please refer to the <a class="reference external" href="https://github.com/boston-dynamics/spot-sdk/blob/master/docs/python/quickstart.md">Spot SDK Quickstart</a> for more detailed debugging steps.</p>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="driver_configuration.html" class="btn btn-neutral float-left" title="Configuring the ROS Driver" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Clearpath Robotics.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

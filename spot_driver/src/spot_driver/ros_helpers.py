@@ -1,8 +1,9 @@
 import rospy
+import tf2_ros
 
 from std_msgs.msg import Empty
 from tf2_msgs.msg import TFMessage
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, Transform
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import PoseWithCovariance
@@ -97,15 +98,24 @@ def populateTransformStamped(time, parent_frame, child_frame, transform):
         transform: A transform to copy into a StampedTransform object. Should have position (x,y,z) and rotation (x,
         y,z,w) members
     Returns:
-        TransformStamped message
+        TransformStamped message. Empty if transform does not have position or translation attribute
     """
+    if hasattr(transform, "position"):
+        position = transform.position
+    elif hasattr(transform, "translation"):
+        position = transform.translation
+    else:
+        rospy.logerr("Trying to generate StampedTransform but input transform has neither position nor translation "
+                     "attributes")
+        return TransformStamped()
+
     new_tf = TransformStamped()
     new_tf.header.stamp = time
     new_tf.header.frame_id = parent_frame
     new_tf.child_frame_id = child_frame
-    new_tf.transform.translation.x = transform.position.x
-    new_tf.transform.translation.y = transform.position.y
-    new_tf.transform.translation.z = transform.position.z
+    new_tf.transform.translation.x = position.x
+    new_tf.transform.translation.y = position.y
+    new_tf.transform.translation.z = position.z
     new_tf.transform.rotation.x = transform.rotation.x
     new_tf.transform.rotation.y = transform.rotation.y
     new_tf.transform.rotation.z = transform.rotation.z
@@ -250,6 +260,17 @@ def GetFeetFromState(state, spot_wrapper):
         foot_msg.foot_position_rt_body.y = foot.foot_position_rt_body.y
         foot_msg.foot_position_rt_body.z = foot.foot_position_rt_body.z
         foot_msg.contact = foot.contact
+
+        if foot.HasField("terrain"):
+            terrain = foot.terrain
+            foot_msg.terrain.ground_mu_est = terrain.ground_mu_est
+            foot_msg.terrain.frame_name = terrain.frame_name
+            foot_msg.terrain.foot_slip_distance_rt_frame = terrain.foot_slip_distance_rt_frame
+            foot_msg.terrain.foot_slip_velocity_rt_frame = terrain.foot_slip_velocity_rt_frame
+            foot_msg.terrain.ground_contact_normal_rt_frame = terrain.ground_contact_normal_rt_frame
+            foot_msg.terrain.visual_surface_ground_penetration_mean = terrain.visual_surface_ground_penetration_mean
+            foot_msg.terrain.visual_surface_ground_penetration_std = terrain.visual_surface_ground_penetration_std
+
         foot_array_msg.states.append(foot_msg)
 
     return foot_array_msg
@@ -323,6 +344,30 @@ def GetWifiFromState(state, spot_wrapper):
             wifi_msg.essid = comm_state.wifi_state.essid
 
     return wifi_msg
+
+def generate_feet_tf(foot_states_msg):
+    """
+    Generate a tf message containing information about foot states
+
+    Args:
+        foot_states_msg: FootStateArray message containing the foot states from the robot state
+
+    Returns: tf message with foot states
+
+    """
+    foot_ordering = ["front_left", "front_right", "rear_left", "rear_right"]
+    foot_tfs = TFMessage()
+    time_now = rospy.Time.now()
+    for idx, foot_state in enumerate(foot_states_msg.states):
+        foot_transform = Transform()
+        # Rotation of the foot is not given
+        foot_transform.rotation.w = 1
+        foot_transform.translation.x = foot_state.foot_position_rt_body.x
+        foot_transform.translation.y = foot_state.foot_position_rt_body.y
+        foot_transform.translation.z = foot_state.foot_position_rt_body.z
+        foot_tfs.transforms.append(populateTransformStamped(time_now, "body", foot_ordering[idx] + "_foot", foot_transform))
+
+    return foot_tfs
 
 def GetTFFromState(state, spot_wrapper, inverse_target_frame):
     """Maps robot link state data from robot state proto to ROS TFMessage message

@@ -1,0 +1,4 @@
+spot_msgs/ObstacleParams obstacle_params
+---
+bool success
+string message
