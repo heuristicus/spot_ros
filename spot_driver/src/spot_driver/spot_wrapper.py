@@ -1,6 +1,7 @@
 import time
 import math
 
+import bosdyn.client.auth
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
 from bosdyn.geometry import EulerZXY
@@ -143,12 +144,15 @@ class AsyncIdle(AsyncPeriodicQuery):
         if self._spot_wrapper._last_stand_command != None:
             try:
                 response = self._client.robot_command_feedback(self._spot_wrapper._last_stand_command)
+                status = response.feedback.synchronized_feedback.mobility_command_feedback.stand_feedback.status
                 self._spot_wrapper._is_sitting = False
-                if (response.feedback.synchronized_feedback.mobility_command_feedback.stand_feedback.status ==
-                        basic_command_pb2.StandCommand.Feedback.STATUS_IS_STANDING):
+                if status == basic_command_pb2.StandCommand.Feedback.STATUS_IS_STANDING:
                     self._spot_wrapper._is_standing = True
                     self._spot_wrapper._last_stand_command = None
+                elif status == basic_command_pb2.StandCommand.Feedback.STATUS_IN_PROGRESS:
+                    self._spot_wrapper._is_standing = False
                 else:
+                    self._logger.warn("Stand command in unknown state")
                     self._spot_wrapper._is_standing = False
             except (ResponseError, RpcError) as e:
                 self._logger.error("Error when getting robot command feedback: %s", e)
@@ -193,7 +197,11 @@ class AsyncIdle(AsyncPeriodicQuery):
                 elif status == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL:
                     is_moving = True
                     self._spot_wrapper._near_goal = True
+                elif status == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_UNKNOWN:
+                    self._spot_wrapper._trajectory_status_unknown = True
+                    self._spot_wrapper._last_trajectory_command = None
                 else:
+                    self._logger.error("Received trajectory command status outside of expected range, value is {}".format(status))
                     self._spot_wrapper._last_trajectory_command = None
             except (ResponseError, RpcError) as e:
                 self._logger.error("Error when getting robot command feedback: %s", e)
@@ -201,8 +209,42 @@ class AsyncIdle(AsyncPeriodicQuery):
 
         self._spot_wrapper._is_moving = is_moving
 
-        if self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving:
+        # We must check if any command currently has a non-None value for its id. If we don't do this, this stand
+        # command can cause other commands to be interrupted before they get to start
+        if (self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving
+            and self._spot_wrapper._last_trajectory_command is not None
+            and self._spot_wrapper._last_stand_command is not None
+            and self._spot_wrapper._last_velocity_command_time is not None
+        ):
             self._spot_wrapper.stand(False)
+
+class AsyncEStopMonitor(AsyncPeriodicQuery):
+    """Class to check if the estop endpoint is still valid
+
+        Attributes:
+            client: The Client to a service on the robot
+            logger: Logger object
+            rate: Rate (Hz) to trigger the query
+            spot_wrapper: A handle to the wrapper library
+    """
+
+    def __init__(self, client, logger, rate, spot_wrapper):
+        super(AsyncEStopMonitor, self).__init__("estop_alive", client, logger, period_sec=1.0 / rate)
+        self._spot_wrapper = spot_wrapper
+
+    def _start_query(self):
+        if not self._spot_wrapper._estop_keepalive:
+            self._logger.debug("No keepalive yet - the lease has not been claimed.")
+            return
+
+        last_estop_status = self._spot_wrapper._estop_keepalive.status_queue.queue[-1]
+        if last_estop_status[0] == self._spot_wrapper._estop_keepalive.KeepAliveStatus.ERROR:
+            self._logger.error("Estop keepalive has an error: {}".format(last_estop_status[1]))
+        elif last_estop_status == self._spot_wrapper._estop_keepalive.KeepAliveStatus.DISABLED:
+            self._logger.error("Estop keepalive is disabled: {}".format(last_estop_status[1]))
+        else:
+            # estop keepalive is ok
+            pass
 
 class SpotWrapper():
     """Generic wrapper class to encompass release 1.1.4 API features as well as maintaining leases automatically"""
@@ -223,6 +265,7 @@ class SpotWrapper():
         self._is_moving = False
         self._at_goal = False
         self._near_goal = False
+        self._trajectory_status_unknown = False
         self._last_stand_command = None
         self._last_sit_command = None
         self._last_trajectory_command = None
@@ -248,31 +291,49 @@ class SpotWrapper():
             self._valid = False
             return
 
+        self._logger.info("Initialising robot at {}".format(self._hostname))
         self._robot = self._sdk.create_robot(self._hostname)
 
-        try:
-            self._robot.authenticate(self._username, self._password)
-            self._robot.start_time_sync()
-        except RpcError as err:
-            self._logger.error("Failed to communicate with robot: %s", err)
-            self._valid = False
-            return
+        authenticated = False
+        while not authenticated:
+            try:
+                self._logger.info("Trying to authenticate with robot...")
+                self._robot.authenticate(self._username, self._password)
+                self._robot.start_time_sync()
+                self._logger.info("Successfully authenticated.")
+                authenticated = True
+            except RpcError as err:
+                sleep_secs = 15
+                self._logger.warn("Failed to communicate with robot: {}\nEnsure the robot is powered on and you can "
+                                  "ping {}. Robot may still be booting. Will retry in {} seconds".format(err,
+                                                                                                         self._hostname,
+                                                                                                         sleep_secs))
+                time.sleep(sleep_secs)
+            except bosdyn.client.auth.InvalidLoginError as err:
+                self._logger.error("Failed to log in to robot: {}".format(err))
+                self._valid = False
+                return
 
         if self._robot:
             # Clients
-            try:
-                self._robot_state_client = self._robot.ensure_client(RobotStateClient.default_service_name)
-                self._robot_command_client = self._robot.ensure_client(RobotCommandClient.default_service_name)
-                self._graph_nav_client = self._robot.ensure_client(GraphNavClient.default_service_name)
-                self._power_client = self._robot.ensure_client(PowerClient.default_service_name)
-                self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
-                self._lease_wallet = self._lease_client.lease_wallet
-                self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
-                self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
-            except Exception as e:
-                self._logger.error("Unable to create client service: %s", e)
-                self._valid = False
-                return
+            self._logger.info("Creating clients...")
+            initialised = False
+            while not initialised:
+                try:
+                    self._robot_state_client = self._robot.ensure_client(RobotStateClient.default_service_name)
+                    self._robot_command_client = self._robot.ensure_client(RobotCommandClient.default_service_name)
+                    self._graph_nav_client = self._robot.ensure_client(GraphNavClient.default_service_name)
+                    self._power_client = self._robot.ensure_client(PowerClient.default_service_name)
+                    self._lease_client = self._robot.ensure_client(LeaseClient.default_service_name)
+                    self._lease_wallet = self._lease_client.lease_wallet
+                    self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
+                    self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
+                    initialised = True
+                except Exception as e:
+                    sleep_secs = 15
+                    self._logger.warn("Unable to create client service: {}. This usually means the robot hasn't "
+                                      "finished booting yet. Will wait {} seconds and try again.".format(e, sleep_secs))
+                    time.sleep(sleep_secs)
 
             # Store the most recent knowledge of the state of the robot based on rpc calls.
             self._current_graph = None
@@ -290,11 +351,13 @@ class SpotWrapper():
             self._side_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("side_image", 0.0)), self._callbacks.get("side_image", lambda:None), self._side_image_requests)
             self._rear_image_task = AsyncImageService(self._image_client, self._logger, max(0.0, self._rates.get("rear_image", 0.0)), self._callbacks.get("rear_image", lambda:None), self._rear_image_requests)
             self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
+            self._estop_monitor = AsyncEStopMonitor(self._estop_client, self._logger, 20.0, self)
 
             self._estop_endpoint = None
+            self._estop_keepalive = None
 
             self._async_tasks = AsyncTasks(
-                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task])
+                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._idle_task, self._estop_monitor])
 
             self._robot_id = None
             self._lease = None
@@ -516,9 +579,30 @@ class SpotWrapper():
         self._last_sit_command = response[2]
         return response[0], response[1]
 
-    def stand(self, monitor_command=True):
-        """If the e-stop is enabled, and the motor power is enabled, stand the robot up."""
-        response = self._robot_command(RobotCommandBuilder.synchro_stand_command(params=self._mobility_params))
+    def stand(self, monitor_command=True, body_height=0, body_yaw=0, body_pitch=0, body_roll=0):
+        """
+        If the e-stop is enabled, and the motor power is enabled, stand the robot up.
+        Executes a stand command, but one where the robot will assume the pose specified by the given parameters.
+
+        If no parameters are given this behave just as a normal stand command
+
+        Args:
+            monitor_command: Track the state of the command in the async idle, which sets is_standing
+            body_height: Offset of the body relative to normal stand height, in metres
+            body_yaw: Yaw of the body in radians
+            body_pitch: Pitch of the body in radians
+            body_roll: Roll of the body in radians
+
+        """
+        if any([body_height, body_yaw, body_pitch, body_roll]):
+            # If any of the orientation parameters are nonzero use them to pose the body
+            body_orientation = EulerZXY(yaw=body_yaw, pitch=body_pitch, roll=body_roll)
+            response = self._robot_command(RobotCommandBuilder.synchro_stand_command(body_height=body_height,
+                                                                                     footprint_R_body=body_orientation))
+        else:
+            # Otherwise just use the mobility params
+            response = self._robot_command(RobotCommandBuilder.synchro_stand_command(params=self._mobility_params))
+
         if monitor_command:
             self._last_stand_command = response[2]
         return response[0], response[1]
@@ -585,9 +669,12 @@ class SpotWrapper():
             precise_position: if set to false, the status STATUS_NEAR_GOAL and STATUS_AT_GOAL will be equivalent. If
             true, the robot must complete its final positioning before it will be considered to have successfully
             reached the goal.
+
+        Returns: (bool, str) tuple indicating whether the command was successfully sent, and a message
         """
         self._at_goal = False
         self._near_goal = False
+        self._trajectory_status_unknown = False
         self._last_trajectory_command_precise = precise_position
         self._logger.info("got command duration of {}".format(cmd_duration))
         end_time=time.time() + cmd_duration

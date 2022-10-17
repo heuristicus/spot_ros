@@ -1,4 +1,16 @@
-uint32 locomotion_mode # See https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference.html?highlight=mobilityparams#locomotionhint for details
+# See https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference.html?highlight=mobilityparams#locomotionhint for details
+uint8 HINT_UNKNOWN=0
+uint8 HINT_AUTO=1
+uint8 HINT_TROT=2
+uint8 HINT_SPEED_SELECT_TROT=3
+uint8 HINT_CRAWL=4
+uint8 HINT_AMBLE=5
+uint8 HINT_SPEED_SELECT_AMBLE=6
+uint8 HINT_JOG=7
+uint8 HINT_HOP=8
+uint8 HINT_SPEED_SELECT_CRAWL=10
+
+uint32 locomotion_mode
 ---
 bool success
 string message
