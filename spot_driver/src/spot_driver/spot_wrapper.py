@@ -792,13 +792,19 @@ class SpotWrapper():
                 self._logger.info(msg)
                 return False, msg
             else:
-                # Joint1: 0.0 arm points to the front. RANGE: 0.0 -> 5.75959 (positive: turn left, negative: turn right)
-                # Joint2: 0.0 arm points to the front. RANGE: 0.0 -> 3.66519)
-                # Joint3: 0.0 arm straight. RANGE: 0.0 -> 3.1415
-                # Joint4: 0.0 middle position. RANGE: -2.79253 -> 2.79253
-                # Joint5: 0.0 gripper points to the front. RANGE: -1.8326 -> 1.8326
-                # Joint6: 0.0 Moving finger on top of stationary finger. RANGE: -2.87979 -> 2.87979)
-
+                # All perspectives are given when looking at the robot from behind after the unstow service is called
+                # Joint1: 0.0 arm points to the front. positive: turn left, negative: turn right)
+                # RANGE: -3.14 -> 3.14
+                # Joint2: 0.0 arm points to the front. positive: move down, negative move up
+                # RANGE: 0.4 -> -3.13 (
+                # Joint3: 0.0 arm straight. moves the arm down
+                # RANGE: 0.0 -> 3.1415
+                # Joint4: 0.0 middle position. negative: moves ccw, positive moves cw  
+                # RANGE: -2.79253 -> 2.79253                
+                # # Joint5: 0.0 gripper points to the front. positive moves the gripper down 
+                # RANGE: -1.8326 -> 1.8326
+                # Joint6: 0.0 Gripper is not rolled, positive is ccw 
+                # RANGE: -2.87 -> 2.87
                 trajectory_point = RobotCommandBuilder.create_arm_joint_trajectory_point(
                     joint_targets[0], joint_targets[1], joint_targets[2],
                     joint_targets[3], joint_targets[4], joint_targets[5])
@@ -959,49 +965,6 @@ class SpotWrapper():
             return False, "Exception occured while gripper was moving"
 
         return True, "Opened gripper successfully"
-    
-    def body_follow_arm(self):
-        try:
-            success, msg = self.ensure_arm_power_and_stand()
-            if not success:
-                self._logger.info(msg)
-                return False, msg
-            else:
-                # Move the arm to a spot in front of the robot, and command the body to follow the hand.
-                # Build a position to move the arm to (in meters, relative to the body frame origin.)
-                x = 1.25
-                y = 0
-                z = 0.25
-                hand_pos_rt_body = geometry_pb2.Vec3(x=x, y=y, z=z)
-
-                # Rotation as a quaternion.
-                qw = 1
-                qx = 0
-                qy = 0
-                qz = 0
-
-                # duration in seconds
-                seconds = 5
-
-                # Create the arm command.
-                arm_command = RobotCommandBuilder.arm_pose_command(
-                    x, y, z, qw, qx, qy, qz, BODY_FRAME_NAME, seconds)
-
-                # Send the request
-                self._robot_command_client.robot_command(arm_command)
-                self._logger.info('Moving arm to position.')
-
-                time.sleep(6.0)
-
-                # Tell the robot's body to follow the arm
-                follow_arm_command = RobotCommandBuilder.follow_arm_command()
-                self._robot_command_client.robot_command(follow_arm_command)
-                self._logger.info("Sending follow arm command")
-
-        except Exception as e:
-            return False, "Exception occured while arm was moving" + str(type(e)) + " " + str(e)
-
-        return True, "Moved arm and switched to follow arm successfully"
     
     def hand_pose(self, pose_points):
         try:

@@ -550,12 +550,6 @@ class SpotROS():
         resp = self.spot_wrapper.arm_carry()
         return TriggerResponse(resp[0], resp[1])
     
-    def handle_body_follow_arm(self, srv_data):
-        """ROS service to prepare the arm for body-follow-mode by moving the arm
-        infront of the body, and setting the robot into arm follow mode"""        
-        resp = self.spot_wrapper.body_follow_arm()
-        return TriggerResponse(resp[0], resp[1])
-    
     def handle_hand_pose(self, srv_data: HandPoseRequest):
         """ROS service to give a position to the gripper"""
         resp = self.spot_wrapper.hand_pose(pose_points = srv_data.pose_point)
@@ -699,7 +693,6 @@ class SpotROS():
             rospy.Service("gripper_angle_open", GripperAngleMove, self.handle_gripper_angle_open)
             rospy.Service("arm_joint_move", ArmJointMovement, self.handle_arm_joint_move)
             rospy.Service("force_trajectory", ArmForceTrajectory, self.handle_force_trajectory)
-            rospy.Service("body_follow_hand", Trigger, self.handle_body_follow_arm)
             rospy.Service("gripper_pose", HandPose, self.handle_hand_pose)
             #########################################################
 
