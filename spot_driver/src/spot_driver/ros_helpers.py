@@ -40,14 +40,13 @@ friendly_joint_names["hr.hy"] = "rear_right_hip_y"
 friendly_joint_names["hr.kn"] = "rear_right_knee"
 
 # arm joints
-friendly_joint_names["arm0.sh0"] = "Joint1"
-friendly_joint_names["arm0.sh1"] = "Joint2"
-#friendly_joint_names["arm0.hr0"] = ""
-friendly_joint_names["arm0.el0"] = "Joint3"
-friendly_joint_names["arm0.el1"] = "Joint4"
-friendly_joint_names["arm0.wr0"] = "Joint5"
-friendly_joint_names["arm0.wr1"] = "Joint6"
-friendly_joint_names["arm0.f1x"] = "Joint7"
+friendly_joint_names["arm0.sh0"] = "arm_joint1"
+friendly_joint_names["arm0.sh1"] = "arm_joint2"
+friendly_joint_names["arm0.el0"] = "arm_joint3"
+friendly_joint_names["arm0.el1"] = "arm_joint4"
+friendly_joint_names["arm0.wr0"] = "arm_joint5"
+friendly_joint_names["arm0.wr1"] = "arm_joint6"
+friendly_joint_names["arm0.f1x"] = "arm_gripper"
 
 
 class DefaultCameraInfo(CameraInfo):
@@ -202,6 +201,8 @@ def GetJointStatesFromState(state, spot_wrapper):
     local_time = spot_wrapper.robotToLocalTime(state.kinematic_state.acquisition_timestamp)
     joint_state.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     for joint in state.kinematic_state.joint_states:
+        # there is a joint with name arm0.hr0 in the robot state, however this 
+        # joint has no data and should not be there, this is why we ignore it
         if joint.name == 'arm0.hr0':
             continue
         joint_state.name.append(friendly_joint_names.get(joint.name, "ERROR"))

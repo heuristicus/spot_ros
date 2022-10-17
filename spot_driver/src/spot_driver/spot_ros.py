@@ -1,17 +1,11 @@
-from typing import Type
 import rospy
 
 from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
-from std_msgs.msg import Bool
 from tf2_msgs.msg import TFMessage
-from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose
 from nav_msgs.msg import Odometry
-
-
-from bosdyn.client.robot_state import RobotStateClient
 
 
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
@@ -44,7 +38,6 @@ from spot_msgs.srv import ArmJointMovement, ArmJointMovementResponse, ArmJointMo
 from spot_msgs.srv import GripperAngleMove, GripperAngleMoveResponse, GripperAngleMoveRequest
 from spot_msgs.srv import ArmForceTrajectory, ArmForceTrajectoryResponse, ArmForceTrajectoryRequest
 from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
-
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
@@ -558,7 +551,8 @@ class SpotROS():
         return TriggerResponse(resp[0], resp[1])
     
     def handle_body_follow_arm(self, srv_data):
-        """ROS service to send a pose to the end effector"""
+        """ROS service to prepare the arm for body-follow-mode by moving the arm
+        infront of the body, and setting the robot into arm follow mode"""        
         resp = self.spot_wrapper.body_follow_arm()
         return TriggerResponse(resp[0], resp[1])
     

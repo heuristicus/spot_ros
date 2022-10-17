@@ -1,11 +1,9 @@
 import time
 import math
-from typing import List
 
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client import robot_command
 from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
-from bosdyn.geometry import EulerZXY
 
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder, blocking_stand
@@ -706,7 +704,7 @@ class SpotWrapper():
             assert self._robot.is_powered_on(), "Spot failed to power on"
             self._logger.info("Spot is powered on")
         except Exception as e:
-            return False, "Exception occured while Spot was trying to power on or stand"
+            return False, "Exception occured while Spot or its arm were trying to power on"
 
         if not self._is_standing:
             robot_command.blocking_stand(command_client=self._robot_command_client, timeout_sec=10.0)
@@ -829,10 +827,10 @@ class SpotWrapper():
                 return False, msg
             else:
                 # Unstow arm
-                unstow = RobotCommandBuilder.arm_ready_command()
+                arm_ready_command = RobotCommandBuilder.arm_ready_command()
 
                 # Send command via the RobotCommandClient
-                self._robot_command_client.robot_command(unstow)
+                self._robot_command_client.robot_command(arm_ready_command)
 
                 self._logger.info("Unstow command issued.")
                 time.sleep(2.0)
@@ -840,43 +838,29 @@ class SpotWrapper():
                 # Demonstrate an example force trajectory by ramping up and down a vertical force over
                 # 10 seconds
 
-                f_x0 = data.forces_pt0[0]  # Newtons
-                f_y0 = data.forces_pt0[1]
-                f_z0 = data.forces_pt0[2]
-
-                torque_x0 = data.torques_pt0[0]
-                torque_y0 = data.torques_pt0[1]
-                torque_z0 = data.torques_pt0[2]
-
-                f_x1 = data.forces_pt1[0]  # Newtons
-                f_y1 = data.forces_pt1[1]
-                f_z1 = data.forces_pt1[2]  # -10 push down
-
-                # We won't have any rotational torques
-                torque_x1 = data.torques_pt1[0]
-                torque_y1 = data.torques_pt1[1]
-                torque_z1 = data.torques_pt1[2]
+                def create_wrench_from_msg(forces, torques):
+                    force = geometry_pb2.Vec3(x = forces[0],
+                                y = forces[1], z = forces[2])
+                    torque = geometry_pb2.Vec3(x = torques[0],
+                                y = torques[1], z = torques[2])
+                    return geometry_pb2.Wrench(force=force, torque=torque)
 
                 # Duration in seconds.
                 traj_duration = 5
 
-                # First point of trajectory
-                force_vector0 = geometry_pb2.Vec3(x=f_x0, y=f_y0, z=f_z0)
-                torque_vector0 = geometry_pb2.Vec3(x=torque_x0, y=torque_y0, z=torque_z0)
-                
-                wrench0 = geometry_pb2.Wrench(force=force_vector0, torque=torque_vector0)
+                # first point on trajectory
+                wrench0 = create_wrench_from_msg(
+                            data.forces_pt0, data.torques_pt0)
                 t0 = seconds_to_duration(0)
-                traj_point0 = trajectory_pb2.WrenchTrajectoryPoint(wrench=wrench0,
-                                                                time_since_reference=t0)
+                traj_point0 = trajectory_pb2.WrenchTrajectoryPoint(
+                                wrench=wrench0, time_since_reference=t0)
                 
                 # Second point on the trajectory
-                force_vector1 = geometry_pb2.Vec3(x=f_x1, y=f_y1, z=f_z1)
-                torque_vector1 = geometry_pb2.Vec3(x=torque_x1, y=torque_y1, z=torque_z1)
-
-                wrench1 = geometry_pb2.Wrench(force=force_vector1, torque=torque_vector1)
+                wrench1 = create_wrench_from_msg(
+                            data.forces_pt1, data.torques_pt1)
                 t1 = seconds_to_duration(traj_duration)
-                traj_point1 = trajectory_pb2.WrenchTrajectoryPoint(wrench=wrench1,
-                                                                time_since_reference=t1)
+                traj_point1 = trajectory_pb2.WrenchTrajectoryPoint(
+                            wrench=wrench1, time_since_reference=t1)
 
                 # Build the trajectory
                 trajectory = trajectory_pb2.WrenchTrajectory(points=[traj_point0, traj_point1])
@@ -1006,8 +990,6 @@ class SpotWrapper():
                 self._robot_command_client.robot_command(follow_arm_command)
                 self._logger.info("Sending follow arm command")
 
-                
-
         except Exception as e:
             return False, "Exception occured while arm was moving" + str(type(e)) + " " + str(e)
 
@@ -1022,17 +1004,14 @@ class SpotWrapper():
             else:
                 # Move the arm to a spot in front of the robot given a pose for the gripper.
                 # Build a position to move the arm to (in meters, relative to the body frame origin.)
-                x = pose_points.position.x
-                y = pose_points.position.y
-                z = pose_points.position.z 
-                position = geometry_pb2.Vec3(x=x, y=y, z=z)
+                position = geometry_pb2.Vec3(x=pose_points.position.x, 
+                            y=pose_points.position.y, z=pose_points.position.z)
 
                 # # Rotation as a quaternion.
-                qw = pose_points.orientation.w
-                qx = pose_points.orientation.x
-                qy = pose_points.orientation.y
-                qz = pose_points.orientation.z
-                rotation = geometry_pb2.Quaternion(w=qw, x=qx, y=qy, z=qz)
+                rotation = geometry_pb2.Quaternion(w=pose_points.orientation.w,
+                            x=pose_points.orientation.x, 
+                            y=pose_points.orientation.y, 
+                            z=pose_points.orientation.z)
 
                 seconds = 5.0
                 duration = seconds_to_duration(seconds)
@@ -1055,16 +1034,13 @@ class SpotWrapper():
                 command = self._robot_command(RobotCommandBuilder.build_synchro_command(robot_command))
 
                 # Send the request
-                try:
-                    self._robot_command_client.robot_command(command)
-                except Exception as e:
-                    print('1')
+                self._robot_command_client.robot_command(command)
                 self._logger.info('Moving arm to position.')
 
                 time.sleep(6.0)
 
         except Exception as e:
-            return False, str(e)
+            return False, "An error occured while trying to move arm"
 
         return True, "Moved arm successfully"
    

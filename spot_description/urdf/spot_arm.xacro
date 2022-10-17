@@ -179,7 +179,7 @@
         <child link="base_arm_link" />
     </joint>
 
-<joint name="Joint1" type="revolute">
+<joint name="arm_joint1" type="revolute">
   <origin rpy="0 0 0" xyz="0.0 0.0 0.065"/>
   <parent link="base_arm_link"/>
   <child link="link1"/>
@@ -187,7 +187,7 @@
   <limit effort="100" lower="-3.141593" upper="2.617994" velocity="100"/>
 </joint>
 
-<joint name="Joint2" type="revolute">
+<joint name="arm_joint2" type="revolute">
   <origin rpy="0 0 0" xyz="0.015 0.0 0.05"/>
   <parent link="link1"/>
   <child link="link2"/>
@@ -195,7 +195,7 @@
   <limit effort="100" lower="-3.665191" upper="0.0" velocity="100"/>
 </joint>
 
-<joint name="Joint3" type="revolute">
+<joint name="arm_joint3" type="revolute">
   <origin rpy="0 0 0" xyz="0.002 0.3125 0.0"/>
   <parent link="link2"/>
   <child link="link3"/>
@@ -203,7 +203,7 @@
   <limit effort="100" lower="0.0" upper="2.96706" velocity="100"/>
 </joint>
 
-<joint name="Joint4" type="revolute">
+<joint name="arm_joint4" type="revolute">
   <origin rpy="0 0 0" xyz="-0.018 0.138 -0.0675"/>
   <parent link="link3"/>
   <child link="link4"/>
@@ -211,7 +211,7 @@
   <limit effort="100" lower="-2.879793" upper="2.879793" velocity="100"/>
 </joint>
 
-<joint name="Joint5" type="revolute">
+<joint name="arm_joint5" type="revolute">
   <origin rpy="0 0 0" xyz="-0.0475 0.24809 0.0"/>
   <parent link="link4"/>
   <child link="wrist"/>
@@ -219,7 +219,7 @@
   <limit effort="100" lower="-1.570796" upper="1.570796" velocity="100"/>
 </joint>
 
-<joint name="Joint6" type="revolute">
+<joint name="arm_joint6" type="revolute">
   <origin rpy="0 0 0" xyz="0.04 0.081 0.0"/>
   <parent link="wrist"/>
   <child link="gripper"/>
@@ -227,7 +227,7 @@
   <limit effort="100" lower="-2.96706" upper="2.96706" velocity="100"/>
 </joint>
 
-<joint name="Joint7" type="revolute">
+<joint name="arm_gripper" type="revolute">
   <origin rpy="0 0 0" xyz="-0.86859 0.043915 -0.029"/>
   <parent link="gripper"/>
   <child link="finger"/>
