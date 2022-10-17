@@ -933,14 +933,22 @@ class SpotWrapper():
         return True, "Closed gripper successfully"
     
     def gripper_angle_open(self, gripper_ang):
+        # takes an angle between 0 (closed) and 90 (fully opened) and opens the
+        # gripper at this angle
+        if gripper_ang > 90 or gripper_ang < 0:
+            return False, "Gripper angle must be between 0 and 90"
         try:
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
                 return False, msg
             else:
-                # Open gripper at an angle
-                command = RobotCommandBuilder.claw_gripper_open_angle_command(gripper_ang)
+                # The open angle command does not take degrees but the limits 
+                # defined in the urdf, that is why we have to interpolate
+                closed = 0.349066
+                opened = -1.396263
+                angle = gripper_ang / 90.0 * (opened - closed) + closed
+                command = RobotCommandBuilder.claw_gripper_open_angle_command(angle)
 
                 # Command issue with RobotCommandClient
                 self._robot_command_client.robot_command(command)
