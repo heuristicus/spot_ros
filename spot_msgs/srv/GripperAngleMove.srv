@@ -1,0 +1,4 @@
+float64 gripper_angle
+---
+bool success
+string message

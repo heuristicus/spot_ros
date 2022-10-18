@@ -1,0 +1,9 @@
+# See https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference.html?highlight=foot_state#footstate-terrainstate
+
+float32 ground_mu_est
+string frame_name
+geometry_msgs/Vector3 foot_slip_distance_rt_frame
+geometry_msgs/Vector3 foot_slip_velocity_rt_frame
+geometry_msgs/Vector3 ground_contact_normal_rt_frame
+float32 visual_surface_ground_penetration_mean
+float32 visual_surface_ground_penetration_std

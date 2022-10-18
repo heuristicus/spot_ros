@@ -1,0 +1,14 @@
+# The pose the body should be moved to. Only the orientation and the z component (body height) of position is considered.
+# If this is unset, the rpy/body height values will be used instead.
+geometry_msgs/Pose body_pose
+
+# Alternative specification of the body pose with rpy (in degrees). These values are ignored if the body_pose is set
+int8 roll
+int8 pitch
+int8 yaw
+float32 body_height
+---
+bool success
+string message
+---
+string feedback
