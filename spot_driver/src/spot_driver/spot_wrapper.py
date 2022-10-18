@@ -371,9 +371,14 @@ class SpotWrapper():
             self._estop_endpoint = None
             self._estop_keepalive = None
 
-            self._async_tasks = AsyncTasks(
-                [self._robot_state_task, self._robot_metrics_task, self._lease_task, self._front_image_task, self._side_image_task, self._rear_image_task, self._hand_image_task, self._idle_task, self._estop_monitor])
-
+            self._async_tasks = AsyncTasks([self._robot_state_task, 
+                    self._robot_metrics_task, self._lease_task, 
+                    self._front_image_task, self._side_image_task,
+                    self._rear_image_task, self._idle_task, self._estop_monitor])
+            
+            if self._robot.has_arm():
+                self._async_tasks.add_task(self._hand_image_task)
+    
             self._robot_id = None
             self._lease = None
 
