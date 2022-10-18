@@ -874,25 +874,49 @@ class SpotWrapper():
         return RobotCommandBuilder.build_synchro_command(arm_sync_robot_cmd)
 
     def arm_joint_move(self, joint_targets):
+        # All perspectives are given when looking at the robot from behind after the unstow service is called
+        # Joint1: 0.0 arm points to the front. positive: turn left, negative: turn right)
+        # RANGE: -3.14 -> 3.14
+        # Joint2: 0.0 arm points to the front. positive: move down, negative move up
+        # RANGE: 0.4 -> -3.13 (
+        # Joint3: 0.0 arm straight. moves the arm down
+        # RANGE: 0.0 -> 3.1415
+        # Joint4: 0.0 middle position. negative: moves ccw, positive moves cw  
+        # RANGE: -2.79253 -> 2.79253                
+        # # Joint5: 0.0 gripper points to the front. positive moves the gripper down 
+        # RANGE: -1.8326 -> 1.8326
+        # Joint6: 0.0 Gripper is not rolled, positive is ccw 
+        # RANGE: -2.87 -> 2.87
+        if abs(joint_targets[0]) > 3.14:
+          msg = "Joint 1 has to be between -3.14 and 3.14"
+          self._logger.warn(msg)
+          return False, msg
+        elif joint_targets[1] > 0.4 or joint_targets[1] <  -3.13: 
+          msg = "Joint 2 has to be between -3.13 and 0.4"
+          self._logger.warn(msg)
+          return False, msg
+        elif joint_targets[2] > 3.14 or joint_targets[1] <  0.0: 
+          msg = "Joint 3 has to be between 0.0 and 3.14"
+          self._logger.warn(msg)
+          return False, msg
+        elif abs(joint_targets[3]) > 2.79253: 
+          msg = "Joint 4 has to be between -2.79253 and 2.79253"
+          self._logger.warn(msg)
+          return False, msg
+        elif abs(joint_targets[4]) > 1.8326: 
+          msg = "Joint 5 has to be between -1.8326 and 1.8326"
+          self._logger.warn(msg)
+          return False, msg
+        elif abs(joint_targets[5]) > 2.87: 
+          msg = "Joint 6 has to be between -2.87 and 2.87"
+          self._logger.warn(msg)
+          return False, msg
         try:
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
                 return False, msg
             else:
-                # All perspectives are given when looking at the robot from behind after the unstow service is called
-                # Joint1: 0.0 arm points to the front. positive: turn left, negative: turn right)
-                # RANGE: -3.14 -> 3.14
-                # Joint2: 0.0 arm points to the front. positive: move down, negative move up
-                # RANGE: 0.4 -> -3.13 (
-                # Joint3: 0.0 arm straight. moves the arm down
-                # RANGE: 0.0 -> 3.1415
-                # Joint4: 0.0 middle position. negative: moves ccw, positive moves cw  
-                # RANGE: -2.79253 -> 2.79253                
-                # # Joint5: 0.0 gripper points to the front. positive moves the gripper down 
-                # RANGE: -1.8326 -> 1.8326
-                # Joint6: 0.0 Gripper is not rolled, positive is ccw 
-                # RANGE: -2.87 -> 2.87
                 trajectory_point = RobotCommandBuilder.create_arm_joint_trajectory_point(
                     joint_targets[0], joint_targets[1], joint_targets[2],
                     joint_targets[3], joint_targets[4], joint_targets[5])
