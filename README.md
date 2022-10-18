@@ -31,6 +31,7 @@ default values:
 | `SPOT_URDF_EXTRAS`         | `empty.urdf`                      | Optional URDF file to add additional joints and links to the robot                         |
 | `SPOT_JOY_DEVICE`          | `/dev/input/js0`                  | The Linux joypad input device used by the `joy_teleop` node                                |
 | `SPOT_JOY_CONFIG`          | `spot_control/config/teleop.yaml` | Joypad button/axis configuration file for `joy_teleop`                                     |
+| `SPOT_ARM`                 | `0`                               | If `1`, adds the Spot arm to the URDF                                                             |
 
 
 # Building Quick-Start
@@ -99,3 +100,7 @@ catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/usr/bin
 4. re-run `source devel/setup.bash`
 
 5. start the driver with `roslaunch spot_driver driver.launch`
+
+# MoveIt simulation of Spot's arm
+
+Can be found in other repo: https://github.com/estherRay/Spot-Arm
