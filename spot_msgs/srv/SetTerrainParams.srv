@@ -1,0 +1,4 @@
+spot_msgs/TerrainParams terrain_params
+---
+bool success
+string message

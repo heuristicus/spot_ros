@@ -1,0 +1,10 @@
+#see https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference.html?highlight=power_state#swingheight
+uint8 SWING_HEIGHT_UNKNOWN=0
+uint8 SWING_HEIGHT_LOW=1
+uint8 SWING_HEIGHT_MEDIUM=2
+uint8 SWING_HEIGHT_HIGH=3
+
+uint8 swing_height
+---
+bool success
+string message
