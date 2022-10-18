@@ -887,6 +887,7 @@ class SpotWrapper():
         # RANGE: -1.8326 -> 1.8326
         # Joint6: 0.0 Gripper is not rolled, positive is ccw 
         # RANGE: -2.87 -> 2.87
+        # Values after unstow are: [0.0, -0.9, 1.8, 0.0, -0.9, 0.0]
         if abs(joint_targets[0]) > 3.14:
           msg = "Joint 1 has to be between -3.14 and 3.14"
           self._logger.warn(msg)
@@ -895,7 +896,7 @@ class SpotWrapper():
           msg = "Joint 2 has to be between -3.13 and 0.4"
           self._logger.warn(msg)
           return False, msg
-        elif joint_targets[2] > 3.14 or joint_targets[1] <  0.0: 
+        elif joint_targets[2] > 3.14 or joint_targets[2] <  0.0: 
           msg = "Joint 3 has to be between 0.0 and 3.14"
           self._logger.warn(msg)
           return False, msg
