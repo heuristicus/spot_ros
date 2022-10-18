@@ -44,6 +44,11 @@ add_service_files(
   SetSwingHeight.srv
   SetVelocity.srv
   ClearBehaviorFault.srv
+  ArmJointMovement.srv
+  ConstrainedArmJointMovement.srv
+  GripperAngleMove.srv
+  ArmForceTrajectory.srv
+  HandPose.srv
   SetObstacleParams.srv
   SetTerrainParams.srv
   PosedStand.srv
