@@ -1,0 +1,22 @@
+# Status
+uint8 DOCK_STATUS_UNKNOWN = 0
+uint8 DOCK_STATUS_DOCKED = 1
+uint8 DOCK_STATUS_DOCKING = 2
+uint8 DOCK_STATUS_UNDOCKED = 3
+uint8 DOCK_STATUS_UNDOCKING = 4
+
+# DockType
+uint8 DOCK_TYPE_UNKNOWN = 0
+uint8 DOCK_TYPE_CONTACT_PROTOTYPE = 2
+uint8 DOCK_TYPE_SPOT_DOCK = 3
+
+# LinkStatus
+uint8 LINK_STATUS_UNKNOWN = 0
+uint8 LINK_STATUS_CONNECTED = 1
+uint8 LINK_STATUS_ERROR = 2
+uint8 LINK_STATUS_DETECTING = 3
+
+uint8 status
+uint8 dock_type
+uint32 dock_id
+uint8 power_status

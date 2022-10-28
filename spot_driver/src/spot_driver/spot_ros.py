@@ -42,6 +42,7 @@ from spot_msgs.srv import SetTerrainParams, SetTerrainParamsResponse
 from spot_msgs.srv import SetObstacleParams, SetObstacleParamsResponse
 from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
 from spot_msgs.srv import SetVelocity, SetVelocityResponse
+from spot_msgs.srv import Dock, DockResponse, GetDockState, GetDockStateResponse
 from spot_msgs.srv import PosedStand, PosedStandResponse
 from spot_msgs.srv import SetSwingHeight, SetSwingHeightResponse
 from spot_msgs.srv import ArmJointMovement, ArmJointMovementResponse, ArmJointMovementRequest
@@ -762,6 +763,21 @@ class SpotROS():
         resp = self.spot_wrapper.battery_change_pose(2)
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_dock(self, req):
+        """Dock the robot"""
+        resp = self.spot_wrapper.dock(req.dock_id)
+        return DockResponse(resp[0], resp[1])
+
+    def handle_undock(self, req):
+        """Undock the robot"""
+        resp = self.spot_wrapper.undock()
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_get_docking_state(self, req):
+        """Get docking state of robot"""
+        resp = self.spot_wrapper.get_docking_state()
+        return GetDockStateResponse(GetDockStatesFromState(resp))
+
     def _send_trajectory_command(self, pose, duration, precise=True):
         """
         Send a trajectory command to the robot
@@ -1229,7 +1245,10 @@ class SpotROS():
 
         rospy.Service("roll_over_right", Trigger, self.handle_roll_over_right)
         rospy.Service("roll_over_left", Trigger, self.handle_roll_over_left)
-
+        # Docking
+        rospy.Service("dock", Dock, self.handle_dock)
+        rospy.Service("undock", Trigger, self.handle_undock)
+        rospy.Service("docking_state", GetDockState, self.handle_get_docking_state)
         # Arm Services #########################################
         rospy.Service("arm_stow", Trigger, self.handle_arm_stow)
         rospy.Service("arm_unstow", Trigger, self.handle_arm_unstow)
@@ -1246,6 +1265,7 @@ class SpotROS():
                                                         execute_cb = self.handle_navigate_to,
                                                         auto_start = False)
         self.navigate_as.start()
+
 
         self.trajectory_server = actionlib.SimpleActionServer("trajectory", TrajectoryAction,
                                                               execute_cb=self.handle_trajectory,
