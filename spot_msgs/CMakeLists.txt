@@ -32,6 +32,7 @@ add_message_files(
   LeaseResource.msg
   PowerState.msg
   SystemFaultState.msg
+  DockState.msg
   ObstacleParams.msg
   TerrainParams.msg
   TerrainState.msg
@@ -52,6 +53,8 @@ add_service_files(
   SetObstacleParams.srv
   SetTerrainParams.srv
   PosedStand.srv
+  Dock.srv
+  GetDockState.srv
 )
 
 add_action_files(

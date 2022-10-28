@@ -14,6 +14,8 @@ from bosdyn.client.frame_helpers import get_odom_tform_body, ODOM_FRAME_NAME, BO
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
 from bosdyn.client.image import ImageClient, build_image_request
+from bosdyn.client.docking import DockingClient, blocking_dock_robot, blocking_undock
+from bosdyn.api import image_pb2
 from bosdyn.api import estop_pb2, image_pb2
 from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
@@ -22,6 +24,7 @@ from bosdyn.client.estop import EstopClient, EstopEndpoint, EstopKeepAlive
 from bosdyn.client import power
 from bosdyn.client import frame_helpers
 from bosdyn.client import math_helpers
+from bosdyn.client import robot_command
 from bosdyn.client.exceptions import InternalServerError
 
 from . import graph_nav_util
@@ -219,13 +222,11 @@ class AsyncIdle(AsyncPeriodicQuery):
 
         self._spot_wrapper._is_moving = is_moving
 
-        # We must check if any command currently has a non-None value for its id. If we don't do this, this stand
-        # command can cause other commands to be interrupted before they get to start
         if (self._spot_wrapper.is_standing and not self._spot_wrapper.is_moving
-            and self._spot_wrapper._last_trajectory_command is not None
-            and self._spot_wrapper._last_stand_command is not None
-            and self._spot_wrapper._last_velocity_command_time is not None
-        ):
+                    and self._spot_wrapper._last_trajectory_command is not None
+                    and self._spot_wrapper._last_stand_command is not None
+                    and self._spot_wrapper._last_velocity_command_time is not None
+                    and self._spot_wrapper._last_docking_command is not None):
             self._spot_wrapper.stand(False)
 
 class AsyncEStopMonitor(AsyncPeriodicQuery):
@@ -281,6 +282,7 @@ class SpotWrapper():
         self._last_trajectory_command = None
         self._last_trajectory_command_precise = None
         self._last_velocity_command_time = None
+        self._last_docking_command = None
 
         self._front_image_requests = []
         for source in front_image_sources:
@@ -342,6 +344,7 @@ class SpotWrapper():
                     self._lease_wallet = self._lease_client.lease_wallet
                     self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
                     self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
+                    self._docking_client = self._robot.ensure_client(DockingClient.default_service_name)
                     initialised = True
                 except Exception as e:
                     sleep_secs = 15
@@ -1437,3 +1440,33 @@ class SpotWrapper():
                     # This edge matches the pair of waypoints! Add it the edge list and continue.
                     return map_pb2.Edge.Id(from_waypoint=waypoint1, to_waypoint=waypoint2)
         return None
+
+    def dock(self, dock_id):
+        """Dock the robot to the docking station with fiducial ID [dock_id]."""
+        try:
+            # Make sure we're powered on and standing
+            self._robot.power_on()
+            self.stand()
+            # Dock the robot
+            self.last_docking_command = dock_id
+            blocking_dock_robot(self._robot, dock_id)
+            self.last_docking_command = None
+            return True, "Success"
+        except Exception as e:
+            return False, str(e)
+
+    def undock(self, timeout=20):
+        """Power motors on and undock the robot from the station."""
+        try:
+            # Maker sure we're powered on
+            self._robot.power_on()
+            # Undock the robot
+            blocking_undock(self._robot ,timeout)
+            return True, "Success"
+        except Exception as e:
+            return False, str(e)
+
+    def get_docking_state(self, **kwargs):
+        """Get docking state of robot."""
+        state = self._docking_client.get_docking_state(**kwargs)
+        return state

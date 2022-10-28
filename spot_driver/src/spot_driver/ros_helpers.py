@@ -20,6 +20,7 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
+from spot_msgs.msg import DockState
 
 from bosdyn.api import image_pb2
 from bosdyn.client.math_helpers import SE3Pose
@@ -442,6 +443,21 @@ def GetPowerStatesFromState(state, spot_wrapper):
     power_state_msg.locomotion_charge_percentage = state.power_state.locomotion_charge_percentage.value
     power_state_msg.locomotion_estimated_runtime = rospy.Time(state.power_state.locomotion_estimated_runtime.seconds, state.power_state.locomotion_estimated_runtime.nanos)
     return power_state_msg
+
+def GetDockStatesFromState(state):
+    """Maps dock state data from robot state proto to ROS DockState message
+
+    Args:
+        state: Robot State proto
+    Returns:
+        DockState message
+    """
+    dock_state_msg = DockState()
+    dock_state_msg.status = state.status
+    dock_state_msg.dock_type = state.dock_type
+    dock_state_msg.dock_id = state.dock_id
+    dock_state_msg.power_status = state.power_status
+    return dock_state_msg
 
 def getBehaviorFaults(behavior_faults, spot_wrapper):
     """Helper function to strip out behavior faults into a list
