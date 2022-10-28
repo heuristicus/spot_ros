@@ -749,6 +749,11 @@ class SpotWrapper():
         # skip waypoint_ for v2.2.1, skip waypiont for < v2.2
         return [v for k, v in sorted(ids.items(), key=lambda id : int(id[0].replace('waypoint_','')))]
 
+    def battery_change_pose(self, dir_hint=1):
+        """Robot sit down and roll on to it its side for easier battery access"""
+        response = self._robot_command(RobotCommandBuilder.battery_change_pose_command(dir_hint))
+        return response[0], response[1]
+
     def navigate_to(self, upload_path,
                     navigate_to,
                     initial_localization_fiducial=True,

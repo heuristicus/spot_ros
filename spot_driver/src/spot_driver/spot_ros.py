@@ -751,6 +751,18 @@ class SpotROS():
                 self.trajectory_server.publish_feedback(TrajectoryFeedback("Failed to reach goal"))
                 self.trajectory_server.set_aborted(TrajectoryResult(False, "Failed to reach goal"))
 
+    def handle_roll_over_right(self, req):
+        """Robot sit down and roll on to it its side for easier battery access"""
+        del req
+        resp = self.spot_wrapper.battery_change_pose(1)
+        return TriggerResponse(resp[0], resp[1])
+
+    def handle_roll_over_left(self, req):
+        """Robot sit down and roll on to it its side for easier battery access"""
+        del req
+        resp = self.spot_wrapper.battery_change_pose(2)
+        return TriggerResponse(resp[0], resp[1])
+
     def handle_dock(self, req):
         """Dock the robot"""
         resp = self.spot_wrapper.dock(req.dock_id)
@@ -1138,7 +1150,6 @@ class SpotROS():
         rospy.loginfo("Starting ROS driver for Spot")
         self.spot_wrapper = SpotWrapper(self.username, self.password, self.hostname, self.logger, self.estop_timeout, self.rates, self.callbacks)
 
-
         if not self.spot_wrapper.is_valid:
             return
 
@@ -1232,6 +1243,8 @@ class SpotROS():
 
         rospy.Service("list_graph", ListGraph, self.handle_list_graph)
 
+        rospy.Service("roll_over_right", Trigger, self.handle_roll_over_right)
+        rospy.Service("roll_over_left", Trigger, self.handle_roll_over_left)
         # Docking
         rospy.Service("dock", Dock, self.handle_dock)
         rospy.Service("undock", Trigger, self.handle_undock)
