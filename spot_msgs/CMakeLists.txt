@@ -36,6 +36,8 @@ add_message_files(
   ObstacleParams.msg
   TerrainParams.msg
   TerrainState.msg
+  GraspParams.msg
+  AllowableOrientation.msg
 )
 
 add_service_files(
@@ -55,6 +57,7 @@ add_service_files(
   PosedStand.srv
   Dock.srv
   GetDockState.srv
+  Grasp3d.srv
 )
 
 add_action_files(

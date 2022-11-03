@@ -61,6 +61,7 @@ from spot_msgs.srv import (
     ArmForceTrajectoryRequest,
 )
 from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
+from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
@@ -1193,6 +1194,15 @@ class SpotROS:
         resp = self.spot_wrapper.hand_pose(pose_points=srv_data.pose_point)
         return HandPoseResponse(resp[0], resp[1])
 
+    def handle_grasp_3d(self, srv_data: Grasp3dRequest):
+        """ROS service to grasp an object by x,y,z coordinates in given frame"""
+        resp = self.spot_wrapper.grasp_3d(
+            frame=srv_data.frame,
+            object_rt_frame=srv_data.object_rt_frame,
+            grasp_params=srv_data.grasp_params
+        )
+        return Grasp3dResponse(resp[0], resp[1])
+
     ##################################################################
 
     def shutdown(self):
@@ -1572,6 +1582,7 @@ class SpotROS:
             "force_trajectory", ArmForceTrajectory, self.handle_force_trajectory
         )
         rospy.Service("gripper_pose", HandPose, self.handle_hand_pose)
+        rospy.Service("grasp_3d", Grasp3d, self.handle_grasp_3d)
         #########################################################
 
         self.navigate_as = actionlib.SimpleActionServer(

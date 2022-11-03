@@ -1,0 +1,5 @@
+float64 grasp_palm_to_fingertip
+string grasp_params_frame_name
+AllowableOrientation allowable_orientation
+uint8 position_constraint
+uint8 manipulation_camera_source

@@ -48,6 +48,8 @@ from bosdyn.util import seconds_to_duration
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
+from bosdyn.api import manipulation_api_pb2
+
 front_image_sources = [
     "frontleft_fisheye_image",
     "frontright_fisheye_image",
@@ -1414,6 +1416,53 @@ class SpotWrapper:
             return False, "An error occured while trying to move arm"
 
         return True, "Moved arm successfully"
+
+    def grasp_3d(self, frame, object_rt_frame, grasp_params=None):
+        try:
+
+            frm = str(frame)
+            pos = geometry_pb2.Vec3(
+                x=object_rt_frame[0],
+                y=object_rt_frame[1],
+                z=object_rt_frame[2]
+            )
+
+            gra_par = None
+            if not grasp_params is None:
+
+                all_orr = manipulation_api_pb2.AllowableOrientation(
+                    # TODO
+                )
+
+                pos_con = manipulation_api_pb2.GraspPositionConstraint(
+                    # TODO
+                )
+
+                man_cam_src = manipulation_api_pb2.ManipulationCameraSource(
+                    # TODO
+                )
+
+                gra_par=manipulation_api_pb2.GraspParams(
+                    grasp_palm_to_fingertip=grasp_params.grasp_palm_to_fingertip,
+                    grasp_params_frame_name=grasp_params.grasp_params_frame_name,
+                    allowable_orientation=all_orr,
+                    position_constraint=pos_con,
+                    manipulation_camera_source=man_cam_src
+                )
+
+
+            grasp = manipulation_api_pb2.PickObject(
+                frame_name = frm,
+                object_rt_frame = pos,
+                grasp_params = gra_par
+            )
+
+            # TODO: send command
+        except Exception as e:
+            return False, "An error occured while trying to grasp from pose"
+
+        return True, "Grasped successfully"
+
 
     ###################################################################
 
