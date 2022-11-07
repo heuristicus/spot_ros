@@ -49,6 +49,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from bosdyn.api import manipulation_api_pb2
+from bosdyn.client.manipulation_api_client import ManipulationApiClient
 
 front_image_sources = [
     "frontleft_fisheye_image",
@@ -468,6 +469,9 @@ class SpotWrapper:
                     )
                     self._docking_client = self._robot.ensure_client(
                         DockingClient.default_service_name
+                    )
+                    self._manipulation_client = self._robot.ensure_client(
+                        ManipulationApiClient.default_service_name
                     )
                     initialised = True
                 except Exception as e:
@@ -1417,7 +1421,7 @@ class SpotWrapper:
 
         return True, "Moved arm successfully"
 
-    def grasp_3d(self, frame, object_rt_frame, grasp_params=None):
+    def grasp_3d(self, frame, object_rt_frame):
         try:
 
             frm = str(frame)
@@ -1427,37 +1431,37 @@ class SpotWrapper:
                 z=object_rt_frame[2]
             )
 
-            gra_par = None
-            if not grasp_params is None:
-
-                all_orr = manipulation_api_pb2.AllowableOrientation(
-                    # TODO
-                )
-
-                pos_con = manipulation_api_pb2.GraspPositionConstraint(
-                    # TODO
-                )
-
-                man_cam_src = manipulation_api_pb2.ManipulationCameraSource(
-                    # TODO
-                )
-
-                gra_par=manipulation_api_pb2.GraspParams(
-                    grasp_palm_to_fingertip=grasp_params.grasp_palm_to_fingertip,
-                    grasp_params_frame_name=grasp_params.grasp_params_frame_name,
-                    allowable_orientation=all_orr,
-                    position_constraint=pos_con,
-                    manipulation_camera_source=man_cam_src
-                )
-
-
             grasp = manipulation_api_pb2.PickObject(
                 frame_name = frm,
-                object_rt_frame = pos,
-                grasp_params = gra_par
+                object_rt_frame = pos
             )
 
-            # TODO: send command
+            # Ask the robot to pick up the object
+            grasp_request = manipulation_api_pb2.ManipulationApiRequest(pick_object=grasp)
+            # Send the request
+            cmd_response = self._manipulation_client.manipulation_api_command(
+                manipulation_api_request=grasp_request
+            )
+
+            # Get feedback from the robot
+            while True:
+                feedback_request = manipulation_api_pb2.ManipulationApiFeedbackRequest(
+                    manipulation_cmd_id=cmd_response.manipulation_cmd_id)
+
+                # Send the request
+                response = self._manipulation_client.manipulation_api_feedback_command(
+                    manipulation_api_feedback_request=feedback_request)
+
+                print('Current state: ',
+                    manipulation_api_pb2.ManipulationFeedbackState.Name(response.current_state))
+
+                if response.current_state == manipulation_api_pb2.MANIP_STATE_GRASP_SUCCEEDED or response.current_state == manipulation_api_pb2.MANIP_STATE_GRASP_FAILED:
+                    break
+
+                time.sleep(0.25)
+
+            self._robot.logger.info('Finished grasp.')
+
         except Exception as e:
             return False, "An error occured while trying to grasp from pose"
 
