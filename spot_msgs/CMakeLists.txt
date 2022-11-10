@@ -36,8 +36,6 @@ add_message_files(
   ObstacleParams.msg
   TerrainParams.msg
   TerrainState.msg
-  GraspParams.msg
-  AllowableOrientation.msg
 )
 
 add_service_files(
