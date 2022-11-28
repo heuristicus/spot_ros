@@ -1212,25 +1212,13 @@ class SpotWrapper:
                 self._logger.info(msg)
                 return False, msg
             else:
-                # Unstow arm
-                arm_ready_command = RobotCommandBuilder.arm_ready_command()
-
-                # Send command via the RobotCommandClient
-                self._robot_command_client.robot_command(arm_ready_command)
-
-                self._logger.info("Unstow command issued.")
-                time.sleep(2.0)
-
-                # Demonstrate an example force trajectory by ramping up and down a vertical force over
-                # 10 seconds
-
                 def create_wrench_from_msg(forces, torques):
                     force = geometry_pb2.Vec3(x=forces[0], y=forces[1], z=forces[2])
                     torque = geometry_pb2.Vec3(x=torques[0], y=torques[1], z=torques[2])
                     return geometry_pb2.Wrench(force=force, torque=torque)
 
                 # Duration in seconds.
-                traj_duration = 5
+                traj_duration = data.duration
 
                 # first point on trajectory
                 wrench0 = create_wrench_from_msg(data.forces_pt0, data.torques_pt0)
@@ -1253,7 +1241,7 @@ class SpotWrapper:
 
                 # Build the trajectory request, putting all axes into force mode
                 arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
-                    root_frame_name=ODOM_FRAME_NAME,
+                    root_frame_name=data.frame,
                     wrench_trajectory_in_task=trajectory,
                     x_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
                     y_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
@@ -1278,7 +1266,7 @@ class SpotWrapper:
                 self._robot_command_client.robot_command(robot_command)
                 self._logger.info("Force trajectory command sent")
 
-                time.sleep(10.0)
+                time.sleep(float(traj_duration) + 1.0)
 
         except Exception as e:
             return False, "Exception occured during arm movement"
@@ -1353,30 +1341,31 @@ class SpotWrapper:
 
         return True, "Opened gripper successfully"
 
-    def hand_pose(self, pose_points):
+    def hand_pose(self, data):
         try:
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
                 return False, msg
             else:
+                pose_point = data.pose_point
                 # Move the arm to a spot in front of the robot given a pose for the gripper.
                 # Build a position to move the arm to (in meters, relative to the body frame origin.)
                 position = geometry_pb2.Vec3(
-                    x=pose_points.position.x,
-                    y=pose_points.position.y,
-                    z=pose_points.position.z,
+                    x=pose_point.position.x,
+                    y=pose_point.position.y,
+                    z=pose_point.position.z,
                 )
 
                 # # Rotation as a quaternion.
                 rotation = geometry_pb2.Quaternion(
-                    w=pose_points.orientation.w,
-                    x=pose_points.orientation.x,
-                    y=pose_points.orientation.y,
-                    z=pose_points.orientation.z,
+                    w=pose_point.orientation.w,
+                    x=pose_point.orientation.x,
+                    y=pose_point.orientation.y,
+                    z=pose_point.orientation.z,
                 )
 
-                seconds = 5.0
+                seconds = data.duration
                 duration = seconds_to_duration(seconds)
 
                 # Build the SE(3) pose of the desired hand position in the moving body frame.
@@ -1389,7 +1378,7 @@ class SpotWrapper:
                 )
 
                 arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
-                    root_frame_name=BODY_FRAME_NAME,
+                    root_frame_name=data.frame,
                     pose_trajectory_in_task=hand_trajectory,
                 )
                 arm_command = arm_command_pb2.ArmCommand.Request(
@@ -1406,18 +1395,16 @@ class SpotWrapper:
                     synchronized_command=synchronized_command
                 )
 
-                command = self._robot_command(
-                    RobotCommandBuilder.build_synchro_command(robot_command)
-                )
+                command = RobotCommandBuilder.build_synchro_command(robot_command)
 
                 # Send the request
                 self._robot_command_client.robot_command(command)
                 self._logger.info("Moving arm to position.")
 
-                time.sleep(6.0)
+                time.sleep(2.0)
 
         except Exception as e:
-            return False, "An error occured while trying to move arm"
+            return False, "An error occured while trying to move arm \n Exception:" + str(e)
 
         return True, "Moved arm successfully"
 
