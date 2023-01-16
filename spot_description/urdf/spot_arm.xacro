@@ -174,7 +174,7 @@
 </link>
 
 <joint name="base_arm_joint" type="fixed">
-        <origin xyz="0.29 0 0.08" rpy="0 0 0" />
+        <origin xyz="0.29 0 0.08" rpy="0 0 -1.571" />
         <parent link="body" />
         <child link="base_arm_link" />
     </joint>
@@ -196,7 +196,7 @@
 </joint>
 
 <joint name="arm_joint3" type="revolute">
-  <origin rpy="0 0 0" xyz="0.002 0.3125 0.0"/>
+  <origin rpy="0 3.1415 0" xyz="0.002 0.3125 0.0"/>
   <parent link="link2"/>
   <child link="link3"/>
   <axis xyz="1.0 0.0 0.0"/>
