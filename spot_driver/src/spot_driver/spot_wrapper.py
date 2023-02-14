@@ -554,6 +554,12 @@ class SpotWrapper:
                 ]
             )
 
+            self.lookup = {
+                "hand_image": self._hand_image_task,
+                "side_image": self._side_image_task,
+                "rear_image": self._rear_image_task,
+            }
+
             self._robot_id = None
             self._lease = None
 
@@ -1820,12 +1826,7 @@ class SpotWrapper:
 
     def update_image_tasks(self, image_name):
         """Updates the async tasks for an image topic if there is a subscriber"""
-        lookup = {
-            "hand_image": self._hand_image_task,
-            "side_image": self._side_image_task,
-            "rear_image": self._rear_image_task,
-        }
         if self._robot.has_arm():
             self._async_tasks.add_task(self._hand_image_task)
 
-        self._async_tasks.add_task(lookup[image_name])
+        self._async_tasks.add_task(self.lookup[image_name])
