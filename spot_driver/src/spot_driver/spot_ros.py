@@ -1312,13 +1312,18 @@ class SpotROS:
         self.motion_allowed_pub.publish(self.allow_motion)
 
     def check_for_subscriber(self):
-        #self.hand_image_mono_pub
-        pubs = [self.back_image_pub, self.hand_image_color_pub, self.right_image_pub, self.left_image_pub]
+        # self.hand_image_mono_pub
+        pubs = [
+            self.back_image_pub,
+            self.hand_image_color_pub,
+            self.right_image_pub,
+            self.left_image_pub,
+        ]
         lookup = {
-            self.back_image_pub : "rear_image",
-            self.right_image_pub : "side_image",
-            self.left_image_pub : "side_image",
-            self.hand_image_color_pub : "hand_image",
+            self.back_image_pub: "rear_image",
+            self.right_image_pub: "side_image",
+            self.left_image_pub: "side_image",
+            self.hand_image_color_pub: "hand_image",
         }
         for pub in pubs:
             if pub.get_num_connections() > 0 and lookup[pub] not in self.added_tasks:
