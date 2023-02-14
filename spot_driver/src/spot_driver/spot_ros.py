@@ -109,6 +109,7 @@ class SpotROS:
         self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
         self.added_tasks = []
+        self.lookup = {}
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -1312,23 +1313,14 @@ class SpotROS:
         self.motion_allowed_pub.publish(self.allow_motion)
 
     def check_for_subscriber(self):
-        pubs = [
-            self.back_image_pub,
-            self.hand_image_color_pub,
-            self.right_image_pub,
-            self.left_image_pub,
-        ]
-        lookup = {
-            self.back_image_pub: "rear_image",
-            self.right_image_pub: "side_image",
-            self.left_image_pub: "side_image",
-            self.hand_image_color_pub: "hand_image",
-        }
-        for pub in pubs:
-            if lookup[pub] not in self.added_tasks and pub.get_num_connections() > 0:
-                self.spot_wrapper.update_image_tasks(lookup[pub])
-                self.added_tasks.append(lookup[pub])
-                print("Adding :", lookup[pub])
+        for pub in list(self.lookup.keys()):
+            if (
+                self.lookup[pub] not in self.added_tasks
+                and pub.get_num_connections() > 0
+            ):
+                self.spot_wrapper.update_image_tasks(self.lookup[pub])
+                self.added_tasks.append(self.lookup[pub])
+                print("Adding :", self.lookup[pub])
 
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
@@ -1445,6 +1437,13 @@ class SpotROS:
         self.frontright_depth_in_visual_pub = rospy.Publisher(
             "depth/frontright/depth_in_visual", Image, queue_size=10
         )
+
+        self.lookup = {
+            self.back_image_pub: "rear_image",
+            self.right_image_pub: "side_image",
+            self.left_image_pub: "side_image",
+            self.hand_image_color_pub: "hand_image",
+        }
 
         # Image Camera Info #
         self.back_image_info_pub = rospy.Publisher(
