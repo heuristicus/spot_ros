@@ -1829,3 +1829,4 @@ class SpotWrapper:
             self._async_tasks.add_task(self._hand_image_task)
 
         self._async_tasks.add_task(lookup[image_name])
+        
