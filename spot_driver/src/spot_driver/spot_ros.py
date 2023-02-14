@@ -108,6 +108,7 @@ class SpotROS:
         self.callbacks["side_image"] = self.SideImageCB
         self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
+        self.added_tasks = []
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -1310,6 +1311,21 @@ class SpotROS:
     def publish_allow_motion(self):
         self.motion_allowed_pub.publish(self.allow_motion)
 
+    def check_for_subscriber(self):
+        #self.hand_image_mono_pub
+        pubs = [self.back_image_pub, self.hand_image_color_pub, self.right_image_pub, self.left_image_pub]
+        lookup = {
+            self.back_image_pub : "rear_image",
+            self.right_image_pub : "side_image",
+            self.left_image_pub : "side_image",
+            self.hand_image_color_pub : "hand_image",
+        }
+        for pub in pubs:
+            if pub.get_num_connections() > 0 and lookup[pub] not in self.added_tasks:
+                self.spot_wrapper.update_image_tasks(lookup[pub])
+                self.added_tasks.append(lookup[pub])
+                print("Adding :", lookup[pub])
+
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
         rospy.init_node("spot_ros", anonymous=True)
@@ -1635,6 +1651,9 @@ class SpotROS:
         rate_limited_mobility_params = RateLimitedCall(
             self.publish_mobility_params, self.rates["mobility_params"]
         )
+        rate_check_for_subscriber = RateLimitedCall(
+            self.check_for_subscriber, self.rates["check_subscribers"]
+        )
         rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
         rospy.loginfo("Driver started")
         while not rospy.is_shutdown():
@@ -1642,4 +1661,5 @@ class SpotROS:
             rate_limited_feedback()
             rate_limited_mobility_params()
             rate_limited_motion_allowed()
+            rate_check_for_subscriber()
             rate.sleep()
