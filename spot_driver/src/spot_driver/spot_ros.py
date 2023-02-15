@@ -1312,7 +1312,6 @@ class SpotROS:
         self.motion_allowed_pub.publish(self.allow_motion)
 
     def check_for_subscriber(self):
-        # self.hand_image_mono_pub
         pubs = [
             self.back_image_pub,
             self.hand_image_color_pub,
