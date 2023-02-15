@@ -1325,7 +1325,7 @@ class SpotROS:
             self.hand_image_color_pub: "hand_image",
         }
         for pub in pubs:
-            if pub.get_num_connections() > 0 and lookup[pub] not in self.added_tasks:
+            if lookup[pub] not in self.added_tasks and pub.get_num_connections() > 0:
                 self.spot_wrapper.update_image_tasks(lookup[pub])
                 self.added_tasks.append(lookup[pub])
                 print("Adding :", lookup[pub])
