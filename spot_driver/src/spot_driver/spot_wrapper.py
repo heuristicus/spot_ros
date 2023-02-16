@@ -554,10 +554,11 @@ class SpotWrapper:
                 ]
             )
 
-            self.lookup = {
+            self.camera_task_name_to_task_mapping = {
                 "hand_image": self._hand_image_task,
                 "side_image": self._side_image_task,
                 "rear_image": self._rear_image_task,
+                "front_image": self._front_image_task,
             }
 
             self._robot_id = None
@@ -1022,6 +1023,9 @@ class SpotWrapper:
             return False, "Spot with an arm is required for this service"
 
         try:
+            if not self.check_is_powered_on():
+                self._logger.info("Spot is powering on within the timeout of 20 secs")
+                self._robot.power_on(timeout_sec=20)
             assert self._robot.is_powered_on(), "Spot failed to power on"
             self._logger.info("Spot is powered on")
         except Exception as e:
@@ -1825,8 +1829,20 @@ class SpotWrapper:
         return state
 
     def update_image_tasks(self, image_name):
-        """Updates the async tasks for an image topic if there is a subscriber"""
-        if self._robot.has_arm():
-            self._async_tasks.add_task(self._hand_image_task)
+        """Adds an async tasks to retrieve images from the specified image source"""
 
-        self._async_tasks.add_task(self.lookup[image_name])
+        task_to_add = self.camera_task_name_to_task_mapping[image_name]
+
+        if task_to_add == self._hand_image_task and not self._robot.has_arm():
+            self._logger.warn(
+                "Robot has no arm, therefore the arm image task can not be added"
+            )
+            return
+
+        if task_to_add in self._async_tasks:
+            self._logger.warn(
+                "Task already in async task list, will not be added again"
+            )
+            return
+
+        self._async_tasks.add_task(self.camera_task_name_to_task_mapping[image_name])

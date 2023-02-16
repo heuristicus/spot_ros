@@ -108,8 +108,8 @@ class SpotROS:
         self.callbacks["side_image"] = self.SideImageCB
         self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
-        self.added_tasks = []
-        self.lookup = {}
+        self.active_camera_tasks = []
+        self.camera_pub_to_async_task_mapping = {}
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -1314,13 +1314,13 @@ class SpotROS:
 
     def check_for_subscriber(self):
         for pub in list(self.lookup.keys()):
-            if (
-                self.lookup[pub] not in self.added_tasks
-                and pub.get_num_connections() > 0
-            ):
-                self.spot_wrapper.update_image_tasks(self.lookup[pub])
-                self.added_tasks.append(self.lookup[pub])
-                print("Adding :", self.lookup[pub])
+            task_name = self.camera_pub_to_async_task_mapping[pub]
+            if task_name not in self.added_tasks and pub.get_num_connections() > 0:
+                self.spot_wrapper.update_image_tasks(task_name)
+                self.active_camera_tasks.append(task_name)
+                print(
+                    f"Detected subscriber for {task_name} task, adding task to publish"
+                )
 
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
@@ -1438,7 +1438,9 @@ class SpotROS:
             "depth/frontright/depth_in_visual", Image, queue_size=10
         )
 
-        self.lookup = {
+        self.camera_pub_to_async_task_mapping = {
+            self.frontleft_image_pub: "front_image",
+            self.frontright_image_pub: "front_image",
             self.back_image_pub: "rear_image",
             self.right_image_pub: "side_image",
             self.left_image_pub: "side_image",
