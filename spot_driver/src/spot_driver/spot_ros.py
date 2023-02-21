@@ -1313,7 +1313,7 @@ class SpotROS:
         self.motion_allowed_pub.publish(self.allow_motion)
 
     def check_for_subscriber(self):
-        for pub in list(self.lookup.keys()):
+        for pub in list(self.camera_pub_to_async_task_mapping.keys()):
             task_name = self.camera_pub_to_async_task_mapping[pub]
             if task_name not in self.added_tasks and pub.get_num_connections() > 0:
                 self.spot_wrapper.update_image_tasks(task_name)
