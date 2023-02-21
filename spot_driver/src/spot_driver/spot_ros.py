@@ -1315,7 +1315,10 @@ class SpotROS:
     def check_for_subscriber(self):
         for pub in list(self.camera_pub_to_async_task_mapping.keys()):
             task_name = self.camera_pub_to_async_task_mapping[pub]
-            if task_name not in self.active_camera_tasks and pub.get_num_connections() > 0:
+            if (
+                task_name not in self.active_camera_tasks
+                and pub.get_num_connections() > 0
+            ):
                 self.spot_wrapper.update_image_tasks(task_name)
                 self.active_camera_tasks.append(task_name)
                 print(

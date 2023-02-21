@@ -1839,7 +1839,7 @@ class SpotWrapper:
             )
             return
 
-        if task_to_add in self._async_tasks:
+        if task_to_add in self._async_tasks._tasks:
             self._logger.warn(
                 "Task already in async task list, will not be added again"
             )
