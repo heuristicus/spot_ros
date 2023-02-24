@@ -2,6 +2,8 @@ import time
 import math
 import logging
 import typing
+import logging
+import typing
 
 import bosdyn.client.auth
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
