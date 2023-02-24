@@ -1,7 +1,7 @@
 <launch>
   <arg name="username" default="dummyusername" />
   <arg name="password" default="dummypassword" />
-  <arg name="hostname" default="192.168.50.3" />
+  <arg name="hostname" default="192.168.80.3" />
   <arg name="estop_timeout" default="9.0"/>
   <arg name="autonomy_enabled" default="true"/>
   <!-- In m/s. 0 applies spot's internal limits -->

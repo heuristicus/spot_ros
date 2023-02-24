@@ -6,8 +6,12 @@
 
 """Graph nav utility functions"""
 
+import typing
+import logging
+from bosdyn.api.graph_nav import map_pb2
 
-def id_to_short_code(id):
+
+def id_to_short_code(id: str):
     """Convert a unique id to a 2 letter short code."""
     tokens = id.split("-")
     if len(tokens) > 2:
@@ -16,11 +20,16 @@ def id_to_short_code(id):
 
 
 def pretty_print_waypoints(
-    waypoint_id, waypoint_name, short_code_to_count, localization_id, logger
+    waypoint_id: str,
+    waypoint_name: str,
+    short_code_to_count: typing.Dict[str, int],
+    localization_id: str,
+    logger: logging.Logger,
 ):
     short_code = id_to_short_code(waypoint_id)
     if short_code is None or short_code_to_count[short_code] != 1:
-        short_code = "  "  # If the short code is not valid/unique, don't show it.
+        # If the short code is not valid/unique, don't show it.
+        short_code = "  "
 
     logger.info(
         "%s Waypoint name: %s id: %s short code: %s"
@@ -33,7 +42,12 @@ def pretty_print_waypoints(
     )
 
 
-def find_unique_waypoint_id(short_code, graph, name_to_id, logger):
+def find_unique_waypoint_id(
+    short_code: str,
+    graph: map_pb2.Graph,
+    name_to_id: typing.Dict[str, str],
+    logger: logging.Logger,
+):
     """Convert either a 2 letter short code or an annotation name into the associated unique id."""
     if len(short_code) != 2:
         # Not a short code, check if it is an annotation name (instead of the waypoint id).
@@ -61,7 +75,9 @@ def find_unique_waypoint_id(short_code, graph, name_to_id, logger):
     return ret
 
 
-def update_waypoints_and_edges(graph, localization_id, logger):
+def update_waypoints_and_edges(
+    graph: map_pb2.Graph, localization_id: str, logger: logging.Logger
+) -> typing.Tuple[typing.Dict[str, str], typing.Dict[str, str]]:
     """Update and print waypoint ids and edge ids."""
     name_to_id = dict()
     edges = dict()

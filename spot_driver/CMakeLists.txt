@@ -15,9 +15,13 @@ include_directories(
 
 catkin_install_python(PROGRAMS
     scripts/spot_ros
+    test/graph_nav_util_test.py
+    test/ros_helpers_test.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(DIRECTORY doc DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(DIRECTORY config DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+
+catkin_add_nosetests(test/run_tests.py)

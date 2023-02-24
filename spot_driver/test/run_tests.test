@@ -1,0 +1,3 @@
+<launch>
+    <test test-name="spot_driver_tests" pkg="spot_driver" type="run_tests.py"/>
+</launch>
