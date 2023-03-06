@@ -110,6 +110,8 @@ class SpotROS:
         self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
         self.callbacks["lidar_points"] = self.PointCloudCB
+        self.active_camera_tasks = []
+        self.camera_pub_to_async_task_mapping = {}
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -1378,6 +1380,19 @@ class SpotROS:
     def publish_allow_motion(self):
         self.motion_allowed_pub.publish(self.allow_motion)
 
+    def check_for_subscriber(self):
+        for pub in list(self.camera_pub_to_async_task_mapping.keys()):
+            task_name = self.camera_pub_to_async_task_mapping[pub]
+            if (
+                task_name not in self.active_camera_tasks
+                and pub.get_num_connections() > 0
+            ):
+                self.spot_wrapper.update_image_tasks(task_name)
+                self.active_camera_tasks.append(task_name)
+                print(
+                    f"Detected subscriber for {task_name} task, adding task to publish"
+                )
+
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
         rospy.init_node("spot_ros", anonymous=True)
@@ -1498,6 +1513,14 @@ class SpotROS:
         self.point_cloud_pub = rospy.Publisher(
             "lidar/points", PointCloud2, queue_size=10
         )
+        self.camera_pub_to_async_task_mapping = {
+            self.frontleft_image_pub: "front_image",
+            self.frontright_image_pub: "front_image",
+            self.back_image_pub: "rear_image",
+            self.right_image_pub: "side_image",
+            self.left_image_pub: "side_image",
+            self.hand_image_color_pub: "hand_image",
+        }
 
         # Image Camera Info #
         self.back_image_info_pub = rospy.Publisher(
@@ -1708,6 +1731,9 @@ class SpotROS:
         rate_limited_mobility_params = RateLimitedCall(
             self.publish_mobility_params, self.rates["mobility_params"]
         )
+        rate_check_for_subscriber = RateLimitedCall(
+            self.check_for_subscriber, self.rates["check_subscribers"]
+        )
         rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
         rospy.loginfo("Driver started")
         while not rospy.is_shutdown():
@@ -1715,4 +1741,5 @@ class SpotROS:
             rate_limited_feedback()
             rate_limited_mobility_params()
             rate_limited_motion_allowed()
+            rate_check_for_subscriber()
             rate.sleep()
