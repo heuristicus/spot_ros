@@ -699,27 +699,27 @@ class SpotWrapper:
         return self._robot_metrics_task.proto  # type: ignore
 
     @property
-    def lease(self) -> lease_pb2.ListLeasesResponse:
+    def lease(self) -> typing.List[lease_pb2.LeaseResource]:
         """Return latest proto from the _lease_task"""
         return self._lease_task.proto  # type: ignore
 
     @property
-    def front_images(self) -> image_pb2.Image:
+    def front_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _front_image_task"""
         return self._front_image_task.proto  # type: ignore
 
     @property
-    def side_images(self) -> image_pb2.Image:
+    def side_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _side_image_task"""
         return self._side_image_task.proto  # type: ignore
 
     @property
-    def rear_images(self) -> image_pb2.Image:
+    def rear_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _rear_image_task"""
         return self._rear_image_task.proto  # type: ignore
 
     @property
-    def hand_images(self) -> image_pb2.Image:
+    def hand_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _hand_image_task"""
         return self._hand_image_task.proto  # type: ignore
 

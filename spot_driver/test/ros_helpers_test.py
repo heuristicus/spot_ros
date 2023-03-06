@@ -1,16 +1,13 @@
+#!/usr/bin/env python3
 PKG = "ros_helpers"
 NAME = "ros_helpers_test"
 SUITE = "ros_helpers_test.TestSuiteROSHelpers"
 
 import unittest
-import sys
-import rostest
 import rospy
 
 import spot_driver.ros_helpers as ros_helpers
-from geometry_msgs.msg import TransformStamped, Transform
-from sensor_msgs.msg import Image, CameraInfo
-from spot_msgs.msg import WiFiState
+from geometry_msgs.msg import Transform
 from spot_msgs.msg import FootState, FootStateArray
 from bosdyn.api import image_pb2, geometry_pb2, robot_state_pb2
 from bosdyn.api.docking import docking_pb2
@@ -51,10 +48,10 @@ class TestPopulateTransformStamped(unittest.TestCase):
         transform_stamped = ros_helpers.populateTransformStamped(
             current_time, "parent_frame", "child_frame", transform
         )
-        self.assertEquals(transform_stamped.header.stamp, current_time)
-        self.assertEquals(transform_stamped.header.frame_id, "parent_frame")
-        self.assertEquals(transform_stamped.child_frame_id, "child_frame")
-        self.assertEquals(transform_stamped.transform, transform)
+        self.assertEqual(transform_stamped.header.stamp, current_time)
+        self.assertEqual(transform_stamped.header.frame_id, "parent_frame")
+        self.assertEqual(transform_stamped.child_frame_id, "child_frame")
+        self.assertEqual(transform_stamped.transform, transform)
 
 
 class TestGetImageMsg(unittest.TestCase):
@@ -64,16 +61,24 @@ class TestGetImageMsg(unittest.TestCase):
 
         # Test getImageMsg with a valid image
         image_response = image_pb2.ImageResponse()
+        image_response.shot.image.data = b"test"
         image_response.shot.image.cols = 640
         image_response.shot.image.rows = 480
+        image_response.shot.image.format = image_pb2.Image.FORMAT_JPEG
         image_response.shot.image.pixel_format = image_pb2.Image.PIXEL_FORMAT_RGB_U8
+        image_response.shot.frame_name_image_sensor = "frontleft_fisheye_image"
 
         image, camera_info = ros_helpers.getImageMsg(image_response, spot_wrapper)
-        self.assertEquals(image.cols, 640)
-        self.assertEquals(image.rows, 480)
-        self.assertEquals(image.pixel_format, 3)
-        self.assertEquals(camera_info.cols, 640)
-        self.assertEquals(camera_info.rows, 480)
+        self.assertEqual(image.cols, 640)
+        self.assertEqual(image.rows, 480)
+        self.assertEqual(image.pixel_format, 3)
+        self.assertEqual(image.encoding, "rgb8")
+        self.assertEqual(image.is_bigendian, True)
+        self.assertEqual(image.step, 3 * 640)
+        self.assertEqual(image.data, image_response.shot.image.data)
+        self.assertEqual(camera_info.header.frame_id, "frontleft_fisheye_image")
+        self.assertEqual(camera_info.cols, 640)
+        self.assertEqual(camera_info.rows, 480)
 
 
 class TestGetJointStatesFromState(unittest.TestCase):
@@ -99,16 +104,16 @@ class TestGetJointStatesFromState(unittest.TestCase):
         state.kinematic_state.acquisition_timestamp.nanos = 100
 
         joint_state = ros_helpers.GetJointStatesFromState(state, spot_wrapper)
-        self.assertEquals(joint_state.name[0], "front_left_hip_x")
-        self.assertEquals(joint_state.position[0], 1.0)
-        self.assertEquals(joint_state.velocity[0], 2.0)
-        self.assertEquals(joint_state.effort[0], 4.0)
-        self.assertEquals(joint_state.name[1], "front_left_hip_y")
-        self.assertEquals(joint_state.position[1], 5.0)
-        self.assertEquals(joint_state.velocity[1], 6.0)
-        self.assertEquals(joint_state.effort[1], 8.0)
-        self.assertEquals(joint_state.header.stamp.secs, 30)
-        self.assertEquals(joint_state.header.stamp.nsecs, 100)
+        self.assertEqual(joint_state.name[0], "front_left_hip_x")
+        self.assertEqual(joint_state.position[0], 1.0)
+        self.assertEqual(joint_state.velocity[0], 2.0)
+        self.assertEqual(joint_state.effort[0], 4.0)
+        self.assertEqual(joint_state.name[1], "front_left_hip_y")
+        self.assertEqual(joint_state.position[1], 5.0)
+        self.assertEqual(joint_state.velocity[1], 6.0)
+        self.assertEqual(joint_state.effort[1], 8.0)
+        self.assertEqual(joint_state.header.stamp.secs, 30)
+        self.assertEqual(joint_state.header.stamp.nsecs, 100)
 
 
 class TestGetEStopStateFromState(unittest.TestCase):
@@ -132,29 +137,29 @@ class TestGetEStopStateFromState(unittest.TestCase):
 
         estop_state_array = ros_helpers.GetEStopStateFromState(state, spot_wrapper)
 
-        self.assertEquals(estop_state_array.estop_states[0].name, "estop1")
-        self.assertEquals(
+        self.assertEqual(estop_state_array.estop_states[0].name, "estop1")
+        self.assertEqual(
             estop_state_array.estop_states[0].state,
             robot_state_pb2.EStopState.STATE_ESTOPPED,
         )
-        self.assertEquals(
+        self.assertEqual(
             estop_state_array.estop_states[0].type,
             robot_state_pb2.EStopState.TYPE_HARDWARE,
         )
-        self.assertEquals(estop_state_array.estop_states[0].header.stamp.secs, 30)
-        self.assertEquals(estop_state_array.estop_states[0].header.stamp.nsecs, 10)
+        self.assertEqual(estop_state_array.estop_states[0].header.stamp.secs, 30)
+        self.assertEqual(estop_state_array.estop_states[0].header.stamp.nsecs, 10)
 
-        self.assertEquals(estop_state_array.estop_states[1].name, "estop2")
-        self.assertEquals(
+        self.assertEqual(estop_state_array.estop_states[1].name, "estop2")
+        self.assertEqual(
             estop_state_array.estop_states[1].state,
             robot_state_pb2.EStopState.STATE_NOT_ESTOPPED,
         )
-        self.assertEquals(
+        self.assertEqual(
             estop_state_array.estop_states[1].type,
             robot_state_pb2.EStopState.TYPE_SOFTWARE,
         )
-        self.assertEquals(estop_state_array.estop_states[1].header.stamp.secs, 20)
-        self.assertEquals(estop_state_array.estop_states[1].header.stamp.nsecs, 15)
+        self.assertEqual(estop_state_array.estop_states[1].header.stamp.secs, 20)
+        self.assertEqual(estop_state_array.estop_states[1].header.stamp.nsecs, 15)
 
 
 class TestGetFeetFromState(unittest.TestCase):
@@ -192,90 +197,90 @@ class TestGetFeetFromState(unittest.TestCase):
         )
 
         foot_state_array = ros_helpers.GetFeetFromState(state, spot_wrapper)
-        self.assertEquals(foot_state_array.states[0].foot_position_rt_body.y, 2.0)
-        self.assertEquals(foot_state_array.states[0].foot_position_rt_body.z, 3.0)
-        self.assertEquals(foot_state_array.states[0].foot_position_rt_body.x, 1.0)
-        self.assertEquals(
+        self.assertEqual(foot_state_array.states[0].foot_position_rt_body.y, 2.0)
+        self.assertEqual(foot_state_array.states[0].foot_position_rt_body.z, 3.0)
+        self.assertEqual(foot_state_array.states[0].foot_position_rt_body.x, 1.0)
+        self.assertEqual(
             foot_state_array.states[0].contact, robot_state_pb2.FootState.CONTACT_MADE
         )
-        self.assertEquals(foot_state_array.states[0].terrain.ground_mu_est, 0.5)
-        self.assertEquals(foot_state_array.states[0].terrain.frame_name, "frame1")
-        self.assertEquals(
+        self.assertEqual(foot_state_array.states[0].terrain.ground_mu_est, 0.5)
+        self.assertEqual(foot_state_array.states[0].terrain.frame_name, "frame1")
+        self.assertEqual(
             foot_state_array.states[0].terrain.foot_slip_distance_rt_frame.x, 1.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.foot_slip_distance_rt_frame.y, 2.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.foot_slip_distance_rt_frame.z, 3.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.foot_slip_velocity_rt_frame.x, 4.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.foot_slip_velocity_rt_frame.y, 5.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.foot_slip_velocity_rt_frame.z, 6.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.ground_contact_normal_rt_frame.x, 7.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.ground_contact_normal_rt_frame.y, 8.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.ground_contact_normal_rt_frame.z, 9.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.visual_surface_ground_penetration_mean,
             0.1,
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[0].terrain.visual_surface_ground_penetration_std,
             0.02,
         )
 
-        self.assertEquals(foot_state_array.states[1].foot_position_rt_body.y, 5.0)
-        self.assertEquals(foot_state_array.states[1].foot_position_rt_body.z, 6.0)
-        self.assertEquals(foot_state_array.states[1].foot_position_rt_body.x, 4.0)
-        self.assertEquals(
+        self.assertEqual(foot_state_array.states[1].foot_position_rt_body.y, 5.0)
+        self.assertEqual(foot_state_array.states[1].foot_position_rt_body.z, 6.0)
+        self.assertEqual(foot_state_array.states[1].foot_position_rt_body.x, 4.0)
+        self.assertEqual(
             foot_state_array.states[1].contact, robot_state_pb2.FootState.CONTACT_LOST
         )
-        self.assertEquals(foot_state_array.states[1].terrain.ground_mu_est, 0.6)
-        self.assertEquals(foot_state_array.states[1].terrain.frame_name, "frame2")
-        self.assertEquals(
+        self.assertEqual(foot_state_array.states[1].terrain.ground_mu_est, 0.6)
+        self.assertEqual(foot_state_array.states[1].terrain.frame_name, "frame2")
+        self.assertEqual(
             foot_state_array.states[1].terrain.foot_slip_distance_rt_frame.x, 10.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.foot_slip_distance_rt_frame.y, 11.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.foot_slip_distance_rt_frame.z, 12.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.foot_slip_velocity_rt_frame.x, 13.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.foot_slip_velocity_rt_frame.y, 14.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.foot_slip_velocity_rt_frame.z, 15.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.ground_contact_normal_rt_frame.x, 16.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.ground_contact_normal_rt_frame.y, 17.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.ground_contact_normal_rt_frame.z, 18.0
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.visual_surface_ground_penetration_mean,
             0.2,
         )
-        self.assertEquals(
+        self.assertEqual(
             foot_state_array.states[1].terrain.visual_surface_ground_penetration_std,
             0.03,
         )
@@ -293,12 +298,12 @@ class TestGetOdomTwistFromState(unittest.TestCase):
         state.kinematic_state.velocity_of_body_in_odom.angular.z = 6.0
 
         twist_odom_msg = ros_helpers.GetOdomTwistFromState(state, spot_wrapper)
-        self.assertEquals(twist_odom_msg.twist.twist.linear.x, 1.0)
-        self.assertEquals(twist_odom_msg.twist.twist.linear.y, 2.0)
-        self.assertEquals(twist_odom_msg.twist.twist.linear.z, 3.0)
-        self.assertEquals(twist_odom_msg.twist.twist.angular.x, 4.0)
-        self.assertEquals(twist_odom_msg.twist.twist.angular.y, 5.0)
-        self.assertEquals(twist_odom_msg.twist.twist.angular.z, 6.0)
+        self.assertEqual(twist_odom_msg.twist.twist.linear.x, 1.0)
+        self.assertEqual(twist_odom_msg.twist.twist.linear.y, 2.0)
+        self.assertEqual(twist_odom_msg.twist.twist.linear.z, 3.0)
+        self.assertEqual(twist_odom_msg.twist.twist.angular.x, 4.0)
+        self.assertEqual(twist_odom_msg.twist.twist.angular.y, 5.0)
+        self.assertEqual(twist_odom_msg.twist.twist.angular.z, 6.0)
 
 
 class TestGetOdomFromState(unittest.TestCase):
@@ -333,49 +338,49 @@ class TestGetOdomFromState(unittest.TestCase):
 
         # Test with vision frame transformation
         odometry_msg = ros_helpers.GetOdomFromState(state, spot_wrapper, True)
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.position.x, -vision_tform_example.position.x
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.position.y, -vision_tform_example.position.y
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.position.z, -vision_tform_example.position.z
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.orientation.x, vision_tform_example.rotation.x
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.orientation.y, vision_tform_example.rotation.y
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.orientation.z, vision_tform_example.rotation.z
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.orientation.w, vision_tform_example.rotation.w
         )
 
         # Test with odom frame transformation
         odometry_msg = ros_helpers.GetOdomFromState(state, spot_wrapper, False)
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.position.x, -body_tform_example.position.x
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.position.y, -body_tform_example.position.y
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.position.z, -body_tform_example.position.z
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.orientation.x, body_tform_example.rotation.x
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.orientation.y, body_tform_example.rotation.y
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.orientation.z, body_tform_example.rotation.z
         )
-        self.assertEquals(
+        self.assertEqual(
             odometry_msg.pose.pose.orientation.w, body_tform_example.rotation.w
         )
 
@@ -390,10 +395,10 @@ class TestGetWifiFromState(unittest.TestCase):
         state.comms_states.add(wifi_state=initial_wifi_state)
 
         wifi_state = ros_helpers.GetWifiFromState(state, spot_wrapper)
-        self.assertEquals(
+        self.assertEqual(
             wifi_state.current_mode, robot_state_pb2.WiFiState.MODE_ACCESS_POINT
         )
-        self.assertEquals(wifi_state.essid, "test_essid")
+        self.assertEqual(wifi_state.essid, "test_essid")
 
 
 class TestGenerateFeetTF(unittest.TestCase):
@@ -409,27 +414,27 @@ class TestGenerateFeetTF(unittest.TestCase):
             ]
         )
         tf_message = ros_helpers.GenerateFeetTF(foot_state_msg)
-        self.assertEquals(len(tf_message.transforms), 4)
-        self.assertEquals(tf_message.transforms[0].transform.translation.x, 1.0)
-        self.assertEquals(tf_message.transforms[0].transform.translation.y, 2.0)
-        self.assertEquals(tf_message.transforms[0].transform.translation.z, 3.0)
-        self.assertEquals(tf_message.transforms[0].header.frame_id, "body")
-        self.assertEquals(tf_message.transforms[0].child_frame_id, "front_left_foot")
-        self.assertEquals(tf_message.transforms[1].transform.translation.x, 4.0)
-        self.assertEquals(tf_message.transforms[1].transform.translation.y, 5.0)
-        self.assertEquals(tf_message.transforms[1].transform.translation.z, 6.0)
-        self.assertEquals(tf_message.transforms[1].header.frame_id, "body")
-        self.assertEquals(tf_message.transforms[1].child_frame_id, "front_right_foot")
-        self.assertEquals(tf_message.transforms[2].transform.translation.x, 7.0)
-        self.assertEquals(tf_message.transforms[2].transform.translation.y, 8.0)
-        self.assertEquals(tf_message.transforms[2].transform.translation.z, 9.0)
-        self.assertEquals(tf_message.transforms[2].header.frame_id, "body")
-        self.assertEquals(tf_message.transforms[2].child_frame_id, "rear_left_foot")
-        self.assertEquals(tf_message.transforms[3].transform.translation.x, 10.0)
-        self.assertEquals(tf_message.transforms[3].transform.translation.y, 11.0)
-        self.assertEquals(tf_message.transforms[3].transform.translation.z, 12.0)
-        self.assertEquals(tf_message.transforms[3].header.frame_id, "body")
-        self.assertEquals(tf_message.transforms[3].child_frame_id, "rear_right_foot")
+        self.assertEqual(len(tf_message.transforms), 4)
+        self.assertEqual(tf_message.transforms[0].transform.translation.x, 1.0)
+        self.assertEqual(tf_message.transforms[0].transform.translation.y, 2.0)
+        self.assertEqual(tf_message.transforms[0].transform.translation.z, 3.0)
+        self.assertEqual(tf_message.transforms[0].header.frame_id, "body")
+        self.assertEqual(tf_message.transforms[0].child_frame_id, "front_left_foot")
+        self.assertEqual(tf_message.transforms[1].transform.translation.x, 4.0)
+        self.assertEqual(tf_message.transforms[1].transform.translation.y, 5.0)
+        self.assertEqual(tf_message.transforms[1].transform.translation.z, 6.0)
+        self.assertEqual(tf_message.transforms[1].header.frame_id, "body")
+        self.assertEqual(tf_message.transforms[1].child_frame_id, "front_right_foot")
+        self.assertEqual(tf_message.transforms[2].transform.translation.x, 7.0)
+        self.assertEqual(tf_message.transforms[2].transform.translation.y, 8.0)
+        self.assertEqual(tf_message.transforms[2].transform.translation.z, 9.0)
+        self.assertEqual(tf_message.transforms[2].header.frame_id, "body")
+        self.assertEqual(tf_message.transforms[2].child_frame_id, "rear_left_foot")
+        self.assertEqual(tf_message.transforms[3].transform.translation.x, 10.0)
+        self.assertEqual(tf_message.transforms[3].transform.translation.y, 11.0)
+        self.assertEqual(tf_message.transforms[3].transform.translation.z, 12.0)
+        self.assertEqual(tf_message.transforms[3].header.frame_id, "body")
+        self.assertEqual(tf_message.transforms[3].child_frame_id, "rear_right_foot")
 
 
 class TestGetTFFromState(unittest.TestCase):
@@ -467,18 +472,18 @@ class TestGetTFFromState(unittest.TestCase):
             state, spot_wrapper, inverse_target_frame
         )
 
-        self.assertEquals(len(tf_message.transforms), 2)
-        self.assertEquals(tf_message.transforms[0].header.frame_id, "body")
-        self.assertEquals(tf_message.transforms[0].child_frame_id, "odom")
-        self.assertEquals(tf_message.transforms[0].transform.translation.x, -2.0)
-        self.assertEquals(tf_message.transforms[0].transform.translation.y, -3.0)
-        self.assertEquals(tf_message.transforms[0].transform.translation.z, -2.0)
+        self.assertEqual(len(tf_message.transforms), 2)
+        self.assertEqual(tf_message.transforms[0].header.frame_id, "body")
+        self.assertEqual(tf_message.transforms[0].child_frame_id, "odom")
+        self.assertEqual(tf_message.transforms[0].transform.translation.x, -2.0)
+        self.assertEqual(tf_message.transforms[0].transform.translation.y, -3.0)
+        self.assertEqual(tf_message.transforms[0].transform.translation.z, -2.0)
 
-        self.assertEquals(tf_message.transforms[1].header.frame_id, "body")
-        self.assertEquals(tf_message.transforms[1].child_frame_id, "vision")
-        self.assertEquals(tf_message.transforms[1].transform.translation.x, 2.0)
-        self.assertEquals(tf_message.transforms[1].transform.translation.y, 3.0)
-        self.assertEquals(tf_message.transforms[1].transform.translation.z, 2.0)
+        self.assertEqual(tf_message.transforms[1].header.frame_id, "body")
+        self.assertEqual(tf_message.transforms[1].child_frame_id, "vision")
+        self.assertEqual(tf_message.transforms[1].transform.translation.x, 2.0)
+        self.assertEqual(tf_message.transforms[1].transform.translation.y, 3.0)
+        self.assertEqual(tf_message.transforms[1].transform.translation.z, 2.0)
 
     def test_get_tf_from_state_vision(self):
         state = robot_state_pb2.RobotState()
@@ -515,25 +520,25 @@ class TestGetTFFromState(unittest.TestCase):
         tf_message = ros_helpers.GetTFFromState(
             state, spot_wrapper, inverse_target_frame
         )
-        self.assertEquals(len(tf_message.transforms), 3)
+        self.assertEqual(len(tf_message.transforms), 3)
 
-        self.assertEquals(tf_message.transforms[0].header.frame_id, "body")
-        self.assertEquals(tf_message.transforms[0].child_frame_id, "odom")
-        self.assertEquals(tf_message.transforms[0].transform.translation.x, -2.0)
-        self.assertEquals(tf_message.transforms[0].transform.translation.y, -3.0)
-        self.assertEquals(tf_message.transforms[0].transform.translation.z, -4.0)
+        self.assertEqual(tf_message.transforms[0].header.frame_id, "body")
+        self.assertEqual(tf_message.transforms[0].child_frame_id, "odom")
+        self.assertEqual(tf_message.transforms[0].transform.translation.x, -2.0)
+        self.assertEqual(tf_message.transforms[0].transform.translation.y, -3.0)
+        self.assertEqual(tf_message.transforms[0].transform.translation.z, -4.0)
 
-        self.assertEquals(tf_message.transforms[1].header.frame_id, "vision")
-        self.assertEquals(tf_message.transforms[1].child_frame_id, "body")
-        self.assertEquals(tf_message.transforms[1].transform.translation.x, -4.0)
-        self.assertEquals(tf_message.transforms[1].transform.translation.y, -5.0)
-        self.assertEquals(tf_message.transforms[1].transform.translation.z, -6.0)
+        self.assertEqual(tf_message.transforms[1].header.frame_id, "vision")
+        self.assertEqual(tf_message.transforms[1].child_frame_id, "body")
+        self.assertEqual(tf_message.transforms[1].transform.translation.x, -4.0)
+        self.assertEqual(tf_message.transforms[1].transform.translation.y, -5.0)
+        self.assertEqual(tf_message.transforms[1].transform.translation.z, -6.0)
 
-        self.assertEquals(tf_message.transforms[2].header.frame_id, "special_frame")
-        self.assertEquals(tf_message.transforms[2].child_frame_id, "body")
-        self.assertEquals(tf_message.transforms[2].transform.translation.x, 7.0)
-        self.assertEquals(tf_message.transforms[2].transform.translation.y, 8.0)
-        self.assertEquals(tf_message.transforms[2].transform.translation.z, 9.0)
+        self.assertEqual(tf_message.transforms[2].header.frame_id, "special_frame")
+        self.assertEqual(tf_message.transforms[2].child_frame_id, "body")
+        self.assertEqual(tf_message.transforms[2].transform.translation.x, 7.0)
+        self.assertEqual(tf_message.transforms[2].transform.translation.y, 8.0)
+        self.assertEqual(tf_message.transforms[2].transform.translation.z, 9.0)
 
 
 class TestGetBatteryStatesFromState(unittest.TestCase):
@@ -543,7 +548,7 @@ class TestGetBatteryStatesFromState(unittest.TestCase):
 
         # Test with no battery states
         battery_states = ros_helpers.GetBatteryStatesFromState(state, spot_wrapper)
-        self.assertEquals(len(battery_states.battery_states), 0)
+        self.assertEqual(len(battery_states.battery_states), 0)
 
     def test_get_battery_states_from_state_one(self):
         state = robot_state_pb2.RobotState()
@@ -560,18 +565,18 @@ class TestGetBatteryStatesFromState(unittest.TestCase):
             status=robot_state_pb2.BatteryState.STATUS_DISCHARGING,
         )
         battery_states = ros_helpers.GetBatteryStatesFromState(state, spot_wrapper)
-        self.assertEquals(len(battery_states.battery_states), 1)
-        self.assertEquals(battery_states.battery_states[0].header.stamp.secs, 1)
-        self.assertEquals(battery_states.battery_states[0].header.stamp.nsecs, 2)
-        self.assertEquals(battery_states.battery_states[0].identifier, "battery1")
-        self.assertEquals(battery_states.battery_states[0].charge_percentage, 95.0)
-        self.assertEquals(battery_states.battery_states[0].estimated_runtime.secs, 100)
-        self.assertEquals(battery_states.battery_states[0].current, 10.0)
-        self.assertEquals(battery_states.battery_states[0].voltage, 9.0)
-        self.assertEquals(
+        self.assertEqual(len(battery_states.battery_states), 1)
+        self.assertEqual(battery_states.battery_states[0].header.stamp.secs, 1)
+        self.assertEqual(battery_states.battery_states[0].header.stamp.nsecs, 2)
+        self.assertEqual(battery_states.battery_states[0].identifier, "battery1")
+        self.assertEqual(battery_states.battery_states[0].charge_percentage, 95.0)
+        self.assertEqual(battery_states.battery_states[0].estimated_runtime.secs, 100)
+        self.assertEqual(battery_states.battery_states[0].current, 10.0)
+        self.assertEqual(battery_states.battery_states[0].voltage, 9.0)
+        self.assertEqual(
             battery_states.battery_states[0].temperatures, [25.0, 26.0, 27.0]
         )
-        self.assertEquals(
+        self.assertEqual(
             battery_states.battery_states[0].status,
             robot_state_pb2.BatteryState.STATUS_DISCHARGING,
         )
@@ -601,32 +606,32 @@ class TestGetBatteryStatesFromState(unittest.TestCase):
             status=robot_state_pb2.BatteryState.STATUS_CHARGING,
         )
         battery_states = ros_helpers.GetBatteryStatesFromState(state, spot_wrapper)
-        self.assertEquals(len(battery_states.battery_states), 2)
-        self.assertEquals(battery_states.battery_states[0].header.stamp.secs, 1)
-        self.assertEquals(battery_states.battery_states[0].header.stamp.nsecs, 2)
-        self.assertEquals(battery_states.battery_states[0].identifier, "battery1")
-        self.assertEquals(battery_states.battery_states[0].charge_percentage, 95.0)
-        self.assertEquals(battery_states.battery_states[0].estimated_runtime.secs, 100)
-        self.assertEquals(battery_states.battery_states[0].current, 10.0)
-        self.assertEquals(battery_states.battery_states[0].voltage, 9.0)
-        self.assertEquals(
+        self.assertEqual(len(battery_states.battery_states), 2)
+        self.assertEqual(battery_states.battery_states[0].header.stamp.secs, 1)
+        self.assertEqual(battery_states.battery_states[0].header.stamp.nsecs, 2)
+        self.assertEqual(battery_states.battery_states[0].identifier, "battery1")
+        self.assertEqual(battery_states.battery_states[0].charge_percentage, 95.0)
+        self.assertEqual(battery_states.battery_states[0].estimated_runtime.secs, 100)
+        self.assertEqual(battery_states.battery_states[0].current, 10.0)
+        self.assertEqual(battery_states.battery_states[0].voltage, 9.0)
+        self.assertEqual(
             battery_states.battery_states[0].temperatures, [25.0, 26.0, 27.0]
         )
-        self.assertEquals(
+        self.assertEqual(
             battery_states.battery_states[0].status,
             robot_state_pb2.BatteryState.STATUS_DISCHARGING,
         )
-        self.assertEquals(battery_states.battery_states[1].header.stamp.secs, 3)
-        self.assertEquals(battery_states.battery_states[1].header.stamp.nsecs, 4)
-        self.assertEquals(battery_states.battery_states[1].identifier, "battery2")
-        self.assertEquals(battery_states.battery_states[1].charge_percentage, 5.0)
-        self.assertEquals(battery_states.battery_states[1].estimated_runtime.secs, 10)
-        self.assertEquals(battery_states.battery_states[1].current, 5.0)
-        self.assertEquals(battery_states.battery_states[1].voltage, 10.0)
-        self.assertEquals(
+        self.assertEqual(battery_states.battery_states[1].header.stamp.secs, 3)
+        self.assertEqual(battery_states.battery_states[1].header.stamp.nsecs, 4)
+        self.assertEqual(battery_states.battery_states[1].identifier, "battery2")
+        self.assertEqual(battery_states.battery_states[1].charge_percentage, 5.0)
+        self.assertEqual(battery_states.battery_states[1].estimated_runtime.secs, 10)
+        self.assertEqual(battery_states.battery_states[1].current, 5.0)
+        self.assertEqual(battery_states.battery_states[1].voltage, 10.0)
+        self.assertEqual(
             battery_states.battery_states[1].temperatures, [35.0, 36.0, 37.0]
         )
-        self.assertEquals(
+        self.assertEqual(
             battery_states.battery_states[1].status,
             robot_state_pb2.BatteryState.STATUS_CHARGING,
         )
@@ -643,11 +648,11 @@ class TestGetPowerStatesFromState(unittest.TestCase):
         )
         spot_wrapper = TestSpotWrapper()
         power_state_msg = ros_helpers.GetPowerStatesFromState(state, spot_wrapper)
-        self.assertEquals(
+        self.assertEqual(
             power_state_msg.motor_power_state,
             robot_state_pb2.PowerState.MOTOR_POWER_STATE_OFF,
         )
-        self.assertEquals(
+        self.assertEqual(
             power_state_msg.shore_power_state,
             robot_state_pb2.PowerState.SHORE_POWER_STATE_ON,
         )
@@ -662,11 +667,11 @@ class TestGetPowerStatesFromState(unittest.TestCase):
         )
         spot_wrapper = TestSpotWrapper()
         power_state_msg = ros_helpers.GetPowerStatesFromState(state, spot_wrapper)
-        self.assertEquals(
+        self.assertEqual(
             power_state_msg.motor_power_state,
             robot_state_pb2.PowerState.MOTOR_POWER_STATE_ON,
         )
-        self.assertEquals(
+        self.assertEqual(
             power_state_msg.shore_power_state,
             robot_state_pb2.PowerState.SHORE_POWER_STATE_OFF,
         )
@@ -681,12 +686,12 @@ class TestGetDockStatesFromState(unittest.TestCase):
         state.power_status = docking_pb2.DockState.LINK_STATUS_CONNECTED
 
         dock_state_msg = ros_helpers.GetDockStatesFromState(state)
-        self.assertEquals(
+        self.assertEqual(
             dock_state_msg.status, docking_pb2.DockState.DOCK_STATUS_DOCKED
         )
-        self.assertEquals(dock_state_msg.dock_type, docking_pb2.DOCK_TYPE_SPOT_DOCK)
-        self.assertEquals(dock_state_msg.dock_id, 3)
-        self.assertEquals(
+        self.assertEqual(dock_state_msg.dock_type, docking_pb2.DOCK_TYPE_SPOT_DOCK)
+        self.assertEqual(dock_state_msg.dock_id, 3)
+        self.assertEqual(
             dock_state_msg.power_status, docking_pb2.DockState.LINK_STATUS_CONNECTED
         )
 
@@ -710,23 +715,23 @@ class TestGetBehaviorFaults(unittest.TestCase):
         )
 
         behavior_faults = ros_helpers.GetBehaviorFaults(state.faults, spot_wrapper)
-        self.assertEquals(behavior_faults[0].behavior_fault_id, 1)
-        self.assertEquals(behavior_faults[0].header.stamp.secs, 1)
-        self.assertEquals(behavior_faults[0].header.stamp.nsecs, 2)
-        self.assertEquals(
+        self.assertEqual(behavior_faults[0].behavior_fault_id, 1)
+        self.assertEqual(behavior_faults[0].header.stamp.secs, 1)
+        self.assertEqual(behavior_faults[0].header.stamp.nsecs, 2)
+        self.assertEqual(
             behavior_faults[0].cause, robot_state_pb2.BehaviorFault.CAUSE_FALL
         )
-        self.assertEquals(
+        self.assertEqual(
             behavior_faults[0].status, robot_state_pb2.BehaviorFault.STATUS_UNCLEARABLE
         )
 
-        self.assertEquals(behavior_faults[1].behavior_fault_id, 3)
-        self.assertEquals(behavior_faults[1].header.stamp.secs, 4)
-        self.assertEquals(behavior_faults[1].header.stamp.nsecs, 5)
-        self.assertEquals(
+        self.assertEqual(behavior_faults[1].behavior_fault_id, 3)
+        self.assertEqual(behavior_faults[1].header.stamp.secs, 4)
+        self.assertEqual(behavior_faults[1].header.stamp.nsecs, 5)
+        self.assertEqual(
             behavior_faults[1].cause, robot_state_pb2.BehaviorFault.CAUSE_LEASE_TIMEOUT
         )
-        self.assertEquals(
+        self.assertEqual(
             behavior_faults[1].status, robot_state_pb2.BehaviorFault.STATUS_CLEARABLE
         )
 
@@ -750,25 +755,25 @@ class TestGetBehaviorFaultsFromState(unittest.TestCase):
         )
 
         behavior_faults = ros_helpers.GetBehaviorFaultsFromState(state, spot_wrapper)
-        self.assertEquals(behavior_faults.faults[0].behavior_fault_id, 1)
-        self.assertEquals(behavior_faults.faults[0].header.stamp.secs, 1)
-        self.assertEquals(behavior_faults.faults[0].header.stamp.nsecs, 2)
-        self.assertEquals(
+        self.assertEqual(behavior_faults.faults[0].behavior_fault_id, 1)
+        self.assertEqual(behavior_faults.faults[0].header.stamp.secs, 1)
+        self.assertEqual(behavior_faults.faults[0].header.stamp.nsecs, 2)
+        self.assertEqual(
             behavior_faults.faults[0].cause, robot_state_pb2.BehaviorFault.CAUSE_FALL
         )
-        self.assertEquals(
+        self.assertEqual(
             behavior_faults.faults[0].status,
             robot_state_pb2.BehaviorFault.STATUS_UNCLEARABLE,
         )
 
-        self.assertEquals(behavior_faults.faults[1].behavior_fault_id, 3)
-        self.assertEquals(behavior_faults.faults[1].header.stamp.secs, 4)
-        self.assertEquals(behavior_faults.faults[1].header.stamp.nsecs, 5)
-        self.assertEquals(
+        self.assertEqual(behavior_faults.faults[1].behavior_fault_id, 3)
+        self.assertEqual(behavior_faults.faults[1].header.stamp.secs, 4)
+        self.assertEqual(behavior_faults.faults[1].header.stamp.nsecs, 5)
+        self.assertEqual(
             behavior_faults.faults[1].cause,
             robot_state_pb2.BehaviorFault.CAUSE_LEASE_TIMEOUT,
         )
-        self.assertEquals(
+        self.assertEqual(
             behavior_faults.faults[1].status,
             robot_state_pb2.BehaviorFault.STATUS_CLEARABLE,
         )
@@ -803,29 +808,29 @@ class TestGetSystemFaults(unittest.TestCase):
         system_faults = ros_helpers.GetSystemFaults(
             system_fault_state.faults, spot_wrapper
         )
-        self.assertEquals(system_faults[0].name, "fault1")
-        self.assertEquals(system_faults[0].header.stamp.secs, 1)
-        self.assertEquals(system_faults[0].header.stamp.nsecs, 2)
-        self.assertEquals(system_faults[0].duration.secs, 3)
-        self.assertEquals(system_faults[0].duration.nsecs, 4)
-        self.assertEquals(system_faults[0].code, 42)
-        self.assertEquals(system_faults[0].uid, 5)
-        self.assertEquals(system_faults[0].error_message, "error message1")
-        self.assertEquals(system_faults[0].attributes, ["imu", "power"])
-        self.assertEquals(
+        self.assertEqual(system_faults[0].name, "fault1")
+        self.assertEqual(system_faults[0].header.stamp.secs, 1)
+        self.assertEqual(system_faults[0].header.stamp.nsecs, 2)
+        self.assertEqual(system_faults[0].duration.secs, 3)
+        self.assertEqual(system_faults[0].duration.nsecs, 4)
+        self.assertEqual(system_faults[0].code, 42)
+        self.assertEqual(system_faults[0].uid, 5)
+        self.assertEqual(system_faults[0].error_message, "error message1")
+        self.assertEqual(system_faults[0].attributes, ["imu", "power"])
+        self.assertEqual(
             system_faults[0].severity, robot_state_pb2.SystemFault.SEVERITY_WARN
         )
 
-        self.assertEquals(system_faults[1].name, "fault2")
-        self.assertEquals(system_faults[1].header.stamp.secs, 6)
-        self.assertEquals(system_faults[1].header.stamp.nsecs, 7)
-        self.assertEquals(system_faults[1].duration.secs, 8)
-        self.assertEquals(system_faults[1].duration.nsecs, 9)
-        self.assertEquals(system_faults[1].code, 43)
-        self.assertEquals(system_faults[1].uid, 10)
-        self.assertEquals(system_faults[1].error_message, "error message2")
-        self.assertEquals(system_faults[1].attributes, ["wifi", "vision"])
-        self.assertEquals(
+        self.assertEqual(system_faults[1].name, "fault2")
+        self.assertEqual(system_faults[1].header.stamp.secs, 6)
+        self.assertEqual(system_faults[1].header.stamp.nsecs, 7)
+        self.assertEqual(system_faults[1].duration.secs, 8)
+        self.assertEqual(system_faults[1].duration.nsecs, 9)
+        self.assertEqual(system_faults[1].code, 43)
+        self.assertEqual(system_faults[1].uid, 10)
+        self.assertEqual(system_faults[1].error_message, "error message2")
+        self.assertEqual(system_faults[1].attributes, ["wifi", "vision"])
+        self.assertEqual(
             system_faults[1].severity, robot_state_pb2.SystemFault.SEVERITY_CRITICAL
         )
 
@@ -857,33 +862,33 @@ class TestGetSystemFaultsFromState(unittest.TestCase):
         )
 
         system_faults = ros_helpers.GetSystemFaultsFromState(state, spot_wrapper)
-        self.assertEquals(system_faults.faults[0].name, "fault1")
-        self.assertEquals(system_faults.faults[0].header.stamp.secs, 1)
-        self.assertEquals(system_faults.faults[0].header.stamp.nsecs, 2)
-        self.assertEquals(system_faults.faults[0].duration.secs, 3)
-        self.assertEquals(system_faults.faults[0].duration.nsecs, 4)
-        self.assertEquals(system_faults.faults[0].code, 42)
-        self.assertEquals(system_faults.faults[0].uid, 5)
-        self.assertEquals(system_faults.faults[0].error_message, "error message1")
-        self.assertEquals(system_faults.faults[0].attributes, ["imu", "power"])
-        self.assertEquals(
+        self.assertEqual(system_faults.faults[0].name, "fault1")
+        self.assertEqual(system_faults.faults[0].header.stamp.secs, 1)
+        self.assertEqual(system_faults.faults[0].header.stamp.nsecs, 2)
+        self.assertEqual(system_faults.faults[0].duration.secs, 3)
+        self.assertEqual(system_faults.faults[0].duration.nsecs, 4)
+        self.assertEqual(system_faults.faults[0].code, 42)
+        self.assertEqual(system_faults.faults[0].uid, 5)
+        self.assertEqual(system_faults.faults[0].error_message, "error message1")
+        self.assertEqual(system_faults.faults[0].attributes, ["imu", "power"])
+        self.assertEqual(
             system_faults.faults[0].severity, robot_state_pb2.SystemFault.SEVERITY_WARN
         )
 
-        self.assertEquals(system_faults.historical_faults[0].name, "fault2")
-        self.assertEquals(system_faults.historical_faults[0].header.stamp.secs, 6)
-        self.assertEquals(system_faults.historical_faults[0].header.stamp.nsecs, 7)
-        self.assertEquals(system_faults.historical_faults[0].duration.secs, 8)
-        self.assertEquals(system_faults.historical_faults[0].duration.nsecs, 9)
-        self.assertEquals(system_faults.historical_faults[0].code, 43)
-        self.assertEquals(system_faults.historical_faults[0].uid, 10)
-        self.assertEquals(
+        self.assertEqual(system_faults.historical_faults[0].name, "fault2")
+        self.assertEqual(system_faults.historical_faults[0].header.stamp.secs, 6)
+        self.assertEqual(system_faults.historical_faults[0].header.stamp.nsecs, 7)
+        self.assertEqual(system_faults.historical_faults[0].duration.secs, 8)
+        self.assertEqual(system_faults.historical_faults[0].duration.nsecs, 9)
+        self.assertEqual(system_faults.historical_faults[0].code, 43)
+        self.assertEqual(system_faults.historical_faults[0].uid, 10)
+        self.assertEqual(
             system_faults.historical_faults[0].error_message, "error message2"
         )
-        self.assertEquals(
+        self.assertEqual(
             system_faults.historical_faults[0].attributes, ["wifi", "vision"]
         )
-        self.assertEquals(
+        self.assertEqual(
             system_faults.historical_faults[0].severity,
             robot_state_pb2.SystemFault.SEVERITY_CRITICAL,
         )
@@ -915,4 +920,26 @@ class TestSuiteROSHelpers(unittest.TestSuite):
 
 if __name__ == "__main__":
     print("Starting tests!")
-    rostest.rosrun(PKG, NAME, TestSuiteROSHelpers)
+    import rosunit
+
+    rospy.init_node("ros_helpers test")
+
+    rosunit.unitrun(PKG, NAME, TestPopulateTransformStamped)
+    rosunit.unitrun(PKG, NAME, TestGetImageMsg)
+    rosunit.unitrun(PKG, NAME, TestGetJointStatesFromState)
+    rosunit.unitrun(PKG, NAME, TestGetEStopStateFromState)
+    rosunit.unitrun(PKG, NAME, TestGetFeetFromState)
+    rosunit.unitrun(PKG, NAME, TestGetOdomTwistFromState)
+    rosunit.unitrun(PKG, NAME, TestGetOdomFromState)
+    rosunit.unitrun(PKG, NAME, TestGetWifiFromState)
+    rosunit.unitrun(PKG, NAME, TestGenerateFeetTF)
+    rosunit.unitrun(PKG, NAME, TestGetTFFromState)
+    rosunit.unitrun(PKG, NAME, TestGetBatteryStatesFromState)
+    rosunit.unitrun(PKG, NAME, TestGetPowerStatesFromState)
+    rosunit.unitrun(PKG, NAME, TestGetDockStatesFromState)
+    rosunit.unitrun(PKG, NAME, TestGetBehaviorFaults)
+    rosunit.unitrun(PKG, NAME, TestGetBehaviorFaultsFromState)
+    rosunit.unitrun(PKG, NAME, TestGetSystemFaults)
+    rosunit.unitrun(PKG, NAME, TestGetSystemFaultsFromState)
+
+    print("Tests complete!")
