@@ -126,7 +126,12 @@ class SpotROS:
             self.joint_state_pub.publish(joint_state)
 
             ## TF ##
-            tf_msg = GetTFFromState(state, self.spot_wrapper, self.mode_parent_odom_tf)
+            tf_msg = GetTFFromState(
+                state,
+                self.spot_wrapper,
+                self.mode_parent_odom_tf,
+                self.publish_parent_odom_tf
+            )
             if len(tf_msg.transforms) > 0:
                 self.tf_pub.publish(tf_msg)
 
@@ -1420,6 +1425,7 @@ class SpotROS:
         self.estop_timeout = rospy.get_param("~estop_timeout", 9.0)
         self.autonomy_enabled = rospy.get_param("~autonomy_enabled", True)
         self.allow_motion = rospy.get_param("~allow_motion", True)
+        self.publish_parent_odom_tf = rospy.get_param('~publish_parent_odom_tf', True)
         self.is_charging = False
 
         self.tf_buffer = tf2_ros.Buffer()
