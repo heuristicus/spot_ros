@@ -480,7 +480,7 @@ class SpotWrapper:
                 )
             except Exception as e:
                 self._point_cloud_client = None
-                rospy.logwarn("No point cloud services are available.")
+                self._logger.warn("No point cloud services are available.")
 
         if self._robot:
             # Clients
