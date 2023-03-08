@@ -10,17 +10,13 @@ import rospy
 import actionlib
 from rosservice import get_service_class_by_name
 
-
-from spot_msgs.srv import PosedStandRequest
 from std_msgs.msg import Duration
 from std_srvs.srv import TriggerResponse
-from bosdyn.api import robot_state_pb2, geometry_pb2
-
-from tf2_msgs.msg import TFMessage
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped, PoseStamped, Pose, Point
 from nav_msgs.msg import Odometry
+from tf2_msgs.msg import TFMessage
 
 from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray
@@ -31,7 +27,12 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFaultState
 from spot_msgs.msg import SystemFaultState
 from spot_msgs.msg import BatteryStateArray
+from spot_msgs.msg import NavigateToAction, NavigateToGoal
+from spot_msgs.msg import TrajectoryAction, TrajectoryGoal
+from spot_msgs.msg import PoseBodyAction, PoseBodyGoal
 
+from spot_msgs.srv import PosedStandRequest
+from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
 from spot_msgs.srv import ListGraphResponse
 from spot_msgs.srv import (
     DockResponse,
@@ -43,19 +44,7 @@ from spot_msgs.srv import ArmForceTrajectoryResponse
 from spot_msgs.srv import ArmJointMovementResponse
 from spot_msgs.srv import HandPoseResponse
 
-from spot_msgs.msg import (
-    NavigateToAction,
-    NavigateToResult,
-    NavigateToFeedback,
-    NavigateToGoal,
-)
-from spot_msgs.msg import (
-    TrajectoryAction,
-    TrajectoryResult,
-    TrajectoryFeedback,
-    TrajectoryGoal,
-)
-from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
+from bosdyn.api import robot_state_pb2, geometry_pb2
 
 
 class TestRobotStateCB(unittest.TestCase):
@@ -899,7 +888,9 @@ class TestServiceHandlers(unittest.TestCase):
             "/spot/list_graph", "test_file/path"
         )
 
-        self.assertTrue(resp.waypoint_ids, ["1", "2", "3"])
+        self.assertEqual(
+            resp.waypoint_ids, ["1", "2", "3"], "List graph service failed"
+        )
 
     def test_roll_over_right(self):
         # Test that the roll over right service works
@@ -997,6 +988,13 @@ class TestServiceHandlers(unittest.TestCase):
 
         self.assertTrue(resp.success, "Hand pose service failed")
         self.assertEqual(resp.message, "Successfully called gripper_pose")
+
+    def test_spot_check(self):
+        # Test that the Spot Check service works
+        resp: SpotCheckResponse = self.call_service("/spot/spot_check")
+
+        self.assertTrue(resp.success, "Spot Check service failed")
+        self.assertEqual(resp.message, "Successfully called spot_check")
 
 
 class TestActionHandlers(unittest.TestCase):

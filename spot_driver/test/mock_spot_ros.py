@@ -18,6 +18,7 @@ from spot_msgs.srv import GripperAngleMoveResponse, GripperAngleMoveRequest
 from spot_msgs.srv import ArmJointMovementResponse, ArmJointMovementRequest
 from spot_msgs.srv import ArmForceTrajectoryResponse
 from spot_msgs.srv import HandPoseResponse, HandPoseRequest
+from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
 
 from bosdyn.api import image_pb2, robot_state_pb2, lease_pb2, geometry_pb2
 from bosdyn.api.docking import docking_pb2
@@ -299,6 +300,9 @@ class TestSpotROS(SpotROS):
             PoseBodyResult(success=True, message="Successfully called body_pose")
         )
 
+    def handle_spot_check(self, req: SpotCheckRequest) -> SpotCheckResponse:
+        return SpotCheckResponse(success=True, message="Successfully called spot_check")
+
 
 # Run the mock SpotROS class as a node
 class MockSpotROS:
@@ -517,7 +521,7 @@ class MockSpotROS:
 
     def set_robot_state(self):
         # Create a robot state message inside the spot_wrapper object
-        self.spot_ros.spot_wrapper.robot_state = robot_state_pb2.RobotState()  # type: ignore
+        self.spot_ros.spot_wrapper.robot_state = robot_state_pb2.RobotState()
 
         # Set the robot state message's joint state field
         self.set_joint_states(self.spot_ros.spot_wrapper.robot_state)
@@ -534,7 +538,7 @@ class MockSpotROS:
 
     def set_robot_metrics(self):
         # Create a robot metrics message inside the spot_wrapper object
-        self.spot_ros.spot_wrapper.metrics = robot_state_pb2.RobotMetrics()  # type: ignore
+        self.spot_ros.spot_wrapper.metrics = robot_state_pb2.RobotMetrics()
 
         # Populate the Metrics message field with a timestamp and metrics
         self.spot_ros.spot_wrapper.metrics.timestamp.seconds = 1
@@ -552,7 +556,7 @@ class MockSpotROS:
 
     def set_robot_lease(self):
         # Create a robot lease message inside the spot_wrapper object
-        list_lease_resp = lease_pb2.ListLeasesResponse()  # type: ignore
+        list_lease_resp = lease_pb2.ListLeasesResponse()
 
         # Populate the lease message field with a timestamp and lease
         list_lease_resp.resources.add(
@@ -567,7 +571,7 @@ class MockSpotROS:
             stale_time=timestamp_pb2.Timestamp(seconds=4, nanos=5),
         )
 
-        self.spot_ros.spot_wrapper.lease = list_lease_resp.resources  # type: ignore
+        self.spot_ros.spot_wrapper.lease = list_lease_resp.resources
 
     def set_robot_front_camera_data(self):
         # Create a robot front camera data message inside the spot_wrapper object

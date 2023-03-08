@@ -1,15 +1,14 @@
 import time
-import math
 import logging
 import typing
 import logging
 import typing
+
+from bosdyn.geometry import EulerZXY
 
 import bosdyn.client.auth
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
-from bosdyn.geometry import EulerZXY
-
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder
 from bosdyn.client.graph_nav import GraphNavClient
@@ -19,6 +18,7 @@ from bosdyn.client.image import ImageClient, build_image_request
 from bosdyn.client.docking import DockingClient
 from bosdyn.client.time_sync import TimeSyncEndpoint
 from bosdyn.client.estop import EstopClient
+from bosdyn.client.spot_check import SpotCheckClient
 from bosdyn.client import power
 from bosdyn.client import frame_helpers
 from bosdyn.client import math_helpers
@@ -28,6 +28,7 @@ from .spot_arm import SpotArm
 from .spot_estop_lease import SpotEstopLease
 from .spot_docking import SpotDocking
 from .spot_graph_nav import SpotGraphNav
+from .spot_check import SpotCheck
 
 from bosdyn.api import robot_command_pb2
 from bosdyn.api import robot_id_pb2
@@ -219,11 +220,11 @@ class AsyncIdle(AsyncPeriodicQuery):
                     response.feedback.synchronized_feedback.mobility_command_feedback.stand_feedback.status
                 )
                 self._spot_wrapper._robot_params["is_sitting"] = False
-                if status == basic_command_pb2.StandCommand.Feedback.STATUS_IS_STANDING:  # type: ignore
+                if status == basic_command_pb2.StandCommand.Feedback.STATUS_IS_STANDING:
                     self._spot_wrapper._robot_params["is_standing"] = True
                     self._spot_wrapper._last_stand_command = None
                 elif (
-                    status == basic_command_pb2.StandCommand.Feedback.STATUS_IN_PROGRESS  # type: ignore
+                    status == basic_command_pb2.StandCommand.Feedback.STATUS_IN_PROGRESS
                 ):
                     self._spot_wrapper._robot_params["is_standing"] = False
                 else:
@@ -241,7 +242,7 @@ class AsyncIdle(AsyncPeriodicQuery):
                 )
                 if (
                     response.feedback.synchronized_feedback.mobility_command_feedback.sit_feedback.status
-                    == basic_command_pb2.SitCommand.Feedback.STATUS_IS_SITTING  # type: ignore
+                    == basic_command_pb2.SitCommand.Feedback.STATUS_IS_SITTING
                 ):
                     self._spot_wrapper._robot_params["is_sitting"] = True
                     self._spot_wrapper._last_sit_command = None
@@ -271,10 +272,10 @@ class AsyncIdle(AsyncPeriodicQuery):
                 # request precise positioning, then STATUS_NEAR_GOAL also counts as reaching the goal
                 if (
                     status
-                    == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_AT_GOAL  # type: ignore
+                    == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_AT_GOAL
                     or (
                         status
-                        == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL  # type: ignore
+                        == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL
                         and not self._spot_wrapper._last_trajectory_command_precise
                     )
                 ):
@@ -283,18 +284,18 @@ class AsyncIdle(AsyncPeriodicQuery):
                     self._spot_wrapper._last_trajectory_command = None
                 elif (
                     status
-                    == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_GOING_TO_GOAL  # type: ignore
+                    == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_GOING_TO_GOAL
                 ):
                     is_moving = True
                 elif (
                     status
-                    == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL  # type: ignore
+                    == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_NEAR_GOAL
                 ):
                     is_moving = True
                     self._spot_wrapper._near_goal = True
                 elif (
                     status
-                    == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_UNKNOWN  # type: ignore
+                    == basic_command_pb2.SE2TrajectoryCommand.Feedback.STATUS_UNKNOWN
                 ):
                     self._spot_wrapper._trajectory_status_unknown = True
                     self._spot_wrapper._last_trajectory_command = None
@@ -437,33 +438,25 @@ class SpotWrapper:
         self._front_image_requests = []
         for source in front_image_sources:
             self._front_image_requests.append(
-                build_image_request(
-                    source, image_format=image_pb2.Image.FORMAT_RAW
-                )  # type: ignore
+                build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW)
             )
 
         self._side_image_requests = []
         for source in side_image_sources:
             self._side_image_requests.append(
-                build_image_request(
-                    source, image_format=image_pb2.Image.FORMAT_RAW
-                )  # type: ignore
+                build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW)
             )
 
         self._rear_image_requests = []
         for source in rear_image_sources:
             self._rear_image_requests.append(
-                build_image_request(
-                    source, image_format=image_pb2.Image.FORMAT_RAW
-                )  # type: ignore
+                build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW)
             )
 
         self._hand_image_requests = []
         for source in hand_image_sources:
             self._hand_image_requests.append(
-                build_image_request(
-                    source, image_format=image_pb2.Image.FORMAT_RAW
-                )  # type: ignore
+                build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW)
             )
 
         try:
@@ -533,6 +526,9 @@ class SpotWrapper:
                     self._docking_client = self._robot.ensure_client(
                         DockingClient.default_service_name
                     )
+                    self._spot_check_client = self._robot.ensure_client(
+                        SpotCheckClient.default_service_name
+                    )
                     initialised = True
 
                     self._robot_clients = {
@@ -544,6 +540,7 @@ class SpotWrapper:
                         "image_client": self._image_client,
                         "estop_client": self._estop_client,
                         "docking_client": self._docking_client,
+                        "spot_check_client": self._spot_check_client,
                         "robot_command_method": self._robot_command,
                     }
                 except Exception as e:
@@ -648,6 +645,10 @@ class SpotWrapper:
                 self._robot, self._logger, self._robot_params, self._robot_clients
             )
 
+            self._spot_check = SpotCheck(
+                self._robot, self._logger, self._robot_params, self._robot_clients
+            )
+
             self._lease = None
 
     @property
@@ -674,6 +675,11 @@ class SpotWrapper:
         return self._spot_graph_nav
 
     @property
+    def spot_check(self) -> SpotCheck:
+        """Return SpotCheck instance"""
+        return self._spot_check
+
+    @property
     def logger(self) -> logging.Logger:
         """Return logger instance of the SpotWrapper"""
         return self._logger
@@ -691,37 +697,37 @@ class SpotWrapper:
     @property
     def robot_state(self) -> robot_state_pb2.RobotState:
         """Return latest proto from the _robot_state_task"""
-        return self._robot_state_task.proto  # type: ignore
+        return self._robot_state_task.proto
 
     @property
     def metrics(self) -> robot_state_pb2.RobotMetrics:
         """Return latest proto from the _robot_metrics_task"""
-        return self._robot_metrics_task.proto  # type: ignore
+        return self._robot_metrics_task.proto
 
     @property
     def lease(self) -> typing.List[lease_pb2.LeaseResource]:
         """Return latest proto from the _lease_task"""
-        return self._lease_task.proto  # type: ignore
+        return self._lease_task.proto
 
     @property
     def front_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _front_image_task"""
-        return self._front_image_task.proto  # type: ignore
+        return self._front_image_task.proto
 
     @property
     def side_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _side_image_task"""
-        return self._side_image_task.proto  # type: ignore
+        return self._side_image_task.proto
 
     @property
     def rear_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _rear_image_task"""
-        return self._rear_image_task.proto  # type: ignore
+        return self._rear_image_task.proto
 
     @property
     def hand_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _hand_image_task"""
-        return self._hand_image_task.proto  # type: ignore
+        return self._hand_image_task.proto
 
     @property
     def is_standing(self) -> bool:
@@ -749,7 +755,7 @@ class SpotWrapper:
     @property
     def time_skew(self) -> Timestamp:
         """Return the time skew between local and spot time"""
-        return self._robot.time_sync.endpoint.clock_skew  # type: ignore
+        return self._robot.time_sync.endpoint.clock_skew
 
     def resetMobilityParams(self):
         """
@@ -939,7 +945,7 @@ class SpotWrapper:
                 v_x=v_x, v_y=v_y, v_rot=v_rot, params=self._mobility_params
             ),
             end_time_secs=end_time,
-            timesync_endpoint=self._robot.time_sync.endpoint,  # type: ignore
+            timesync_endpoint=self._robot.time_sync.endpoint,
         )
         self._last_velocity_command_time = end_time
         return response[0], response[1]

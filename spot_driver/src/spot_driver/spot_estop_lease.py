@@ -1,13 +1,10 @@
-# Separate code from spot_wrapper into a SpotEstopLease class
-
-# Import required modules
 import typing
 import logging
 
 from bosdyn.client.robot import Robot
 from bosdyn.client import ResponseError, RpcError
 from bosdyn.client.estop import EstopEndpoint, EstopKeepAlive, EstopClient
-from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
+from bosdyn.client.lease import LeaseClient, LeaseKeepAlive, Lease
 
 
 class SpotEstopLease:
@@ -28,6 +25,11 @@ class SpotEstopLease:
         self._estop_timeout: float = robot_params["estop_timeout"]
         self._robot_params = robot_params
         self._estop_keepalive = None
+        self._lease = None
+
+    @property
+    def lease(self) -> Lease:
+        return self._lease
 
     def claim(self) -> typing.Tuple[bool, str]:
         """Get a lease for the robot, a handle on the estop endpoint, and the ID of the robot."""
@@ -56,9 +58,9 @@ class SpotEstopLease:
         """
         try:
             if severe:
-                self._estop_keepalive.stop()  # type: ignore
+                self._estop_keepalive.stop()
             else:
-                self._estop_keepalive.settle_then_cut()  # type: ignore
+                self._estop_keepalive.settle_then_cut()
 
             return True, "Success, E-Stop engaged"
         except:
@@ -67,7 +69,7 @@ class SpotEstopLease:
     def disengageEStop(self) -> typing.Tuple[bool, str]:
         """Disengages the E-Stop"""
         try:
-            self._estop_keepalive.allow()  # type: ignore
+            self._estop_keepalive.allow()
             return True, "Success, E-Stop disengaged"
         except:
             return False, "Error, E-Stop already released"

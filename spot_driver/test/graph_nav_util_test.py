@@ -5,8 +5,10 @@ SUITE = "graph_nav_util_test.TestSuiteGraphNavUtil"
 
 import unittest
 import logging
-import spot_driver.graph_nav_util as graph_nav_util
+
 from bosdyn.api.graph_nav import map_pb2
+
+import spot_driver.graph_nav_util as graph_nav_util
 
 
 class TestGraphNavUtilShortCode(unittest.TestCase):

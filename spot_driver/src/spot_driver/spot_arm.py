@@ -137,13 +137,13 @@ class SpotArm:
         """Helper function to create a RobotCommand from an ArmJointTrajectory.
         Copy from 'spot-sdk/python/examples/arm_joint_move/arm_joint_move.py'"""
 
-        joint_move_command = arm_command_pb2.ArmJointMoveCommand.Request(  # type: ignore
+        joint_move_command = arm_command_pb2.ArmJointMoveCommand.Request(
             trajectory=arm_joint_trajectory
         )
-        arm_command = arm_command_pb2.ArmCommand.Request(  # type: ignore
+        arm_command = arm_command_pb2.ArmCommand.Request(
             arm_joint_move_command=joint_move_command
         )
-        sync_arm = synchronized_command_pb2.SynchronizedCommand.Request(  # type: ignore
+        sync_arm = synchronized_command_pb2.SynchronizedCommand.Request(
             arm_command=arm_command
         )
         arm_sync_robot_cmd = robot_command_pb2.RobotCommand(
@@ -219,7 +219,7 @@ class SpotArm:
                     cmd_id
                 )
                 joint_move_feedback = (
-                    feedback_resp.feedback.synchronized_feedback.arm_command_feedback.arm_joint_move_feedback  # type: ignore
+                    feedback_resp.feedback.synchronized_feedback.arm_command_feedback.arm_joint_move_feedback
                 )
                 time_to_goal: Duration = joint_move_feedback.time_to_goal
                 time_to_goal_in_seconds: float = time_to_goal.seconds + (
@@ -279,21 +279,23 @@ class SpotArm:
                 )
 
                 # Build the trajectory request, putting all axes into force mode
-                arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(  # type: ignore
+                arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
                     root_frame_name=ODOM_FRAME_NAME,
                     wrench_trajectory_in_task=trajectory,
-                    x_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,  # type: ignore
-                    y_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,  # type: ignore
-                    z_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,  # type: ignore
-                    rx_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,  # type: ignore
-                    ry_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,  # type: ignore
-                    rz_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,  # type: ignore
+                    x_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    y_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    z_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    rx_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    ry_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
+                    rz_axis=arm_command_pb2.ArmCartesianCommand.Request.AXIS_MODE_FORCE,
                 )
-                arm_command = arm_command_pb2.ArmCommand.Request(  # type: ignore
+                arm_command = arm_command_pb2.ArmCommand.Request(
                     arm_cartesian_command=arm_cartesian_command
                 )
-                synchronized_command = synchronized_command_pb2.SynchronizedCommand.Request(  # type: ignore
-                    arm_command=arm_command
+                synchronized_command = (
+                    synchronized_command_pb2.SynchronizedCommand.Request(
+                        arm_command=arm_command
+                    )
                 )
                 robot_command = robot_command_pb2.RobotCommand(
                     synchronized_command=synchronized_command
@@ -388,17 +390,17 @@ class SpotArm:
                 # Move the arm to a spot in front of the robot given a pose for the gripper.
                 # Build a position to move the arm to (in meters, relative to the body frame origin.)
                 position = geometry_pb2.Vec3(
-                    x=pose_points.position.x,  # type: ignore
-                    y=pose_points.position.y,  # type: ignore
-                    z=pose_points.position.z,  # type: ignore
+                    x=pose_points.position.x,
+                    y=pose_points.position.y,
+                    z=pose_points.position.z,
                 )
 
                 # # Rotation as a quaternion.
                 rotation = geometry_pb2.Quaternion(
-                    w=pose_points.orientation.w,  # type: ignore
-                    x=pose_points.orientation.x,  # type: ignore
-                    y=pose_points.orientation.y,  # type: ignore
-                    z=pose_points.orientation.z,  # type: ignore
+                    w=pose_points.orientation.w,
+                    x=pose_points.orientation.x,
+                    y=pose_points.orientation.y,
+                    z=pose_points.orientation.z,
                 )
 
                 seconds = 5.0
@@ -413,15 +415,17 @@ class SpotArm:
                     points=[hand_pose_traj_point]
                 )
 
-                arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(  # type: ignore
+                arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
                     root_frame_name=BODY_FRAME_NAME,
                     pose_trajectory_in_task=hand_trajectory,
                 )
-                arm_command = arm_command_pb2.ArmCommand.Request(  # type: ignore
+                arm_command = arm_command_pb2.ArmCommand.Request(
                     arm_cartesian_command=arm_cartesian_command
                 )
-                synchronized_command = synchronized_command_pb2.SynchronizedCommand.Request(  # type: ignore
-                    arm_command=arm_command
+                synchronized_command = (
+                    synchronized_command_pb2.SynchronizedCommand.Request(
+                        arm_command=arm_command
+                    )
                 )
 
                 # robot_command = self._robot_command(RobotCommandBuilder.build_synchro_command(synchronized_command))

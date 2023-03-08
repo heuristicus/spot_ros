@@ -36,6 +36,11 @@ add_message_files(
   ObstacleParams.msg
   TerrainParams.msg
   TerrainState.msg
+  SpotCheckDepth.msg
+  SpotCheckHipROM.msg
+  SpotCheckKinematic.msg
+  SpotCheckLoadCell.msg
+  SpotCheckPayload.msg
 )
 
 add_service_files(
@@ -55,6 +60,7 @@ add_service_files(
   PosedStand.srv
   Dock.srv
   GetDockState.srv
+  SpotCheck.srv
 )
 
 add_action_files(

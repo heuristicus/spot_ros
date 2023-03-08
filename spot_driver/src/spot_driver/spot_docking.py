@@ -57,4 +57,4 @@ class SpotDocking:
     def get_docking_state(self, **kwargs) -> docking_pb2.DockState:
         """Get docking state of robot."""
         state = self._docking_client.get_docking_state(**kwargs)
-        return state  # type: ignore
+        return state

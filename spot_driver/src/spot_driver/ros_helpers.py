@@ -1,19 +1,14 @@
-import rospy
-import tf2_ros
 import typing
+import rospy
 
-from std_msgs.msg import Empty
-from tf2_msgs.msg import TFMessage
-from geometry_msgs.msg import TransformStamped, Transform
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import PoseWithCovariance
-from geometry_msgs.msg import TwistWithCovariance
 from geometry_msgs.msg import TwistWithCovarianceStamped
+from geometry_msgs.msg import TransformStamped, Transform
 from nav_msgs.msg import Odometry
+from tf2_msgs.msg import TFMessage
 
-from spot_msgs.msg import Metrics
-from spot_msgs.msg import LeaseArray, LeaseResource
 from spot_msgs.msg import FootState, FootStateArray
 from spot_msgs.msg import EStopState, EStopStateArray
 from spot_msgs.msg import WiFiState
@@ -22,9 +17,11 @@ from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import DockState
+from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse
 
 from bosdyn.api import image_pb2, robot_state_pb2
 from bosdyn.api.docking import docking_pb2
+from bosdyn.client.spot_check import spot_check_pb2
 from bosdyn.client.math_helpers import SE3Pose
 from bosdyn.client.frame_helpers import get_odom_tform_body, get_vision_tform_body
 
@@ -658,3 +655,29 @@ def GetSystemFaultsFromState(
         state.system_fault_state.historical_faults, spot_wrapper
     )
     return system_fault_state_msg
+
+
+def GetSpotCheckResultsMsg(
+    data: spot_check_pb2.SpotCheckFeedbackResponse, resp: typing.Tuple[bool, str]
+) -> SpotCheckResponse:
+    """Build the SpotCheckReponse message from the SpotCheckFeedbackResponse"""
+    ros_resp = SpotCheckResponse()
+    ros_resp.success = resp[0]
+    ros_resp.message = resp[1]
+
+    ros_resp.camera_names = list(data.camera_results.keys())
+    ros_resp.camera_results = list(data.camera_results.values())
+    ros_resp.load_cell_names = list(data.load_cell_results.keys())
+    ros_resp.load_cell_results = list(data.load_cell_results.values())
+    ros_resp.kinematic_joint_names = list(data.kinematic_cal_results.keys())
+    ros_resp.kinematic_cal_results = list(data.kinematic_cal_results.values())
+    ros_resp.payload_result = data.payload_result
+    ros_resp.leg_names = list(data.hip_range_of_motion_results.keys())
+    ros_resp.hip_range_of_motion_results = list(
+        data.hip_range_of_motion_results.values()
+    )
+    ros_resp.progress = data.progress
+    ros_resp.last_cal_timestamp.secs = data.last_cal_timestamp.seconds
+    ros_resp.last_cal_timestamp.nsecs = data.last_cal_timestamp.nanos
+
+    return ros_resp

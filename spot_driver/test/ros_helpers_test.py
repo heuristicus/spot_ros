@@ -6,12 +6,13 @@ SUITE = "ros_helpers_test.TestSuiteROSHelpers"
 import unittest
 import rospy
 
-import spot_driver.ros_helpers as ros_helpers
 from geometry_msgs.msg import Transform
 from spot_msgs.msg import FootState, FootStateArray
+
+from google.protobuf import wrappers_pb2, timestamp_pb2, duration_pb2
 from bosdyn.api import image_pb2, geometry_pb2, robot_state_pb2
 from bosdyn.api.docking import docking_pb2
-from google.protobuf import wrappers_pb2, timestamp_pb2, duration_pb2
+from bosdyn.client.spot_check import spot_check_pb2
 from bosdyn.client.frame_helpers import (
     add_edge_to_tree,
     VISION_FRAME_NAME,
@@ -19,6 +20,7 @@ from bosdyn.client.frame_helpers import (
     ODOM_FRAME_NAME,
 )
 
+import spot_driver.ros_helpers as ros_helpers
 from spot_driver.spot_wrapper import SpotWrapper
 
 
@@ -894,6 +896,124 @@ class TestGetSystemFaultsFromState(unittest.TestCase):
         )
 
 
+class TestGetSpotCheckResultsMsg(unittest.TestCase):
+    def test_get_spot_check_result_msg_success(self):
+        """Test that the SpotCheckMsg is correctly populated."""
+        camera_results = {
+            "frontright": spot_check_pb2.DepthPlaneSpotCheckResult(
+                status=spot_check_pb2.DepthPlaneSpotCheckResult.STATUS_OK,
+                severity_score=11.0,
+            ),
+            "frontleft": spot_check_pb2.DepthPlaneSpotCheckResult(
+                status=spot_check_pb2.DepthPlaneSpotCheckResult.STATUS_OK,
+                severity_score=9.0,
+            ),
+            "left": spot_check_pb2.DepthPlaneSpotCheckResult(
+                status=spot_check_pb2.DepthPlaneSpotCheckResult.STATUS_OK,
+                severity_score=8.0,
+            ),
+            "right": spot_check_pb2.DepthPlaneSpotCheckResult(
+                status=spot_check_pb2.DepthPlaneSpotCheckResult.STATUS_OK,
+                severity_score=7.0,
+            ),
+            "back": spot_check_pb2.DepthPlaneSpotCheckResult(
+                status=spot_check_pb2.DepthPlaneSpotCheckResult.STATUS_OK,
+                severity_score=6.0,
+            ),
+        }
+        load_cell_results = {
+            "fl.hxa": spot_check_pb2.LoadCellSpotCheckResult(
+                error=spot_check_pb2.LoadCellSpotCheckResult.ERROR_NONE,
+                zero=0.1,
+                old_zero=0.2,
+            ),
+            "fl.hya": spot_check_pb2.LoadCellSpotCheckResult(
+                error=spot_check_pb2.LoadCellSpotCheckResult.ERROR_NONE,
+                zero=0.3,
+                old_zero=0.4,
+            ),
+        }
+        kinematic_cal_results = {
+            "fl.hx": spot_check_pb2.JointKinematicCheckResult(
+                error=spot_check_pb2.JointKinematicCheckResult.ERROR_NONE,
+                offset=0.1,
+                old_offset=0.2,
+                health_score=0.9,
+            ),
+            "fl.hy": spot_check_pb2.JointKinematicCheckResult(
+                error=spot_check_pb2.JointKinematicCheckResult.ERROR_NONE,
+                offset=0.05,
+                old_offset=0.3,
+                health_score=0.8,
+            ),
+        }
+        payload_result = spot_check_pb2.PayloadCheckResult(
+            error=spot_check_pb2.PayloadCheckResult.ERROR_NONE, extra_payload=5.1
+        )
+        hip_range_of_motion_results = {
+            "fl.hx": spot_check_pb2.HipRangeOfMotionResult(
+                error=spot_check_pb2.HipRangeOfMotionResult.ERROR_NONE,
+                hx=[0.1, 0.2, 0.3],
+                hy=[0.4, 0.5, 0.6],
+            )
+        }
+        progress = 1.0
+        last_cal_timestamp = timestamp_pb2.Timestamp(seconds=1, nanos=2)
+
+        spot_check_data = spot_check_pb2.SpotCheckFeedbackResponse(
+            camera_results=camera_results,
+            load_cell_results=load_cell_results,
+            kinematic_cal_results=kinematic_cal_results,
+            payload_result=payload_result,
+            hip_range_of_motion_results=hip_range_of_motion_results,
+            last_cal_timestamp=last_cal_timestamp,
+            progress=progress,
+        )
+
+        resp = [True, "Spot check test run successfully"]
+
+        spot_check_msg = ros_helpers.GetSpotCheckResultsMsg(spot_check_data, resp)
+
+        # Check that the spot check message is correctly populated
+        self.assertEqual(spot_check_msg.progress, 1.0)
+        self.assertEqual(spot_check_msg.last_cal_timestamp.secs, 1)
+        self.assertEqual(spot_check_msg.last_cal_timestamp.nsecs, 2)
+
+        for i in range(len(spot_check_msg.camera_results)):
+            self.assertEqual(
+                spot_check_msg.camera_results[i],
+                camera_results[spot_check_msg.camera_names[i]],
+                f"Camera result for {spot_check_msg.camera_names[i]} does not match",
+            )
+
+        for i in range(len(spot_check_msg.load_cell_results)):
+            self.assertEqual(
+                spot_check_msg.load_cell_results[i],
+                load_cell_results[spot_check_msg.load_cell_names[i]],
+                f"Load cell result for {spot_check_msg.load_cell_names[i]} does not match",
+            )
+
+        for i in range(len(spot_check_msg.kinematic_cal_results)):
+            self.assertEqual(
+                spot_check_msg.kinematic_cal_results[i],
+                kinematic_cal_results[spot_check_msg.kinematic_joint_names[i]],
+                f"Kinematic cal result for {spot_check_msg.kinematic_joint_names[i]} does not match",
+            )
+
+        for i in range(len(spot_check_msg.hip_range_of_motion_results)):
+            self.assertEqual(
+                spot_check_msg.hip_range_of_motion_results[i],
+                hip_range_of_motion_results[spot_check_msg.leg_names[i]],
+                f"Hip range of motion result for {spot_check_msg.leg_names[i]} does not match",
+            )
+
+        self.assertEqual(spot_check_msg.payload_result, payload_result)
+
+        # Check that the response is correctly populated
+        self.assertEqual(spot_check_msg.success, True)
+        self.assertEqual(spot_check_msg.message, "Spot check test run successfully")
+
+
 class TestSuiteROSHelpers(unittest.TestSuite):
     def __init__(self) -> None:
         super(TestSuiteROSHelpers, self).__init__()
@@ -916,6 +1036,7 @@ class TestSuiteROSHelpers(unittest.TestSuite):
         self.addTest(self.loader.loadTestsFromTestCase(TestGetBehaviorFaultsFromState))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetSystemFaults))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetSystemFaultsFromState))
+        self.addTest(self.loader.loadTestsFromTestCase(TestGetSpotCheckResultsMsg))
 
 
 if __name__ == "__main__":
@@ -941,5 +1062,6 @@ if __name__ == "__main__":
     rosunit.unitrun(PKG, NAME, TestGetBehaviorFaultsFromState)
     rosunit.unitrun(PKG, NAME, TestGetSystemFaults)
     rosunit.unitrun(PKG, NAME, TestGetSystemFaultsFromState)
+    rosunit.unitrun(PKG, NAME, TestGetSpotCheckResultsMsg)
 
     print("Tests complete!")
