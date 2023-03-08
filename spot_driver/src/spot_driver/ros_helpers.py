@@ -6,6 +6,7 @@ from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TransformStamped, Transform
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
+from sensor_msgs.msg import PointCloud2, PointField
 from geometry_msgs.msg import PoseWithCovariance
 from geometry_msgs.msg import TwistWithCovariance
 from geometry_msgs.msg import TwistWithCovarianceStamped
@@ -22,9 +23,11 @@ from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import DockState
 
-from bosdyn.api import image_pb2
+from bosdyn.api import image_pb2, point_cloud_pb2
 from bosdyn.client.math_helpers import SE3Pose
 from bosdyn.client.frame_helpers import get_odom_tform_body, get_vision_tform_body
+
+import numpy as np
 
 friendly_joint_names = {}
 """Dictionary for mapping BD joint names to more friendly names"""
@@ -202,6 +205,41 @@ def getImageMsg(data, spot_wrapper):
     camera_info_msg.P[6] = data.source.pinhole.intrinsics.principal_point.y
 
     return image_msg, camera_info_msg
+
+
+def GetPointCloudMsg(data, spot_wrapper):
+    """Takes the imag and  camera data and populates the necessary ROS messages
+
+    Args:
+        data: PointCloud proto (PointCloudResponse)
+        spot_wrapper: A SpotWrapper object
+    Returns:
+           PointCloud: message of the point cloud (PointCloud2)
+    """
+    point_cloud_msg = PointCloud2()
+    local_time = spot_wrapper.robotToLocalTime(data.point_cloud.source.acquisition_time)
+    point_cloud_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
+    point_cloud_msg.header.frame_id = data.point_cloud.source.frame_name_sensor
+    if data.point_cloud.encoding == point_cloud_pb2.PointCloud.ENCODING_XYZ_32F:
+        point_cloud_msg.height = 1
+        point_cloud_msg.width = data.point_cloud.num_points
+        point_cloud_msg.fields = []
+        for i, ax in enumerate(("x", "y", "z")):
+            field = PointField()
+            field.name = ax
+            field.offset = i * 4
+            field.datatype = PointField.FLOAT32
+            field.count = 1
+            point_cloud_msg.fields.append(field)
+        point_cloud_msg.is_bigendian = False
+        point_cloud_np = np.frombuffer(data.point_cloud.data, dtype=np.uint8)
+        point_cloud_msg.point_step = 12  # float32 XYZ
+        point_cloud_msg.row_step = point_cloud_msg.width * point_cloud_msg.point_step
+        point_cloud_msg.data = point_cloud_np.tobytes()
+        point_cloud_msg.is_dense = True
+    else:
+        rospy.logwarn("Not supported point cloud data type.")
+    return point_cloud_msg
 
 
 def GetJointStatesFromState(state, spot_wrapper):
