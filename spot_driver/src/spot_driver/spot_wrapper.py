@@ -180,7 +180,9 @@ class AsyncImageService(AsyncPeriodicQuery):
 
 
 class AsyncPointCloudService(AsyncPeriodicQuery):
-    """Class to get point cloud at regular intervals.  get_point_cloud_from_sources_async query sent to the robot at every tick.  Callback registered to defined callback function.
+    """
+    Class to get point cloud at regular intervals.  get_point_cloud_from_sources_async query sent to the robot at
+    every tick.  Callback registered to defined callback function.
 
     Attributes:
         client: The Client to a service on the robot
@@ -572,13 +574,6 @@ class SpotWrapper:
                 self._callbacks.get("rear_image", lambda: None),
                 self._rear_image_requests,
             )
-            self._point_cloud_task = AsyncPointCloudService(
-                self._point_cloud_client,
-                self._logger,
-                max(0.0, self._rates.get("point_cloud", 0.0)),
-                self._callbacks.get("lidar_points", lambda: None),
-                self._point_cloud_requests,
-            )
             self._hand_image_task = AsyncImageService(
                 self._image_client,
                 self._logger,
@@ -596,17 +591,26 @@ class SpotWrapper:
             self._estop_endpoint = None
             self._estop_keepalive = None
 
-            self._async_tasks = AsyncTasks(
-                [
-                    self._robot_state_task,
-                    self._robot_metrics_task,
-                    self._lease_task,
-                    self._front_image_task,
-                    self._idle_task,
-                    self._estop_monitor,
-                    self._point_cloud_task,
-                ]
-            )
+            robot_tasks = [
+                self._robot_state_task,
+                self._robot_metrics_task,
+                self._lease_task,
+                self._front_image_task,
+                self._idle_task,
+                self._estop_monitor,
+            ]
+
+            if self._point_cloud_client:
+                self._point_cloud_task = AsyncPointCloudService(
+                    self._point_cloud_client,
+                    self._logger,
+                    max(0.0, self._rates.get("point_cloud", 0.0)),
+                    self._callbacks.get("lidar_points", lambda: None),
+                    self._point_cloud_requests,
+                )
+                robot_tasks.append(self._point_cloud_task)
+
+            self._async_tasks = AsyncTasks(robot_tasks)
 
             self.camera_task_name_to_task_mapping = {
                 "hand_image": self._hand_image_task,
@@ -1900,7 +1904,7 @@ class SpotWrapper:
 
         if task_to_add in self._async_tasks._tasks:
             self._logger.warn(
-                "Task already in async task list, will not be added again"
+                f"Task {image_name} already in async task list, will not be added again"
             )
             return
 
