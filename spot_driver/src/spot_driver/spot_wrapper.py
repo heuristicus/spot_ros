@@ -518,9 +518,10 @@ class SpotWrapper:
                     self._docking_client = self._robot.ensure_client(
                         DockingClient.default_service_name
                     )
-                    self._manipulation_client = self._robot.ensure_client(
-                        ManipulationApiClient.default_service_name
-                    )
+                    if self._robot.has_arm():
+                        self._manipulation_client = self._robot.ensure_client(
+                            ManipulationApiClient.default_service_name
+                        )
                     initialised = True
                 except Exception as e:
                     sleep_secs = 15
