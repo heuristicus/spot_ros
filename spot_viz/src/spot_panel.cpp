@@ -78,6 +78,7 @@ namespace spot_viz
         setObstaclePaddingButton = this->findChild<QPushButton*>("setObstaclePaddingButton");
         setGratedSurfacesButton = this->findChild<QPushButton*>("setGratedSurfacesButton");
         setFrictionButton = this->findChild<QPushButton*>("setFrictionButton");
+        allowMotionButton = this->findChild<QPushButton*>("allowMotionButton");
         dockButton = this->findChild<QPushButton*>("dockButton");
         undockButton = this->findChild<QPushButton*>("undockButton");
         selfRightButton = this->findChild<QPushButton*>("selfRightButton");
@@ -131,6 +132,11 @@ namespace spot_viz
         connect(setGratedSurfacesButton, SIGNAL(clicked()), this, SLOT(setTerrainParams()));
         connect(setFrictionButton, SIGNAL(clicked()), this, SLOT(setTerrainParams()));
         connect(allowMotionButton, SIGNAL(clicked()), this, SLOT(allowMotion()));
+        connect(dockButton, SIGNAL(clicked()), this, SLOT(dock()));
+        connect(undockButton, SIGNAL(clicked()), this, SLOT(undock()));
+        connect(selfRightButton, SIGNAL(clicked()), this, SLOT(selfRight()));
+        connect(rollOverLeftButton, SIGNAL(clicked()), this, SLOT(rollOverLeft()));
+        connect(rollOverRightButton, SIGNAL(clicked()), this, SLOT(rollOverRight()));
     }
 
     void ControlPanel::setupStopButtons() {
@@ -269,6 +275,11 @@ namespace spot_viz
         setFrictionButton->setEnabled(haveLease);
         setGratedSurfacesButton->setEnabled(haveLease);
         allowMotionButton->setEnabled(haveLease);
+        dockButton->setEnabled(haveLease);
+        undockButton->setEnabled(haveLease);
+        selfRightButton->setEnabled(haveLease);
+        rollOverLeftButton->setEnabled(haveLease);
+        rollOverRightButton->setEnabled(haveLease);
     }
 
     /**
@@ -650,7 +661,7 @@ namespace spot_viz
     }
 
     void ControlPanel::undock() {
-        callTriggerService(selfRightService_, "undock");
+        callTriggerService(undockService_, "undock");
     }
 
     void ControlPanel::dock() {

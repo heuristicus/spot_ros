@@ -1715,7 +1715,7 @@ class SpotROS:
         self.body_pose_as.start()
 
         self.dock_as = actionlib.SimpleActionServer(
-            "body_pose",
+            "dock",
             DockAction,
             execute_cb=self.handle_dock_action,
             auto_start=False,
