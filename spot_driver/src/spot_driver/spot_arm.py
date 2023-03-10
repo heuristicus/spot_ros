@@ -21,6 +21,11 @@ from google.protobuf.duration_pb2 import Duration
 
 from geometry_msgs.msg import Pose
 from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
+from spot_msgs.srv import (
+    ArmForceTrajectory,
+    ArmForceTrajectoryResponse,
+    ArmForceTrajectoryRequest,
+)
 
 
 class SpotArm:
@@ -237,7 +242,9 @@ class SpotArm:
         except Exception as e:
             return False, "Exception occured during arm movement: " + str(e)
 
-    def force_trajectory(self, data):
+    def force_trajectory(
+        self, data: ArmForceTrajectoryRequest
+    ) -> typing.Tuple[bool, str]:
         try:
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
@@ -444,7 +451,7 @@ class SpotArm:
 
         return True, "Moved arm successfully"
 
-    def grasp_3d(self, frame, object_rt_frame):
+    def grasp_3d(self, frame: str, object_rt_frame: typing.List[float]):
         try:
             frm = str(frame)
             pos = geometry_pb2.Vec3(
