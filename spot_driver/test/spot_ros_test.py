@@ -13,7 +13,7 @@ from rosservice import get_service_class_by_name
 from std_msgs.msg import Duration
 from std_srvs.srv import TriggerResponse
 from sensor_msgs.msg import Image, CameraInfo
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, PointCloud2
 from geometry_msgs.msg import TwistWithCovarianceStamped, PoseStamped, Pose, Point
 from nav_msgs.msg import Odometry
 from tf2_msgs.msg import TFMessage
@@ -723,6 +723,58 @@ class TestHandImageCB(unittest.TestCase):
         self.check_hand_image_info_depth_in_color(self.data["hand_depth_in_color_info"])
 
 
+class TestPointCloudCB(unittest.TestCase):
+    def setUp(self):
+        self.data = {}
+
+    def point_cloud_cb(self, msg: PointCloud2):
+        self.data["point_cloud"] = msg
+
+    def check_point_cloud(self, point_cloud_msg: PointCloud2):
+        # Check that the point cloud message is correctly populated
+        self.assertEqual(point_cloud_msg.header.frame_id, "eap")
+        self.assertEqual(point_cloud_msg.header.stamp.secs, 1)
+        self.assertEqual(point_cloud_msg.header.stamp.nsecs, 2)
+        self.assertEqual(point_cloud_msg.height, 1)
+        self.assertEqual(point_cloud_msg.width, 3)
+        self.assertEqual(point_cloud_msg.fields[0].name, "x")
+        self.assertEqual(point_cloud_msg.fields[0].offset, 0)
+        self.assertEqual(point_cloud_msg.fields[0].datatype, 7)
+        self.assertEqual(point_cloud_msg.fields[0].count, 1)
+        self.assertEqual(point_cloud_msg.fields[1].name, "y")
+        self.assertEqual(point_cloud_msg.fields[1].offset, 4)
+        self.assertEqual(point_cloud_msg.fields[1].datatype, 7)
+        self.assertEqual(point_cloud_msg.fields[1].count, 1)
+        self.assertEqual(point_cloud_msg.fields[2].name, "z")
+        self.assertEqual(point_cloud_msg.fields[2].offset, 8)
+        self.assertEqual(point_cloud_msg.fields[2].datatype, 7)
+        self.assertEqual(point_cloud_msg.fields[2].count, 1)
+        self.assertEqual(point_cloud_msg.is_bigendian, False)
+        self.assertEqual(point_cloud_msg.point_step, 12)
+        self.assertEqual(point_cloud_msg.row_step, 36)
+        self.assertEqual(
+            point_cloud_msg.data,
+            b"\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@",
+        )
+        self.assertEqual(point_cloud_msg.is_dense, True)
+
+    def test_point_cloud_cb(self):
+        self.point_cloud = rospy.Subscriber(
+            "/spot/lidar/points", PointCloud2, self.point_cloud_cb
+        )
+
+        counter = 0
+        while not rospy.is_shutdown() and counter < 10:
+            time.sleep(1)
+            counter += 1
+
+        # Check that we got all the data
+        self.assertTrue("point_cloud" in self.data, "Point cloud is empty")
+
+        # Check that the data is valid
+        self.check_point_cloud(self.data["point_cloud"])
+
+
 class TestServiceHandlers(unittest.TestCase):
     def call_service(self, service_name, *args, **kwargs):
         # Call a service and wait for it to be available
@@ -1080,7 +1132,9 @@ class TestSuiteSpotROS(unittest.TestSuite):
         self.addTest(self.loader.loadTestsFromTestCase(TestMetricsCB))
         self.addTest(self.loader.loadTestsFromTestCase(TestLeaseCB))
         self.addTest(self.loader.loadTestsFromTestCase(TestHandImageCB))
+        self.addTest(self.loader.loadTestsFromTestCase(TestPointCloudCB))
         self.addTest(self.loader.loadTestsFromTestCase(TestServiceHandlers))
+        self.addTest(self.loader.loadTestsFromTestCase(TestActionHandlers))
 
 
 if __name__ == "__main__":
@@ -1093,6 +1147,7 @@ if __name__ == "__main__":
     rosunit.unitrun(PKG, NAME, TestMetricsCB)
     rosunit.unitrun(PKG, NAME, TestLeaseCB)
     rosunit.unitrun(PKG, NAME, TestHandImageCB)
+    rosunit.unitrun(PKG, NAME, TestPointCloudCB)
     rosunit.unitrun(PKG, NAME, TestServiceHandlers)
     rosunit.unitrun(PKG, NAME, TestActionHandlers)
 

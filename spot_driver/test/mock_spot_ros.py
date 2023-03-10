@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import rospy
 import typing
+import rospy
 
 from std_srvs.srv import TriggerResponse, SetBool, SetBoolResponse
 from spot_msgs.srv import PosedStandResponse, PosedStandRequest
@@ -20,7 +20,13 @@ from spot_msgs.srv import ArmForceTrajectoryResponse
 from spot_msgs.srv import HandPoseResponse, HandPoseRequest
 from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
 
-from bosdyn.api import image_pb2, robot_state_pb2, lease_pb2, geometry_pb2
+from bosdyn.api import (
+    image_pb2,
+    robot_state_pb2,
+    lease_pb2,
+    geometry_pb2,
+    point_cloud_pb2,
+)
 from bosdyn.api.docking import docking_pb2
 from bosdyn.client.async_tasks import AsyncTasks
 from bosdyn.client.robot_command import RobotCommandBuilder
@@ -46,6 +52,7 @@ class TestSpotWrapper(SpotWrapper):
         self._side_image = [image_pb2.ImageResponse()]
         self._rear_image = [image_pb2.ImageResponse()]
         self._hand_image = [image_pb2.ImageResponse()]
+        self._point_cloud = [point_cloud_pb2.PointCloudResponse()]
 
         self._valid = True
         self._robot_params = {
@@ -132,6 +139,18 @@ class TestSpotWrapper(SpotWrapper):
     def hand_images(self, hand_image: typing.List[image_pb2.ImageResponse]):
         """Set the _hand_image data"""
         self._hand_image = hand_image
+
+    @property
+    def point_clouds(self) -> typing.List[point_cloud_pb2.PointCloudResponse]:
+        """Return latest _point_cloud data"""
+        return self._point_cloud
+
+    @point_clouds.setter
+    def point_clouds(
+        self, point_cloud: typing.List[point_cloud_pb2.PointCloudResponse]
+    ):
+        """Set the _point_cloud data"""
+        self._point_cloud = point_cloud
 
     def disconnect(self):
         pass
@@ -723,6 +742,25 @@ class MockSpotROS:
         image_response.shot.frame_name_image_sensor = "hand_depth_in_color_frame"
         self.spot_ros.spot_wrapper.hand_images.append(image_response)
 
+    def set_point_cloud_data(self):
+        # Create PointCloudResponse data
+        point_cloud_data = point_cloud_pb2.PointCloudResponse()
+        point_cloud_data.status = point_cloud_pb2.PointCloudResponse.STATUS_OK
+        point_cloud = point_cloud_pb2.PointCloud(
+            source=point_cloud_pb2.PointCloudSource(
+                name="test_point_cloud",
+                frame_name_sensor="eap",
+                acquisition_time=timestamp_pb2.Timestamp(seconds=1, nanos=2),
+                transforms_snapshot=None,
+            ),
+            num_points=3,
+            encoding=point_cloud_pb2.PointCloud.ENCODING_XYZ_32F,
+            encoding_parameters=None,
+            data=b"\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@",
+        )
+        point_cloud_data.point_cloud.CopyFrom(point_cloud)
+        self.spot_ros.spot_wrapper.point_clouds = [point_cloud_data]
+
     def main(self):
         rospy.init_node(self.spot_ros.node_name, anonymous=True)
         # Initialize variables for transforms
@@ -748,6 +786,7 @@ class MockSpotROS:
         self.set_robot_rear_camera_data()
         self.set_robot_side_camera_data()
         self.set_hand_camera_data()
+        self.set_point_cloud_data()
 
         # Set running rate
         rate = rospy.Rate(50)
@@ -761,6 +800,7 @@ class MockSpotROS:
             self.spot_ros.RearImageCB("rear_camera_test")
             self.spot_ros.SideImageCB("side_camera_test")
             self.spot_ros.HandImageCB("hand_camera_test")
+            self.spot_ros.PointCloudCB("point_cloud_test")
             rate.sleep()
 
 

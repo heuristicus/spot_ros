@@ -9,6 +9,7 @@ rates:
   front_image: 10.0
   side_image: 10.0
   rear_image: 10.0
+  point_cloud: 10.0
   hand_image: 10.0
   feedback: 10.0
   mobility_params: 10.0

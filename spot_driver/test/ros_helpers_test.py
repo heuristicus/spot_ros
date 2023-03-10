@@ -10,7 +10,7 @@ from geometry_msgs.msg import Transform
 from spot_msgs.msg import FootState, FootStateArray
 
 from google.protobuf import wrappers_pb2, timestamp_pb2, duration_pb2
-from bosdyn.api import image_pb2, geometry_pb2, robot_state_pb2
+from bosdyn.api import image_pb2, geometry_pb2, robot_state_pb2, point_cloud_pb2
 from bosdyn.api.docking import docking_pb2
 from bosdyn.client.spot_check import spot_check_pb2
 from bosdyn.client.frame_helpers import (
@@ -1014,10 +1014,63 @@ class TestGetSpotCheckResultsMsg(unittest.TestCase):
         self.assertEqual(spot_check_msg.message, "Spot check test run successfully")
 
 
+class TestGetPointCloudMsg(unittest.TestCase):
+    def test_point_cloud_msg(self) -> None:
+        # Create TestSpotWrapper
+        spot_wrapper = TestSpotWrapper()
+
+        # Create PointCloudResponse data
+        point_cloud_data = point_cloud_pb2.PointCloudResponse()
+        point_cloud_data.status = point_cloud_pb2.PointCloudResponse.STATUS_OK
+        point_cloud = point_cloud_pb2.PointCloud(
+            source=point_cloud_pb2.PointCloudSource(
+                name="test_point_cloud",
+                frame_name_sensor="eap",
+                acquisition_time=timestamp_pb2.Timestamp(seconds=1, nanos=2),
+                transforms_snapshot=None,
+            ),
+            num_points=3,
+            encoding=point_cloud_pb2.PointCloud.ENCODING_XYZ_32F,
+            encoding_parameters=None,
+            data=b"\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@",
+        )
+        point_cloud_data.point_cloud.CopyFrom(point_cloud)
+
+        # Create a point cloud message
+        point_cloud_msg = ros_helpers.GetPointCloudMsg(point_cloud_data, spot_wrapper)
+
+        # Check that the point cloud message is correctly populated
+        self.assertEqual(point_cloud_msg.header.frame_id, "eap")
+        self.assertEqual(point_cloud_msg.header.stamp.secs, 1)
+        self.assertEqual(point_cloud_msg.header.stamp.nsecs, 2)
+        self.assertEqual(point_cloud_msg.height, 1)
+        self.assertEqual(point_cloud_msg.width, 3)
+        self.assertEqual(point_cloud_msg.fields[0].name, "x")
+        self.assertEqual(point_cloud_msg.fields[0].offset, 0)
+        self.assertEqual(point_cloud_msg.fields[0].datatype, 7)
+        self.assertEqual(point_cloud_msg.fields[0].count, 1)
+        self.assertEqual(point_cloud_msg.fields[1].name, "y")
+        self.assertEqual(point_cloud_msg.fields[1].offset, 4)
+        self.assertEqual(point_cloud_msg.fields[1].datatype, 7)
+        self.assertEqual(point_cloud_msg.fields[1].count, 1)
+        self.assertEqual(point_cloud_msg.fields[2].name, "z")
+        self.assertEqual(point_cloud_msg.fields[2].offset, 8)
+        self.assertEqual(point_cloud_msg.fields[2].datatype, 7)
+        self.assertEqual(point_cloud_msg.fields[2].count, 1)
+        self.assertEqual(point_cloud_msg.is_bigendian, False)
+        self.assertEqual(point_cloud_msg.point_step, 12)
+        self.assertEqual(point_cloud_msg.row_step, 36)
+        self.assertEqual(
+            point_cloud_msg.data,
+            b"\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@\x00\x00\x80?\x00\x00\x00@\x00\x00\x80@",
+        )
+        self.assertEqual(point_cloud_msg.is_dense, True)
+
+
 class TestSuiteROSHelpers(unittest.TestSuite):
     def __init__(self) -> None:
         super(TestSuiteROSHelpers, self).__init__()
-        rospy.init_node("ros_helpers test")
+        rospy.init_node("ros_helpers_test")
         self.loader = unittest.TestLoader()
         self.addTest(self.loader.loadTestsFromTestCase(TestPopulateTransformStamped))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetImageMsg))
@@ -1037,13 +1090,14 @@ class TestSuiteROSHelpers(unittest.TestSuite):
         self.addTest(self.loader.loadTestsFromTestCase(TestGetSystemFaults))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetSystemFaultsFromState))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetSpotCheckResultsMsg))
+        self.addTest(self.loader.loadTestsFromTestCase(TestGetPointCloudMsg))
 
 
 if __name__ == "__main__":
     print("Starting tests!")
     import rosunit
 
-    rospy.init_node("ros_helpers test")
+    rospy.init_node("ros_helpers_test")
 
     rosunit.unitrun(PKG, NAME, TestPopulateTransformStamped)
     rosunit.unitrun(PKG, NAME, TestGetImageMsg)
@@ -1063,5 +1117,6 @@ if __name__ == "__main__":
     rosunit.unitrun(PKG, NAME, TestGetSystemFaults)
     rosunit.unitrun(PKG, NAME, TestGetSystemFaultsFromState)
     rosunit.unitrun(PKG, NAME, TestGetSpotCheckResultsMsg)
+    rosunit.unitrun(PKG, NAME, TestGetPointCloudMsg)
 
     print("Tests complete!")

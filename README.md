@@ -3,36 +3,34 @@
 ![CP Spot](cp_spot.jpg)
 
 ## Prerequisite
+
 ```
 pip3 install bosdyn-client bosdyn-mission bosdyn-api bosdyn-core
 ```
-
 
 ## Documentation
 
 Check-out the usage and user documentation [HERE](https://heuristicus.github.io/spot_ros)
 
-
 ## Environment Variables
 
-This driver supports configuration via environment variables.  These can either be manually set in the terminal before
-starting the driver, or added to $HOME/.bashrc as-desired.  The table below lists the available variables and their
+This driver supports configuration via environment variables. These can either be manually set in the terminal before
+starting the driver, or added to $HOME/.bashrc as-desired. The table below lists the available variables and their
 default values:
 
-| Variable                   | Default Value                     | Description                                                                                |
-|----------------------------|-----------------------------------|--------------------------------------------------------------------------------------------|
-| `SPOT_PACK`                | `0`                               | If `1`, enables the standard ROS backpack accessory and adds it to the URDF                |
-| `SPOT_LIDAR_MOUNT`         | `0`                               | If `1`, adds the Lidar mount to the backpack. Requires `SPOT_PACK` to be `1`               |
-| `SPOT_VELODYNE`            | `0`                               | If `1`, adds the a VLP-16 sensor to the lidar mount. Requires `SPOT_LIDAR_MOUNT` to be `1` |
-| `SPOT_VELODYNE_AUTOLAUNCH` | `1`                               | If `1` and `SPOT_VELODYNE` is also 1, the VLP16 ROS node will start automatically          |
-| `SPOT_VELODYNE_XYZ`        | `0 0 0`                           | XYZ offset for the VLP-16 from the backpack lidar mount                                    |
-| `SPOT_VELODYNE_RPY`        | `0 0 0`                           | RPY offset for the VLP-16 from the backpack lidar mount                                    |
-| `SPOT_VELODYNE_HOST`       | `192.168.131.20`                  | IP address of the VLP-16 sensor                                                            |
-| `SPOT_URDF_EXTRAS`         | `empty.urdf`                      | Optional URDF file to add additional joints and links to the robot                         |
-| `SPOT_JOY_DEVICE`          | `/dev/input/js0`                  | The Linux joypad input device used by the `joy_teleop` node                                |
-| `SPOT_JOY_CONFIG`          | `spot_control/config/teleop.yaml` | Joypad button/axis configuration file for `joy_teleop`                                     |
-| `SPOT_ARM`                 | `0`                               | If `1`, adds the Spot arm to the URDF                                                             |
-
+| Variable                   | Default Value                     | Description                                                                                                                                                   |
+| -------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SPOT_PACK`                | `0`                               | If `1`, enables the standard ROS backpack accessory and adds it to the URDF                                                                                   |
+| `SPOT_LIDAR_MOUNT`         | `0`                               | If `1`, adds the Lidar mount to the backpack. Requires `SPOT_PACK` to be `1`                                                                                  |
+| `SPOT_VELODYNE`            | `0`                               | If `1`, adds the a VLP-16 sensor to the lidar mount. Requires `SPOT_LIDAR_MOUNT` to be `1`                                                                    |
+| `SPOT_VELODYNE_AUTOLAUNCH` | `1`                               | If `1` and `SPOT_VELODYNE` is also 1, the VLP16 ROS node will start automatically. Do not use with Autowalk as it may disrupt Autowalk's access of the lidar. |
+| `SPOT_VELODYNE_XYZ`        | `0 0 0`                           | XYZ offset for the VLP-16 from the backpack lidar mount                                                                                                       |
+| `SPOT_VELODYNE_RPY`        | `0 0 0`                           | RPY offset for the VLP-16 from the backpack lidar mount                                                                                                       |
+| `SPOT_VELODYNE_HOST`       | `192.168.131.20`                  | IP address of the VLP-16 sensor                                                                                                                               |
+| `SPOT_URDF_EXTRAS`         | `empty.urdf`                      | Optional URDF file to add additional joints and links to the robot                                                                                            |
+| `SPOT_JOY_DEVICE`          | `/dev/input/js0`                  | The Linux joypad input device used by the `joy_teleop` node                                                                                                   |
+| `SPOT_JOY_CONFIG`          | `spot_control/config/teleop.yaml` | Joypad button/axis configuration file for `joy_teleop`                                                                                                        |
+| `SPOT_ARM`                 | `0`                               | If `1`, adds the Spot arm to the URDF                                                                                                                         |
 
 # Building Quick-Start
 
@@ -54,16 +52,15 @@ pip3 install empy
 ```
 
 If using the Velodyne VLP-16 mounted to the standard Spot backpack you will also need the `velodyne_description` and
-`velodyne_pointcloud` ROS packages.  These are included as dependencies in the `spot_driver` and `spot_description`
+`velodyne_pointcloud` ROS packages. These are included as dependencies in the `spot_driver` and `spot_description`
 packages respectively, and will be installed if you use `rosdep install ...` in your workspace.
 
 The `teleop_joy` package is also included as a dependency to allow Spot to be controlled using a bluetooth or USB
 game controller.
 
-
 ## Building for Melodic
 
-Please note that the Spot SDK uses Python3, which is not officially supported by ROS Melodic.  If you encounter an error
+Please note that the Spot SDK uses Python3, which is not officially supported by ROS Melodic. If you encounter an error
 of this form:
 
 ```bash
@@ -83,9 +80,9 @@ when launching the driver, please follow these steps:
 
 1.  `rm -rf devel/ build/ install/` -- this will remove any old build artifacts from your workspace
 
-2. `git clone https://github.com/ros/geometry2 --branch 0.6.5` into your `src` folder
+2.  `git clone https://github.com/ros/geometry2 --branch 0.6.5` into your `src` folder
 
-3. rebuild your workspace with
+3.  rebuild your workspace with
 
 ```bash
 catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so

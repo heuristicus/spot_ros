@@ -5,8 +5,7 @@ import logging
 import typing
 
 from bosdyn.geometry import EulerZXY
-
-import bosdyn.client.auth
+from bosdyn.client.auth import InvalidLoginError
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
 from bosdyn.client.robot_state import RobotStateClient
@@ -19,10 +18,14 @@ from bosdyn.client.docking import DockingClient
 from bosdyn.client.time_sync import TimeSyncEndpoint
 from bosdyn.client.estop import EstopClient
 from bosdyn.client.spot_check import SpotCheckClient
+from bosdyn.client.docking import DockingClient
+from bosdyn.client.estop import EstopClient
 from bosdyn.client import power
 from bosdyn.client import frame_helpers
 from bosdyn.client import math_helpers
-from bosdyn.client.exceptions import InternalServerError
+from bosdyn.client.point_cloud import PointCloudClient, build_pc_request
+from bosdyn.api import image_pb2
+
 
 from .spot_arm import SpotArm
 from .spot_estop_lease import SpotEstopLease
@@ -31,7 +34,7 @@ from .spot_graph_nav import SpotGraphNav
 from .spot_check import SpotCheck
 
 from bosdyn.api import robot_command_pb2
-from bosdyn.api import robot_id_pb2
+from bosdyn.api import robot_id_pb2, point_cloud_pb2
 from bosdyn.api import image_pb2, robot_state_pb2, lease_pb2
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.api import basic_command_pb2
@@ -54,6 +57,10 @@ side_image_sources = [
 """List of image sources for side image periodic query"""
 rear_image_sources = ["back_fisheye_image", "back_depth"]
 """List of image sources for rear image periodic query"""
+VELODYNE_SERVICE_NAME = "velodyne-point-cloud"
+"""Service name for getting pointcloud of VLP16 connected to Spot Core"""
+point_cloud_sources = ["velodyne-point-cloud"]
+"""List of point cloud sources"""
 hand_image_sources = [
     "hand_image",
     "hand_depth",
@@ -189,6 +196,36 @@ class AsyncImageService(AsyncPeriodicQuery):
             return callback_future
 
 
+class AsyncPointCloudService(AsyncPeriodicQuery):
+    """
+    Class to get point cloud at regular intervals.  get_point_cloud_from_sources_async query sent to the robot at
+    every tick.  Callback registered to defined callback function.
+
+    Attributes:
+        client: The Client to a service on the robot
+        logger: Logger object
+        rate: Rate (Hz) to trigger the query
+        callback: Callback function to call when the results of the query are available
+    """
+
+    def __init__(self, client, logger, rate, callback, point_cloud_requests):
+        super(AsyncPointCloudService, self).__init__(
+            "robot_point_cloud_service", client, logger, period_sec=1.0 / max(rate, 1.0)
+        )
+        self._callback = None
+        if rate > 0.0:
+            self._callback = callback
+        self._point_cloud_requests = point_cloud_requests
+
+    def _start_query(self):
+        if self._callback and self._point_cloud_requests:
+            callback_future = self._client.get_point_cloud_async(
+                self._point_cloud_requests
+            )
+            callback_future.add_done_callback(self._callback)
+            return callback_future
+
+
 class AsyncIdle(AsyncPeriodicQuery):
     """Class to check if the robot is moving, and if not, command a stand with the set mobility parameters
 
@@ -312,6 +349,8 @@ class AsyncIdle(AsyncPeriodicQuery):
 
         self._spot_wrapper._robot_params["is_moving"] = is_moving
 
+        # We must check if any command currently has a non-None value for its id. If we don't do this, this stand
+        # command can cause other commands to be interrupted before they get to start
         if (
             self._spot_wrapper.is_standing
             and not self._spot_wrapper.is_moving
@@ -391,7 +430,6 @@ class SpotWrapper:
             - Safely sit on stairs feedback
             - GripperCameraParamService
             - RayCastService
-            - Spot check
             - Auto return
             - Choreography
             - Constrained manipulation
@@ -453,6 +491,10 @@ class SpotWrapper:
                 build_image_request(source, image_format=image_pb2.Image.FORMAT_RAW)
             )
 
+        self._point_cloud_requests = []
+        for source in point_cloud_sources:
+            self._point_cloud_requests.append(build_pc_request(source))
+
         self._hand_image_requests = []
         for source in hand_image_sources:
             self._hand_image_requests.append(
@@ -491,10 +533,17 @@ class SpotWrapper:
                     )
                 )
                 time.sleep(sleep_secs)
-            except bosdyn.client.auth.InvalidLoginError as err:
+            except InvalidLoginError as err:
                 self._logger.error("Failed to log in to robot: {}".format(err))
                 self._valid = False
                 return
+            try:
+                self._point_cloud_client = self._robot.ensure_client(
+                    VELODYNE_SERVICE_NAME
+                )
+            except Exception as e:
+                self._point_cloud_client = None
+                self._logger.warn("No point cloud services are available.")
 
         if self._robot:
             # Clients
@@ -543,6 +592,13 @@ class SpotWrapper:
                         "spot_check_client": self._spot_check_client,
                         "robot_command_method": self._robot_command,
                     }
+                    if self._point_cloud_client:
+                        self._robot_clients[
+                            "point_cloud_client"
+                        ] = self._point_cloud_client
+                    self._logger.info(
+                        "Successfully created Spot SDK clients in SpotWrapper."
+                    )
                 except Exception as e:
                     sleep_secs = 15
                     self._logger.warn(
@@ -611,16 +667,26 @@ class SpotWrapper:
             self._estop_endpoint = None
             self._estop_keepalive = None
 
-            self._async_tasks = AsyncTasks(
-                [
-                    self._robot_state_task,
-                    self._robot_metrics_task,
-                    self._lease_task,
-                    self._front_image_task,
-                    self._idle_task,
-                    self._estop_monitor,
-                ]
-            )
+            robot_tasks = [
+                self._robot_state_task,
+                self._robot_metrics_task,
+                self._lease_task,
+                self._front_image_task,
+                self._idle_task,
+                self._estop_monitor,
+            ]
+
+            if self._point_cloud_client:
+                self._point_cloud_task = AsyncPointCloudService(
+                    self._point_cloud_client,
+                    self._logger,
+                    max(0.0, self._rates.get("point_cloud", 0.0)),
+                    self._callbacks.get("lidar_points", lambda: None),
+                    self._point_cloud_requests,
+                )
+                robot_tasks.append(self._point_cloud_task)
+
+            self._async_tasks = AsyncTasks(robot_tasks)
 
             self.camera_task_name_to_task_mapping = {
                 "hand_image": self._hand_image_task,
@@ -728,6 +794,11 @@ class SpotWrapper:
     def hand_images(self) -> typing.List[image_pb2.ImageResponse]:
         """Return latest proto from the _hand_image_task"""
         return self._hand_image_task.proto
+
+    @property
+    def point_clouds(self) -> typing.List[point_cloud_pb2.PointCloudResponse]:
+        """Return latest proto from the _point_cloud_task"""
+        return self._point_cloud_task.proto
 
     @property
     def is_standing(self) -> bool:
@@ -1034,7 +1105,7 @@ class SpotWrapper:
 
         if task_to_add in self._async_tasks._tasks:
             self._logger.warn(
-                "Task already in async task list, will not be added again"
+                f"Task {image_name} already in async task list, will not be added again"
             )
             return
 
