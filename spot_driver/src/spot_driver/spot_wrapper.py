@@ -1868,9 +1868,11 @@ class SpotWrapper:
             self._robot.power_on()
             self.stand()
             # Dock the robot
-            self.last_docking_command = dock_id
+            self._last_docking_command = dock_id
             blocking_dock_robot(self._robot, dock_id)
-            self.last_docking_command = None
+            self._last_docking_command = None
+            # Necessary to reset this as docking often causes the last stand command to go into an unknown state
+            self._last_stand_command = None
             return True, "Success"
         except Exception as e:
             return False, str(e)
