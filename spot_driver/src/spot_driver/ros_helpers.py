@@ -6,6 +6,7 @@ import rospy
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import PointCloud2, PointField
+from sensor_msgs.msg import PointCloud2, PointField
 from geometry_msgs.msg import PoseWithCovariance
 from geometry_msgs.msg import TwistWithCovarianceStamped
 from geometry_msgs.msg import TransformStamped, Transform
