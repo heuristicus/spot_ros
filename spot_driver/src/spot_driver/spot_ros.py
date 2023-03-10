@@ -73,6 +73,7 @@ from spot_msgs.srv import (
 from spot_msgs.srv import ArmForceTrajectory, ArmForceTrajectoryResponse
 from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
 from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
+from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
 from spot_driver.ros_helpers import *
 from spot_driver.spot_wrapper import SpotWrapper
@@ -1313,8 +1314,16 @@ class SpotROS:
 
     def handle_gripper_pose(self, srv_data: HandPoseRequest) -> HandPoseResponse:
         """ROS service to give a position to the gripper"""
-        resp = self.spot_wrapper.spot_arm.hand_pose(pose_points=srv_data.pose_point)
+        resp = self.spot_wrapper.spot_arm.hand_pose(data=srv_data)
         return HandPoseResponse(resp[0], resp[1])
+
+    def handle_grasp_3d(self, srv_data: Grasp3dRequest):
+        """ROS service to grasp an object by x,y,z coordinates in given frame"""
+        resp = self.spot_wrapper.grasp_3d(
+            frame=srv_data.frame_name,
+            object_rt_frame=srv_data.object_rt_frame,
+        )
+        return Grasp3dResponse(resp[0], resp[1])
 
     ##################################################################
 
@@ -1695,6 +1704,7 @@ class SpotROS:
             "force_trajectory", ArmForceTrajectory, self.handle_force_trajectory
         )
         rospy.Service("gripper_pose", HandPose, self.handle_gripper_pose)
+        rospy.Service("grasp_3d", Grasp3d, self.handle_grasp_3d)
 
         # Stop service calls other services so initialise it after them to prevent crashes which can happen if
         # the service is immediately called
@@ -1702,8 +1712,6 @@ class SpotROS:
         rospy.Service("locked_stop", Trigger, self.handle_locked_stop)
 
     def initialize_action_servers(self):
-        #########################################################
-
         self.navigate_as = actionlib.SimpleActionServer(
             "navigate_to",
             NavigateToAction,
