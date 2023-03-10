@@ -650,13 +650,6 @@ class SpotWrapper:
                 self._callbacks.get("rear_image", lambda: None),
                 self._rear_image_requests,
             )
-            self._point_cloud_task = AsyncPointCloudService(
-                self._point_cloud_client,
-                self._logger,
-                max(0.0, self._rates.get("point_cloud", 0.0)),
-                self._callbacks.get("lidar_points", lambda: None),
-                self._point_cloud_requests,
-            )
             self._hand_image_task = AsyncImageService(
                 self._image_client,
                 self._logger,

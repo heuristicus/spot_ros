@@ -12,7 +12,6 @@ from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 from std_msgs.msg import Bool
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import PointCloud2
-from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose, PoseStamped
 from nav_msgs.msg import Odometry
