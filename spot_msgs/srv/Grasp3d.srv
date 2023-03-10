@@ -1,0 +1,6 @@
+# https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#pickobject
+string frame_name # name of the tf frame
+float64[3] object_rt_frame # x,y,z of the object in the frame named above
+---
+bool success
+string message

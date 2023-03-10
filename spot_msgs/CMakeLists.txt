@@ -55,6 +55,7 @@ add_service_files(
   PosedStand.srv
   Dock.srv
   GetDockState.srv
+  Grasp3d.srv
 )
 
 add_action_files(
