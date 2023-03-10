@@ -32,6 +32,7 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
+from spot_msgs.msg import DockAction, DockGoal, DockResult
 from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams, ObstacleParams, TerrainParams
@@ -926,6 +927,17 @@ class SpotROS:
         resp = self.spot_wrapper.undock()
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_dock_action(self, req: DockGoal):
+        if req.undock:
+            resp = self.spot_wrapper.undock()
+        else:
+            resp = self.spot_wrapper.dock(req.dock_id)
+
+        if resp[0]:
+            self.dock_as.set_succeeded(DockResult(resp[0], resp[1]))
+        else:
+            self.dock_as.set_aborted(DockResult(resp[0], resp[1]))
+
     def handle_get_docking_state(self, req):
         """Get docking state of robot"""
         resp = self.spot_wrapper.get_docking_state()
@@ -1701,6 +1713,14 @@ class SpotROS:
             auto_start=False,
         )
         self.body_pose_as.start()
+
+        self.dock_as = actionlib.SimpleActionServer(
+            "body_pose",
+            DockAction,
+            execute_cb=self.handle_dock_action,
+            auto_start=False,
+        )
+        self.dock_as.start()
 
         # Stop service calls other services so initialise it after them to prevent crashes which can happen if
         # the service is immediately called
