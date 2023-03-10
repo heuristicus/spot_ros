@@ -19,6 +19,7 @@
 #include <spot_msgs/SetObstacleParams.h>
 #include <spot_msgs/SetTerrainParams.h>
 #include <spot_msgs/PosedStand.h>
+#include <spot_msgs/Dock.h>
 #include <string.h>
 
 
@@ -57,6 +58,11 @@ namespace spot_viz
         obstacleParamsService_ = nh_.serviceClient<spot_msgs::SetObstacleParams>("/spot/obstacle_params");
         allowMotionService_ = nh_.serviceClient<std_srvs::SetBool>("/spot/allow_motion");
         bodyPoseService_ = nh_.serviceClient<spot_msgs::PosedStand>("/spot/posed_stand");
+        dockService_ = nh_.serviceClient<spot_msgs::Dock>("/spot/dock");
+        undockService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/undock");
+        selfRightService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/self_right");
+        rollOverRightService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/roll_over_right");
+        rollOverLeftService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/roll_over_left");
 
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
         releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
@@ -72,7 +78,11 @@ namespace spot_viz
         setObstaclePaddingButton = this->findChild<QPushButton*>("setObstaclePaddingButton");
         setGratedSurfacesButton = this->findChild<QPushButton*>("setGratedSurfacesButton");
         setFrictionButton = this->findChild<QPushButton*>("setFrictionButton");
-        allowMotionButton = this->findChild<QPushButton*>("allowMotionButton");
+        dockButton = this->findChild<QPushButton*>("dockButton");
+        undockButton = this->findChild<QPushButton*>("undockButton");
+        selfRightButton = this->findChild<QPushButton*>("selfRightButton");
+        rollOverLeftButton = this->findChild<QPushButton*>("rollOverLeftButton");
+        rollOverRightButton = this->findChild<QPushButton*>("rollOverRightButton");
 
         statusLabel = this->findChild<QLabel*>("statusLabel");
         estimatedRuntimeLabel = this->findChild<QLabel*>("estimatedRuntimeLabel");
@@ -87,6 +97,8 @@ namespace spot_viz
 
         obstaclePaddingSpin = this->findChild<QDoubleSpinBox*>("obstaclePaddingSpin");
         frictionSpin = this->findChild<QDoubleSpinBox*>("frictionSpin");
+
+        dockFiducialSpin = this->findChild<QSpinBox*>("dockFiducialSpin");
 
         setupComboBoxes();
         setupStopButtons();
@@ -635,6 +647,28 @@ namespace spot_viz
         spot_msgs::SetObstacleParams req;
         req.request.obstacle_params.obstacle_avoidance_padding = obstaclePaddingSpin->value();
         callCustomTriggerService(obstacleParamsService_, "set obstacle params", req);
+    }
+
+    void ControlPanel::undock() {
+        callTriggerService(selfRightService_, "undock");
+    }
+
+    void ControlPanel::dock() {
+        spot_msgs::Dock req;
+        req.request.dock_id = dockFiducialSpin->value();
+        callCustomTriggerService(dockService_, "dock", req);
+    }
+
+    void ControlPanel::selfRight() {
+        callTriggerService(selfRightService_, "self right");
+    }
+
+    void ControlPanel::rollOverLeft() {
+        callTriggerService(rollOverLeftService_, "roll over left");
+    }
+
+    void ControlPanel::rollOverRight() {
+        callTriggerService(rollOverRightService_, "roll over left");
     }
 
     void ControlPanel::save(rviz::Config config) const
