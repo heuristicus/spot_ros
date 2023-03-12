@@ -3,15 +3,15 @@ import typing
 import rospy
 
 from std_srvs.srv import TriggerResponse, SetBool, SetBoolResponse
+from spot_msgs.msg import MobilityParams
+from spot_msgs.msg import NavigateToGoal, NavigateToResult
+from spot_msgs.msg import TrajectoryResult, TrajectoryGoal
+from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
 from spot_msgs.srv import PosedStandResponse, PosedStandRequest
 from spot_msgs.srv import ClearBehaviorFaultResponse
 from spot_msgs.srv import SetLocomotionResponse
 from spot_msgs.srv import SetSwingHeightResponse
 from spot_msgs.srv import SetVelocityResponse
-from spot_msgs.msg import MobilityParams
-from spot_msgs.msg import NavigateToGoal, NavigateToResult
-from spot_msgs.msg import TrajectoryResult, TrajectoryGoal
-from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
 from spot_msgs.srv import ListGraphResponse
 from spot_msgs.srv import DockResponse, GetDockStateResponse
 from spot_msgs.srv import GripperAngleMoveResponse, GripperAngleMoveRequest
@@ -19,6 +19,7 @@ from spot_msgs.srv import ArmJointMovementResponse, ArmJointMovementRequest
 from spot_msgs.srv import ArmForceTrajectoryResponse
 from spot_msgs.srv import HandPoseResponse, HandPoseRequest
 from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
+from spot_msgs.srv import Grasp3dRequest, Grasp3dResponse
 
 from bosdyn.api import (
     image_pb2,
@@ -296,6 +297,9 @@ class TestSpotROS(SpotROS):
         return HandPoseResponse(
             success=True, message="Successfully called gripper_pose"
         )
+
+    def handle_grasp_3d(self, srv_data: Grasp3dRequest) -> Grasp3dResponse:
+        return Grasp3dResponse(success=True, message="Successfully called grasp_3d")
 
     def handle_navigate_to(self, msg: NavigateToGoal):
         self.navigate_as.set_succeeded(

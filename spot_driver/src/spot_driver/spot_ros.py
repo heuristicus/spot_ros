@@ -1317,7 +1317,7 @@ class SpotROS:
         resp = self.spot_wrapper.spot_arm.hand_pose(data=srv_data)
         return HandPoseResponse(resp[0], resp[1])
 
-    def handle_grasp_3d(self, srv_data: Grasp3dRequest):
+    def handle_grasp_3d(self, srv_data: Grasp3dRequest) -> Grasp3dResponse:
         """ROS service to grasp an object by x,y,z coordinates in given frame"""
         resp = self.spot_wrapper.spot_arm.grasp_3d(
             frame=srv_data.frame_name,
