@@ -61,6 +61,7 @@ add_service_files(
   Dock.srv
   GetDockState.srv
   SpotCheck.srv
+  Grasp3d.srv
 )
 
 add_action_files(

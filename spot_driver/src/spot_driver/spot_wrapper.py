@@ -39,7 +39,10 @@ from bosdyn.api import image_pb2, robot_state_pb2, lease_pb2
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.api import basic_command_pb2
 from bosdyn.api import robot_command_pb2
+from bosdyn.api import manipulation_api_pb2
 from google.protobuf.timestamp_pb2 import Timestamp
+
+from bosdyn.client.manipulation_api_client import ManipulationApiClient
 
 front_image_sources = [
     "frontleft_fisheye_image",
@@ -658,7 +661,7 @@ class SpotWrapper:
                 self._hand_image_requests,
             )
             self._idle_task = AsyncIdle(
-                self._robot_clients["robot_command_client"], self._logger, 10.0, self
+                self._robot_command_client, self._logger, 10.0, self
             )
             self._estop_monitor = AsyncEStopMonitor(
                 self._estop_client, self._logger, 20.0, self
@@ -696,6 +699,10 @@ class SpotWrapper:
             }
 
             if self._robot.has_arm():
+                self._manipulation_client = self._robot.ensure_client(
+                    ManipulationApiClient.default_service_name
+                )
+                self._robot_clients["manipulation_client"] = self._manipulation_client
                 self._async_tasks.add_task(self._hand_image_task)
                 self._spot_arm = SpotArm(
                     self._robot, self._logger, self._robot_params, self._robot_clients

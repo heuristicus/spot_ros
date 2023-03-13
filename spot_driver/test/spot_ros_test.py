@@ -43,6 +43,7 @@ from spot_msgs.srv import GripperAngleMoveResponse
 from spot_msgs.srv import ArmForceTrajectoryResponse
 from spot_msgs.srv import ArmJointMovementResponse
 from spot_msgs.srv import HandPoseResponse
+from spot_msgs.srv import Grasp3dRequest, Grasp3dResponse
 
 from bosdyn.api import robot_state_pb2, geometry_pb2
 
@@ -1040,6 +1041,13 @@ class TestServiceHandlers(unittest.TestCase):
 
         self.assertTrue(resp.success, "Hand pose service failed")
         self.assertEqual(resp.message, "Successfully called gripper_pose")
+
+    def test_grasp_3d(self):
+        # Test that the grasp 3d service works
+        resp: Grasp3dResponse = self.call_service("/spot/grasp_3d")
+
+        self.assertTrue(resp.success, "Grasp 3d service failed")
+        self.assertEqual(resp.message, "Successfully called grasp_3d")
 
     def test_spot_check(self):
         # Test that the Spot Check service works
