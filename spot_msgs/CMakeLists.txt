@@ -60,6 +60,7 @@ add_service_files(
 
 add_action_files(
   FILES
+  Dock.action
   NavigateTo.action
   PoseBody.action
   Trajectory.action

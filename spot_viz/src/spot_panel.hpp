@@ -54,6 +54,11 @@ class ControlPanel : public rviz::Panel
     void setTerrainParams();
     void setObstacleParams();
     void allowMotion();
+    void rollOverRight();
+    void rollOverLeft();
+    void selfRight();
+    void dock();
+    void undock();
 
     private:
 
@@ -121,6 +126,11 @@ class ControlPanel : public rviz::Panel
     ros::ServiceClient obstacleParamsService_;
     ros::ServiceClient allowMotionService_;
     ros::ServiceClient bodyPoseService_;
+    ros::ServiceClient dockService_;
+    ros::ServiceClient undockService_;
+    ros::ServiceClient selfRightService_;
+    ros::ServiceClient rollOverLeftService_;
+    ros::ServiceClient rollOverRightService_;
 
     ros::Subscriber leaseSub_;
     ros::Subscriber estopSub_;
@@ -148,6 +158,11 @@ class ControlPanel : public rviz::Panel
     QPushButton* setGratedSurfacesButton;
     QPushButton* setFrictionButton;
     QPushButton* allowMotionButton;
+    QPushButton* dockButton;
+    QPushButton* undockButton;
+    QPushButton* selfRightButton;
+    QPushButton* rollOverLeftButton;
+    QPushButton* rollOverRightButton;
 
     QLabel* linearXLabel;
     QLabel* linearYLabel;
@@ -166,6 +181,8 @@ class ControlPanel : public rviz::Panel
     QComboBox* gaitComboBox;
     QComboBox* swingHeightComboBox;
     QComboBox* gratedSurfacesComboBox;
+
+    QSpinBox* dockFiducialSpin;
 
     QDoubleSpinBox* linearXSpin;
     QDoubleSpinBox* linearYSpin;

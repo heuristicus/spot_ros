@@ -1,0 +1,10 @@
+# Dock at the dock with this fiducial ID
+uint32 dock_id
+
+# If true, undock instead of docking
+bool undock
+---
+bool success
+string message
+---
+DockState status
