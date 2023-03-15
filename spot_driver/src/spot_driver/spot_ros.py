@@ -36,6 +36,7 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFaultState
 from spot_msgs.msg import SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
+from spot_msgs.msg import DockAction, DockGoal, DockResult
 from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams
@@ -948,6 +949,17 @@ class SpotROS:
         resp = self.spot_wrapper.spot_docking.undock()
         return TriggerResponse(resp[0], resp[1])
 
+    def handle_dock_action(self, req: DockGoal):
+        if req.undock:
+            resp = self.spot_wrapper.spot_docking.undock()
+        else:
+            resp = self.spot_wrapper.spot_docking.dock(req.dock_id)
+
+        if resp[0]:
+            self.dock_as.set_succeeded(DockResult(resp[0], resp[1]))
+        else:
+            self.dock_as.set_aborted(DockResult(resp[0], resp[1]))
+
     def handle_get_docking_state(self, req) -> GetDockStateResponse:
         """Get docking state of robot"""
         resp = self.spot_wrapper.spot_docking.get_docking_state()
@@ -1743,6 +1755,14 @@ class SpotROS:
             auto_start=False,
         )
         self.body_pose_as.start()
+
+        self.dock_as = actionlib.SimpleActionServer(
+            "dock",
+            DockAction,
+            execute_cb=self.handle_dock_action,
+            auto_start=False,
+        )
+        self.dock_as.start()
 
     def main(self):
         """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
