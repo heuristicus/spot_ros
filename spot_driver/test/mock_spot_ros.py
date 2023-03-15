@@ -7,6 +7,7 @@ from spot_msgs.msg import MobilityParams
 from spot_msgs.msg import NavigateToGoal, NavigateToResult
 from spot_msgs.msg import TrajectoryResult, TrajectoryGoal
 from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
+from spot_msgs.msg import DockAction, DockGoal, DockResult
 from spot_msgs.srv import PosedStandResponse, PosedStandRequest
 from spot_msgs.srv import ClearBehaviorFaultResponse
 from spot_msgs.srv import SetLocomotionResponse
@@ -325,6 +326,9 @@ class TestSpotROS(SpotROS):
 
     def handle_spot_check(self, req: SpotCheckRequest) -> SpotCheckResponse:
         return SpotCheckResponse(success=True, message="Successfully called spot_check")
+
+    def handle_dock_action(self, req: DockGoal):
+        self.dock_as.set_succeeded(DockResult(True, "Successfully called dock"))
 
 
 # Run the mock SpotROS class as a node

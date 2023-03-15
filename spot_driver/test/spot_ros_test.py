@@ -30,6 +30,7 @@ from spot_msgs.msg import BatteryStateArray
 from spot_msgs.msg import NavigateToAction, NavigateToGoal
 from spot_msgs.msg import TrajectoryAction, TrajectoryGoal
 from spot_msgs.msg import PoseBodyAction, PoseBodyGoal
+from spot_msgs.msg import DockAction, DockGoal
 
 from spot_msgs.srv import PosedStandRequest
 from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
@@ -1129,6 +1130,22 @@ class TestActionHandlers(unittest.TestCase):
 
         self.assertEqual(result.message, "Successfully called body_pose")
         self.assertTrue(result.success, "Body pose action failed")
+
+    def test_dock_action(self):
+        self.dock_action_client = actionlib.SimpleActionClient("/spot/dock", DockAction)
+        self.dock_action_client.wait_for_server()
+
+        goal = DockGoal()
+        goal.undock = False
+        goal.dock_id = 101
+
+        self.dock_action_client.send_goal(goal)
+        self.dock_action_client.wait_for_result()
+
+        result = self.dock_action_client.get_result()
+
+        self.assertEqual(result.message, "Successfully called dock")
+        self.assertTrue(result.success, "Dock action failed")
 
 
 # Test suite for SpotROS
