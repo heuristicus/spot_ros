@@ -1801,7 +1801,7 @@ class SpotROS:
         self.initialize_spot_wrapper()
         if not self.spot_wrapper.is_valid or not self.spot_wrapper:
             return
-        
+
         self.initialize_publishers()
         self.initialize_subscribers()
         self.initialize_action_servers()
