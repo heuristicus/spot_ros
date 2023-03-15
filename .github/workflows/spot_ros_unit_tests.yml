@@ -1,6 +1,6 @@
-name: Run spot_driver unit tests on rostest and rosunit
+name: spot_driver unit tests
 
-# We only want these changes to run when we push to the main branch
+# Run on every push
 on: [push]
 
 # Environmental variables
