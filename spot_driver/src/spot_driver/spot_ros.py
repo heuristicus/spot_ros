@@ -119,6 +119,7 @@ class SpotROS:
         self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
         self.callbacks["lidar_points"] = self.PointCloudCB
+        self.callbacks["world_objects"] = self.WorldObjectsCB
         self.active_camera_tasks = []
         self.camera_pub_to_async_task_mapping = {}
         self.node_name = "spot_ros"

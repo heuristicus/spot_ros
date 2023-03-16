@@ -717,8 +717,8 @@ class SpotWrapper:
             self._world_objects_task = AsyncWorldObjectService(
                 self._world_object_client,
                 self._logger,
-                max(0.0, self._rates.get("world_object", 0.0)),
-                self._callbacks.get("world_object", lambda: None),
+                max(0.0, self._rates.get("world_objects", 0.0)),
+                self._callbacks.get("world_objects", lambda: None),
             )
 
             self._estop_endpoint = None
