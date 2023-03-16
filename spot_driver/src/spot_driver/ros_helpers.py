@@ -3,12 +3,15 @@ import numpy as np
 
 import rospy
 
+from std_msgs.msg import Time as StdMsgsTime
+from std_msgs.msg import Duration as StdMsgsDuration
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import PointCloud2, PointField
 from geometry_msgs.msg import PoseWithCovariance
 from geometry_msgs.msg import TwistWithCovarianceStamped
 from geometry_msgs.msg import TransformStamped, Transform
+from geometry_msgs.msg import Pose, Point, Quaternion, Polygon, Vector3
 from nav_msgs.msg import Odometry
 from tf2_msgs.msg import TFMessage
 
@@ -20,13 +23,23 @@ from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import DockState
+from spot_msgs.msg import (
+    WorldObject,
+    WorldObjectArray,
+    AprilTagProperties,
+    ImageProperties,
+)
+from spot_msgs.msg import FrameTreeSnapshot, ParentEdge
 from spot_msgs.srv import SpotCheckResponse
 
 from bosdyn.api import image_pb2, robot_state_pb2, point_cloud_pb2
+from bosdyn.api import world_object_pb2, geometry_pb2
 from bosdyn.api.docking import docking_pb2
 from bosdyn.client.spot_check import spot_check_pb2
 from bosdyn.client.math_helpers import SE3Pose
 from bosdyn.client.frame_helpers import get_odom_tform_body, get_vision_tform_body
+
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from .spot_wrapper import SpotWrapper
 
@@ -135,7 +148,7 @@ def populateTransformStamped(
     return new_tf
 
 
-def getImageMsg(
+def GetImageMsg(
     data: image_pb2.ImageResponse, spot_wrapper: SpotWrapper
 ) -> typing.Tuple[Image, CameraInfo]:
     """Takes the image and camera data and populates the necessary ROS messages
@@ -443,7 +456,9 @@ def GetWifiFromState(
     return wifi_msg
 
 
-def GenerateFeetTF(foot_states_msg: FootStateArray) -> TFMessage:
+def GenerateFeetTF(
+    foot_states_msg: FootStateArray, time_now: typing.Optional[rospy.Time] = None
+) -> TFMessage:
     """
     Generate a tf message containing information about foot states
 
@@ -455,7 +470,8 @@ def GenerateFeetTF(foot_states_msg: FootStateArray) -> TFMessage:
     """
     foot_ordering = ["front_left", "front_right", "rear_left", "rear_right"]
     foot_tfs = TFMessage()
-    time_now = rospy.Time.now()
+    if not time_now:
+        time_now = rospy.Time.now()
     for idx, foot_state in enumerate(foot_states_msg.states):
         foot_transform = Transform()
         # Rotation of the foot is not given
@@ -722,3 +738,228 @@ def GetSpotCheckResultsMsg(
     ros_resp.last_cal_timestamp.nsecs = data.last_cal_timestamp.nanos
 
     return ros_resp
+
+
+def GetFrameTreeSnapshotMsg(data: geometry_pb2.FrameTreeSnapshot) -> FrameTreeSnapshot:
+    """Build the FrameTreeSnapshot message from the FrameTreeSnapshot proto"""
+    frame_tree_snapshot_msg = FrameTreeSnapshot()
+    child_parent_map: typing.Dict[
+        str, geometry_pb2.SE3Pose
+    ] = data.child_to_parent_edge_map
+
+    children, parents = [], []
+    for child, parent_edge in child_parent_map.items():
+        children.append(child)
+        parent = ParentEdge()
+        parent.parent_frame_name = parent_edge.parent_frame_name
+        parent.parent_tform_child = Pose(
+            Point(
+                parent_edge.parent_tform_child.position.x,
+                parent_edge.parent_tform_child.position.y,
+                parent_edge.parent_tform_child.position.z,
+            ),
+            Quaternion(
+                parent_edge.parent_tform_child.rotation.x,
+                parent_edge.parent_tform_child.rotation.y,
+                parent_edge.parent_tform_child.rotation.z,
+                parent_edge.parent_tform_child.rotation.w,
+            ),
+        )
+        parents.append(parent)
+
+    frame_tree_snapshot_msg.child_edges = children
+    frame_tree_snapshot_msg.parent_edges = parents
+
+    return frame_tree_snapshot_msg
+
+
+def GetAprilTagPropertiesMsg(
+    data: world_object_pb2.AprilTagProperties,
+) -> AprilTagProperties:
+    """Build the AprilTagProperties message from the AprilTagProperties proto"""
+    april_tag_properties_msg = AprilTagProperties()
+    april_tag_properties_msg.tag_id = data.tag_id
+    april_tag_properties_msg.x = data.dimensions.x
+    april_tag_properties_msg.y = data.dimensions.y
+    april_tag_properties_msg.frame_name_fiducial = data.frame_name_fiducial
+    april_tag_properties_msg.fiducial_pose_status = data.fiducial_pose_status
+    april_tag_properties_msg.frame_name_fiducial_filtered = (
+        data.frame_name_fiducial_filtered
+    )
+    april_tag_properties_msg.fiducial_filtered_pose_status = (
+        data.fiducial_filtered_pose_status
+    )
+    april_tag_properties_msg.frame_name_camera = data.frame_name_camera
+    april_tag_properties_msg.detection_covariance = PoseWithCovariance(
+        pose=Pose(), covariance=data.detection_covariance.matrix.values
+    )
+    april_tag_properties_msg.detection_covariance_reference_frame = (
+        data.detection_covariance_reference_frame
+    )
+
+    return april_tag_properties_msg
+
+
+def GetImagePropertiesMsg(
+    data: world_object_pb2.ImageProperties, spot_wrapper: "SpotWrapper"
+) -> ImageProperties:
+    """Build the ImageProperties message from the ImageProperties proto"""
+    image_properties_msg = ImageProperties()
+    image_properties_msg.camera_source = data.camera_source
+    if data.coordinates:
+        data_polygon_coordinates: typing.List[
+            geometry_pb2.Vec2
+        ] = data.coordinates.vertexes
+        image_properties_msg.image_data_coordinates = Polygon(
+            [Point(vec.x, vec.y, 0) for vec in data_polygon_coordinates]
+        )
+    elif data.keypoints:
+        image_properties_msg.image_data_keypoint_type = data.keypoints.type
+        image_properties_msg.keypoint_coordinate_x = [
+            i.coordinates.x for i in data.keypoints.keypoints
+        ]
+        image_properties_msg.keypoint_coordinate_y = [
+            i.coordinates.y for i in data.keypoints.keypoints
+        ]
+        image_properties_msg.binary_descriptor = [
+            i.binary_descriptor for i in data.keypoints.keypoints
+        ]
+        image_properties_msg.keypoint_score = [
+            i.score for i in data.keypoints.keypoints
+        ]
+        image_properties_msg.keypoint_size = [i.size for i in data.keypoints.keypoints]
+        image_properties_msg.keypoint_angle = [
+            i.angle for i in data.keypoints.keypoints
+        ]
+
+    image_properties_msg.image_source.name = data.image_source.name
+    image_properties_msg.image_source.cols = data.image_source.cols
+    image_properties_msg.image_source.rows = data.image_source.rows
+    image_properties_msg.image_source.depth_scale = data.image_source.depth_scale
+    image_properties_msg.image_source.focal_length_x = (
+        data.image_source.pinhole.intrinsics.focal_length.x
+    )
+    image_properties_msg.image_source.focal_length_y = (
+        data.image_source.pinhole.intrinsics.focal_length.y
+    )
+    image_properties_msg.image_source.principal_point_x = (
+        data.image_source.pinhole.intrinsics.principal_point.x
+    )
+    image_properties_msg.image_source.principal_point_y = (
+        data.image_source.pinhole.intrinsics.principal_point.y
+    )
+    image_properties_msg.image_source.skew_x = (
+        data.image_source.pinhole.intrinsics.skew.x
+    )
+    image_properties_msg.image_source.skew_y = (
+        data.image_source.pinhole.intrinsics.skew.y
+    )
+
+    image_properties_msg.image_source.image_type = data.image_source.image_type
+    image_properties_msg.image_source.pixel_formats = data.image_source.pixel_formats
+    image_properties_msg.image_source.image_formats = data.image_source.image_formats
+
+    local_time = spot_wrapper.robotToLocalTime(data.image_capture.acquisition_time)
+
+    image_properties_msg.image_capture.acquisition_time = StdMsgsTime(
+        data=local_time.seconds
+    )
+    image_properties_msg.image_capture.transforms_snapshot = GetFrameTreeSnapshotMsg(
+        data.image_capture.transforms_snapshot
+    )
+    image_properties_msg.image_capture.frame_name_image_sensor = (
+        data.image_capture.frame_name_image_sensor
+    )
+    image_properties_msg.image_capture.image, _ = GetImageMsg(
+        image_pb2.ImageResponse(shot=data.image_capture, source=data.image_source),
+        spot_wrapper,
+    )
+    image_properties_msg.image_capture.capture_exposure_duration = StdMsgsDuration(
+        data=data.image_capture.capture_params.exposure_duration.seconds
+    )
+    image_properties_msg.image_capture.capture_sensor_gain = (
+        data.image_capture.capture_params.gain
+    )
+
+    image_properties_msg.frame_name_image_coordinates = (
+        data.frame_name_image_coordinates
+    )
+
+    return image_properties_msg
+
+
+def GetWorldObjectsMsg(
+    data: world_object_pb2.ListWorldObjectResponse,
+    spot_wrapper: SpotWrapper,
+) -> WorldObjectArray:
+    """Build the WorldObjectsResponse message from the WorldObjectsResponse"""
+    world_object_msg = WorldObjectArray()
+
+    world_objects: typing.List[world_object_pb2.WorldObject] = data.world_objects
+    for world_object in world_objects:
+        id: int = world_object.id
+        name: str = world_object.name
+        acquisition_time: Timestamp = world_object.acquisition_time
+        frame_tree_snapshot: geometry_pb2.FrameTreeSnapshot = (
+            world_object.transforms_snapshot
+        )
+        apriltag_properties: world_object_pb2.AprilTagProperties = (
+            world_object.apriltag_properties
+        )
+        image_properties: world_object_pb2.ImageProperties = (
+            world_object.image_properties
+        )
+        dock_properties: world_object_pb2.DockProperties = world_object.dock_properties
+        ray_properties: world_object_pb2.RayProperties = world_object.ray_properties
+        bounding_box_properties: world_object_pb2.BoundingBoxProperties = (
+            world_object.bounding_box_properties
+        )
+        additional_properties = world_object.additional_properties
+
+        # Put properties into ROS message
+        new_world_object = WorldObject()
+        new_world_object.id = id
+        new_world_object.name = name
+        new_world_object.acquisition_time.secs = acquisition_time.seconds
+        new_world_object.acquisition_time.nsecs = acquisition_time.nanos
+        new_world_object.frame_tree_snapshot = GetFrameTreeSnapshotMsg(
+            frame_tree_snapshot
+        )
+        new_world_object.apriltag_properties = GetAprilTagPropertiesMsg(
+            apriltag_properties
+        )
+        new_world_object.image_properties = GetImagePropertiesMsg(
+            image_properties, spot_wrapper
+        )
+
+        # Dock properties
+        new_world_object.dock_id = world_object.dock_properties.dock_id
+        new_world_object.dock_type = world_object.dock_properties.type
+        new_world_object.frame_name_dock = world_object.dock_properties.frame_name_dock
+        new_world_object.dock_unavailable = world_object.dock_properties.unavailable
+        new_world_object.from_prior_detection = world_object.dock_properties.from_prior
+
+        # Ray properties
+        new_world_object.ray_frame = world_object.ray_properties.frame
+        new_world_object.ray_origin = Vector3(
+            x=world_object.ray_properties.ray.origin.x,
+            y=world_object.ray_properties.ray.origin.y,
+            z=world_object.ray_properties.ray.origin.z,
+        )
+        new_world_object.ray_direction = Vector3(
+            x=world_object.ray_properties.ray.direction.x,
+            y=world_object.ray_properties.ray.direction.y,
+            z=world_object.ray_properties.ray.direction.z,
+        )
+
+        # Bounding box properties
+        new_world_object.bounding_box_frame = world_object.bounding_box_properties.frame
+        new_world_object.bounding_box_size_ewrt_frame = Vector3(
+            x=world_object.bounding_box_properties.size_ewrt_frame.x,
+            y=world_object.bounding_box_properties.size_ewrt_frame.y,
+            z=world_object.bounding_box_properties.size_ewrt_frame.z,
+        )
+
+        world_object_msg.world_objects.append(new_world_object)
+
+    return world_object_msg

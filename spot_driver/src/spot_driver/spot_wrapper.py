@@ -20,6 +20,7 @@ from bosdyn.client.estop import EstopClient
 from bosdyn.client.spot_check import SpotCheckClient
 from bosdyn.client.docking import DockingClient
 from bosdyn.client.estop import EstopClient
+from bosdyn.client.world_object import WorldObjectClient
 from bosdyn.client import power
 from bosdyn.client import frame_helpers
 from bosdyn.client import math_helpers
@@ -33,6 +34,7 @@ from .spot_docking import SpotDocking
 from .spot_graph_nav import SpotGraphNav
 from .spot_check import SpotCheck
 
+from bosdyn.api import world_object_pb2, geometry_pb2
 from bosdyn.api import robot_command_pb2
 from bosdyn.api import robot_id_pb2, point_cloud_pb2
 from bosdyn.api import image_pb2, robot_state_pb2, lease_pb2
@@ -211,7 +213,14 @@ class AsyncPointCloudService(AsyncPeriodicQuery):
         callback: Callback function to call when the results of the query are available
     """
 
-    def __init__(self, client, logger, rate, callback, point_cloud_requests):
+    def __init__(
+        self,
+        client: PointCloudClient,
+        logger: logging.Logger,
+        rate: float,
+        callback: typing.Callable,
+        point_cloud_requests: typing.List[point_cloud_pb2.PointCloudRequest],
+    ):
         super(AsyncPointCloudService, self).__init__(
             "robot_point_cloud_service", client, logger, period_sec=1.0 / max(rate, 1.0)
         )
@@ -225,6 +234,41 @@ class AsyncPointCloudService(AsyncPeriodicQuery):
             callback_future = self._client.get_point_cloud_async(
                 self._point_cloud_requests
             )
+            callback_future.add_done_callback(self._callback)
+            return callback_future
+
+
+class AsyncWorldObjectService(AsyncPeriodicQuery):
+    """Class to get world objects at regular intervals.  get_world_objects_async query sent to the robot at every tick.  Callback registered to defined callback function.
+
+    Attributes:
+        client: The Client to a service on the robot
+        logger: Logger object
+        rate: Rate (Hz) to trigger the query
+        callback: Callback function to call when the results of the query are available
+    """
+
+    def __init__(
+        self,
+        client: WorldObjectClient,
+        logger: logging.Logger,
+        rate: float,
+        callback: typing.Callable,
+    ):
+        super(AsyncWorldObjectService, self).__init__(
+            "robot_world_object_service",
+            client,
+            logger,
+            period_sec=1.0 / max(rate, 1.0),
+        )
+
+        self._callback = None
+        if rate > 0.0:
+            self._callback = callback
+
+    def _start_query(self):
+        if self._callback:
+            callback_future = self._client.list_world_objects_async()
             callback_future.add_done_callback(self._callback)
             return callback_future
 
@@ -581,6 +625,9 @@ class SpotWrapper:
                     self._spot_check_client = self._robot.ensure_client(
                         SpotCheckClient.default_service_name
                     )
+                    self._world_object_client = self._robot.ensure_client(
+                        WorldObjectClient.default_service_name
+                    )
                     initialised = True
 
                     self._robot_clients = {
@@ -594,6 +641,7 @@ class SpotWrapper:
                         "docking_client": self._docking_client,
                         "spot_check_client": self._spot_check_client,
                         "robot_command_method": self._robot_command,
+                        "world_object_client": self._world_object_client,
                     }
                     if self._point_cloud_client:
                         self._robot_clients[
@@ -665,6 +713,12 @@ class SpotWrapper:
             )
             self._estop_monitor = AsyncEStopMonitor(
                 self._estop_client, self._logger, 20.0, self
+            )
+            self._world_objects_task = AsyncWorldObjectService(
+                self._world_object_client,
+                self._logger,
+                max(0.0, self._rates.get("world_object", 0.0)),
+                self._callbacks.get("world_object", lambda: None),
             )
 
             self._estop_endpoint = None
@@ -806,6 +860,11 @@ class SpotWrapper:
     def point_clouds(self) -> typing.List[point_cloud_pb2.PointCloudResponse]:
         """Return latest proto from the _point_cloud_task"""
         return self._point_cloud_task.proto
+
+    @property
+    def world_objects(self) -> world_object_pb2.ListWorldObjectResponse:
+        """Return latest proto from the _world_objects_task"""
+        return self._world_objects_task.proto
 
     @property
     def is_standing(self) -> bool:

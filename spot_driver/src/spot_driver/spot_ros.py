@@ -40,6 +40,7 @@ from spot_msgs.msg import DockAction, DockGoal, DockResult
 from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
 from spot_msgs.msg import Feedback
 from spot_msgs.msg import MobilityParams
+from spot_msgs.msg import WorldObjectArray
 from spot_msgs.msg import (
     NavigateToAction,
     NavigateToResult,
@@ -249,16 +250,16 @@ class SpotROS:
         """
         data = self.spot_wrapper.front_images
         if data:
-            image_msg0, camera_info_msg0 = getImageMsg(data[0], self.spot_wrapper)
+            image_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
             self.frontleft_image_pub.publish(image_msg0)
             self.frontleft_image_info_pub.publish(camera_info_msg0)
-            image_msg1, camera_info_msg1 = getImageMsg(data[1], self.spot_wrapper)
+            image_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
             self.frontright_image_pub.publish(image_msg1)
             self.frontright_image_info_pub.publish(camera_info_msg1)
-            image_msg2, camera_info_msg2 = getImageMsg(data[2], self.spot_wrapper)
+            image_msg2, camera_info_msg2 = GetImageMsg(data[2], self.spot_wrapper)
             self.frontleft_depth_pub.publish(image_msg2)
             self.frontleft_depth_info_pub.publish(camera_info_msg2)
-            image_msg3, camera_info_msg3 = getImageMsg(data[3], self.spot_wrapper)
+            image_msg3, camera_info_msg3 = GetImageMsg(data[3], self.spot_wrapper)
             self.frontright_depth_pub.publish(image_msg3)
             self.frontright_depth_info_pub.publish(camera_info_msg3)
 
@@ -275,16 +276,16 @@ class SpotROS:
         """
         data = self.spot_wrapper.side_images
         if data:
-            image_msg0, camera_info_msg0 = getImageMsg(data[0], self.spot_wrapper)
+            image_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
             self.left_image_pub.publish(image_msg0)
             self.left_image_info_pub.publish(camera_info_msg0)
-            image_msg1, camera_info_msg1 = getImageMsg(data[1], self.spot_wrapper)
+            image_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
             self.right_image_pub.publish(image_msg1)
             self.right_image_info_pub.publish(camera_info_msg1)
-            image_msg2, camera_info_msg2 = getImageMsg(data[2], self.spot_wrapper)
+            image_msg2, camera_info_msg2 = GetImageMsg(data[2], self.spot_wrapper)
             self.left_depth_pub.publish(image_msg2)
             self.left_depth_info_pub.publish(camera_info_msg2)
-            image_msg3, camera_info_msg3 = getImageMsg(data[3], self.spot_wrapper)
+            image_msg3, camera_info_msg3 = GetImageMsg(data[3], self.spot_wrapper)
             self.right_depth_pub.publish(image_msg3)
             self.right_depth_info_pub.publish(camera_info_msg3)
 
@@ -301,10 +302,10 @@ class SpotROS:
         """
         data = self.spot_wrapper.rear_images
         if data:
-            mage_msg0, camera_info_msg0 = getImageMsg(data[0], self.spot_wrapper)
+            mage_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
             self.back_image_pub.publish(mage_msg0)
             self.back_image_info_pub.publish(camera_info_msg0)
-            mage_msg1, camera_info_msg1 = getImageMsg(data[1], self.spot_wrapper)
+            mage_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
             self.back_depth_pub.publish(mage_msg1)
             self.back_depth_info_pub.publish(camera_info_msg1)
 
@@ -319,16 +320,16 @@ class SpotROS:
         """
         data = self.spot_wrapper.hand_images
         if data:
-            image_msg0, camera_info_msg0 = getImageMsg(data[0], self.spot_wrapper)
+            image_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
             self.hand_image_mono_pub.publish(image_msg0)
             self.hand_image_mono_info_pub.publish(camera_info_msg0)
-            mage_msg1, camera_info_msg1 = getImageMsg(data[1], self.spot_wrapper)
+            mage_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
             self.hand_depth_pub.publish(mage_msg1)
             self.hand_depth_info_pub.publish(camera_info_msg1)
-            image_msg2, camera_info_msg2 = getImageMsg(data[2], self.spot_wrapper)
+            image_msg2, camera_info_msg2 = GetImageMsg(data[2], self.spot_wrapper)
             self.hand_image_color_pub.publish(image_msg2)
             self.hand_image_color_info_pub.publish(camera_info_msg2)
-            image_msg3, camera_info_msg3 = getImageMsg(data[3], self.spot_wrapper)
+            image_msg3, camera_info_msg3 = GetImageMsg(data[3], self.spot_wrapper)
             self.hand_depth_in_hand_color_pub.publish(image_msg3)
             self.hand_depth_in_color_info_pub.publish(camera_info_msg3)
 
@@ -349,6 +350,17 @@ class SpotROS:
             self.point_cloud_pub.publish(point_cloud_msg)
 
             self.populate_lidar_static_transforms(data[0])
+
+    def WorldObjectsCB(self, results):
+        """Callback for when the Spot Wrapper gets new world objects data.
+
+        Args:
+            results: FutureWrapper object of AsyncPeriodicQuery callback
+        """
+        data = self.spot_wrapper.world_objects
+        if data:
+            world_objects_msg = GetWorldObjectsMsg(data, self.spot_wrapper)
+            self.world_objects_pub.publish(world_objects_msg)
 
     def handle_claim(self, req):
         """ROS service handler for the claim service"""
@@ -1615,6 +1627,11 @@ class SpotROS:
         )
         self.frontright_depth_in_visual_info_pub = rospy.Publisher(
             "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=10
+        )
+
+        # World Objects publishers #
+        self.world_objects_pub = rospy.Publisher(
+            "world_objects", WorldObjectArray, queue_size=10
         )
 
         # Status Publishers #
