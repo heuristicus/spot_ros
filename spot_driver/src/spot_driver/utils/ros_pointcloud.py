@@ -70,4 +70,6 @@ def package_ros_pointcloud2(xyz, rgb, header):
         color = struct.unpack('I', struct.pack('BBBB', r, g, b, a))[0]
         pt = [x, y, z, color]
         points.append(pt)
-    return point_cloud2.create_cloud(header, fields, points)
+    cloud = point_cloud2.create_cloud(header, fields, points)
+    cloud.is_dense = True
+    return cloud

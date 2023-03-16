@@ -570,12 +570,6 @@ class SpotWrapper:
             self._robot_id = None
             self._lease = None
 
-
-    @property
-    def hand_pointcloud_task_proto(self):
-        """Return latest proto from the _hand_pointcloud_task"""
-        return self._hand_pointcloud_task.proto
-
     @property
     def logger(self):
         """Return logger instance of the SpotWrapper"""
