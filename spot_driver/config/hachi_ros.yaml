@@ -1,0 +1,18 @@
+rates:
+  # loop_frequency is the frequency of the loop which publishes messages
+  loop_frequency: 50.0
+  # These are desired frequencies. You should not expect to receive messages at exactly the specified frequency. For
+  # higher frequencies, you will need to modify the loop frequency and the rates below.
+  robot_state: 20.0
+  metrics: 0.04
+  lease: 1.0
+  front_image: 1.0
+  side_image:  1.0
+  rear_image:  1.0
+  hand_image:  1.0
+  hand_pointcloud: 5.0
+  feedback: 10.0
+  mobility_params: 10.0
+auto_claim: False
+auto_power_on: False
+auto_stand: False

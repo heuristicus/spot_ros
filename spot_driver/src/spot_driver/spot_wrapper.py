@@ -533,6 +533,13 @@ class SpotWrapper:
                 self._callbacks.get("hand_image", lambda: None),
                 self._hand_image_requests,
             )
+            self._hand_pointcloud_task = AsyncImageService(
+                self._image_client,
+                self._logger,
+                max(0.0, self._rates.get("hand_pointcloud", 0.0)),
+                self._callbacks.get("hand_pointcloud", lambda: None),
+                self._hand_image_requests,
+            )
             self._idle_task = AsyncIdle(
                 self._robot_command_client, self._logger, 10.0, self
             )
@@ -558,6 +565,7 @@ class SpotWrapper:
 
             if self._robot.has_arm():
                 self._async_tasks.add_task(self._hand_image_task)
+                self._async_tasks.add_task(self._hand_pointcloud_task)
 
             self._robot_id = None
             self._lease = None

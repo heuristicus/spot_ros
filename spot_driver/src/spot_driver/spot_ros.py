@@ -9,6 +9,7 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose, PoseStamped
 from nav_msgs.msg import Odometry
 
+from sensor_msgs.msg import PointCloud2
 
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.api import geometry_pb2, trajectory_pb2
@@ -64,7 +65,7 @@ from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
-
+from .utils.ros_pointcloud import images_to_pointcloud2
 import actionlib
 import logging
 import threading
@@ -108,6 +109,7 @@ class SpotROS:
         self.callbacks["side_image"] = self.SideImageCB
         self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
+        self.callbacks["hand_pointcloud"] = self.HandPointcloudCB
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -322,6 +324,17 @@ class SpotROS:
             self.populate_camera_static_transforms(data[1])
             self.populate_camera_static_transforms(data[2])
             self.populate_camera_static_transforms(data[3])
+
+    def HandPointcloudCB(self, results):
+        try:
+            if results.done():
+                data = results.result()
+                rgb_msg, info = getImageMsg(data[2], self.spot_wrapper)
+                d_msg, _ = getImageMsg(data[3], self.spot_wrapper)
+                pc_msg = images_to_pointcloud2(rgb_msg, d_msg, info.K)
+                self.hand_points_pub.publish(pc_msg)
+        except Exception as e:
+            rospy.logerr(e)
 
     def handle_claim(self, req):
         """ROS service handler for the claim service"""
@@ -1383,6 +1396,9 @@ class SpotROS:
 
         if not self.spot_wrapper.is_valid:
             return
+
+        # Point Cloud #
+        self.hand_points_pub = rospy.Publisher("hand/pointcloud", PointCloud2, queue_size=2)
 
         # Images #
         self.back_image_pub = rospy.Publisher("camera/back/image", Image, queue_size=10)
