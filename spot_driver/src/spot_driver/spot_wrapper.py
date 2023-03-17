@@ -731,6 +731,7 @@ class SpotWrapper:
                 self._front_image_task,
                 self._idle_task,
                 self._estop_monitor,
+                self._world_objects_task,
             ]
 
             if self._point_cloud_client:
