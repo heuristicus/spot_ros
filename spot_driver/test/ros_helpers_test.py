@@ -1323,7 +1323,8 @@ class TestGetImagePropertiesMsg(unittest.TestCase):
             ImageSource.FORMAT_RAW,
         )
 
-        self.assertEqual(image_properties_msg.image_capture.acquisition_time.data, 1)
+        self.assertEqual(image_properties_msg.image_capture.acquisition_time.secs, 1)
+        self.assertEqual(image_properties_msg.image_capture.acquisition_time.nsecs, 2)
         self.assertEqual(
             image_properties_msg.image_capture.frame_name_image_sensor,
             "frontleft_fisheye_image",
@@ -1336,7 +1337,10 @@ class TestGetImagePropertiesMsg(unittest.TestCase):
             "rgb8",
         )
         self.assertEqual(
-            image_properties_msg.image_capture.capture_exposure_duration.data, 1.0
+            image_properties_msg.image_capture.capture_exposure_duration.secs, 1.0
+        )
+        self.assertEqual(
+            image_properties_msg.image_capture.capture_exposure_duration.nsecs, 2.0
         )
         self.assertEqual(image_properties_msg.image_capture.capture_sensor_gain, 3.0)
 
