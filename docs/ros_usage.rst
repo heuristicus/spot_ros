@@ -17,49 +17,7 @@ This will load RVIZ with the robot description visible.  It should also show any
 Configure Your Networking
 -------------------------
 
-There are multiple ways that you can setup networking on your ROS computer.  This guide will cover two different common ways to do this
-
-/etc/network/interfaces
-~~~~~~~~~~~~~~~~~~~~~~~
-
-The first way is by editing /etc/network/interfaces.  Below is a section that will create a bridge between all of your network ports and assign a static address of 192.168.131.1.  This is a common setup for Clearpath robots.  Ensure to put your ROS computer into the same subnet that you set for the Spot platform.
-
-.. code:: bash
-
-  auto br0
-
-  iface br0 inet static
-    bridge_ports regex (eth.*)|(en.*)
-    address 192.168.131.1
-    netmask 255.255.255.0
-    bridge_maxwait 0
-
-Network Manager
-~~~~~~~~~~~~~~~
-
-If you are using Ubuntu and it has a desktop environment, it will likely have Network Manager installed.  To create a new network connection, click the networking icon in the top right if your screen and choose Edit Connections.
-
-.. image:: images/network_1.png
-
-You will see all of the other network connections you've setup in the past.  Click Add on the right to create a new network connection for the robot.
-
-.. image:: images/network_2.png
-
-Select Ethernet as the connection type since we are connecting directly to the platform.
-
-.. image:: images/network_3.png
-
-Give the connection a name.
-
-.. image:: images/network_4.png
-
-Set the conneciton method to Manual.  This will give it a static address.
-
-.. image:: images/network_5.png
-
-Under the IPV4 config, choose a static address for the ROS computer. Ensure to put your ROS computer into the same subnet that you set for the Spot platform.
-
-.. image:: images/network_6.png
+If your ROS machine is attached to a payload port you will need to configure it so that it can connect to spot. See `payload network configuration <https://support.bostondynamics.com/s/article/Payload-device-network-configuration>`_ for more details.
 
 Running the Driver
 ------------------
@@ -68,7 +26,7 @@ Running the Driver
 
   roslaunch spot_driver driver.launch
 
-When launching, there are some options you may need to configure for your setup.  They are:
+When launching, there are some options you may need to configure for your setup:
 
 +---------------+---------------+------------------------------------------------------------------------------------------------------------------------------+
 | Argument      | Default       | Description                                                                                                                  |
@@ -82,17 +40,30 @@ When launching, there are some options you may need to configure for your setup.
 | estop_timeout | 9.0           | Time allowed before rpc commands will time out.                                                                              |
 |               |               | Comms between the robot and driver are checked at a rate of 1/3 of this time. If comms are down, a gentle estop will trigger |
 +---------------+---------------+------------------------------------------------------------------------------------------------------------------------------+
+| autonomy_enabled      | 192.168.50.3  | The IP address at which spot can be found                                                                                    |
++---------------+---------------+------------------------------------------------------------------------------------------------------------------------------+
+| max_linear_velocity_x      | 192.168.50.3  | The IP address at which spot can be found                                                                                    |
++---------------+---------------+------------------------------------------------------------------------------------------------------------------------------+
+| max_linear_velocity_y      | 192.168.50.3  | The IP address at which spot can be found                                                                                    |
++---------------+---------------+------------------------------------------------------------------------------------------------------------------------------+
+| max_angular_velocity_z | 192.168.50.3  | The IP address at which spot can be found                                                                                    |
++---------------+---------------+------------------------------------------------------------------------------------------------------------------------------+
+| allow_motion      | 192.168.50.3  | The IP address at which spot can be found                                                                                    |
++---------------+---------------+------------------------------------------------------------------------------------------------------------------------------+
+
+
+
+
 
 View the Robot
 --------------
 
-Once the robot is connected, you should be able to visualize its odometry, joint positions, camera streams, etc. using RVIZ.  To view these streams, run
+Once the robot is connected, you should be able to visualize its odometry, joint positions, camera streams, etc.
+using rviz.  To view these streams, run
 
 .. code:: bash
 
   roslaunch spot_viz view_robot.launch
-
-Remember that you will need to source your workspace before running this command.
 
 Once RVIZ is loaded, you should see something similar to this.
 
@@ -101,16 +72,19 @@ Once RVIZ is loaded, you should see something similar to this.
 Taking Control of the Robot
 ---------------------------
 
-To control Spot, you need to maintain control of the eStop and body lease, power on the drive motors, and command the robot to stand.
-
-The easiest way to do this is through the rviz control panel included in ``view_robot.launch``. You can add the panel to an rviz configuration with Panels>Add new panel and selecting ``spot_viz/SpotControlPanel``.
+The easiest way to control the robot is through the rviz control panel, which connects to the various ROS services.
+Many commands which can be executed using a service or topic can also be executed using the panel.
 
 .. image:: images/rviz_panel.png
 
 Body and eStop Control
 ~~~~~~~~~~~~~~~~~~~~~~
 
-A body lease gives the holder the ability to command the spot to make actions in the world.  The eStop gives the robot a way to guarantee that the commanding system is maintaining contact with the robot.  There are two ways to claim a body lease and eStop using this driver.
+A body lease gives the holder the ability to command the spot to make actions in the world.  The eStop gives the
+robot a way to guarantee that the commanding system is maintaining contact with the robot. If this contact is lost,
+the robot will perform a gentle stop.
+
+There are two ways to claim a body lease and eStop using this driver.
 
 #. Automatically when the driver starts by enabling the ``auto_claim`` variable
 #. By calling the ``/spot/claim`` service after the driver is started
@@ -123,7 +97,14 @@ The hard estop is at ``/spot/estop/hard`` this will kill power to the motors and
 
 The gentle estop is at ``/spot/estop/gentle``. This only stops whatever the robot is doing and will not cause a collapse. This stop does not have to be released.
 
-You can perform all of the estops by using the rviz GUI as well.
+Rviz
+^^^^
+
+The top of the rviz panel has buttons to control the estops as described above, and also displays their status. This
+part of the panel also controls whether the robot is allowed to move. Pressing the stop button will stop all motion
+the robot is making and prevent any further motion. This can be reset with the allow motion button below it.
+
+.. image:: images/rviz_estops.png
 
 Enable Motor Power
 ~~~~~~~~~~~~~~~~~~
@@ -141,8 +122,8 @@ Once the motors are powered, stand the robot up so it is able to move through th
 #. Automatically when the driver starts by enabling the ``auto_stand`` variable
 #. By calling the ``/spot/stand`` service after the driver is started
 
-Controling the Velocity
------------------------
+Controlling the Velocity
+------------------------
 
 .. warning::
 
@@ -166,18 +147,13 @@ To control Spot, you can send a Twist ROS message to command a velocity.  To tes
 
 That command will have spot rotate on the spot at 0.3 radians/second.  Note the -r at the end of the command.  That has ROS resend the message over again.  If you don't resend the message, the driver will assume a timeout and stop commanding motion of the robot.
 
-Interactive Marker
-~~~~~~~~~~~~~~~~~~
-
-Inside of RVIZ, grab the red arrow that is around Spot's body and pull it forward or backwards to have Spot walk.  If you rotate the blue circle around the body, Spot will turn on the spot.  This is a very simple way to move Spot
-
 Controlling the Body
 --------------------
 
 ROS Topic
 ~~~~~~~~~
 
-The angle of the body relative to the feet is also controllable through a ROS topic, but there is no interactive marker yet.
+The angle of the body relative to the feet is also controllable through a ROS topic.
 
 To control the body position through a terminal, send the following command:
 
@@ -196,6 +172,13 @@ To control the body position through a terminal, send the following command:
 The x and y components of the position are ignored. The z component sets the body height. The body height value is based on displacement from the neutral position.
 
 Note that the -r is not needed for this command.  This sets the position the body should be in until changed.
+
+Rviz
+^^^^
+
+The body can also be controlled in the body tab.
+
+.. image:: images/rviz_body_tab.png
 
 Actionserver
 ~~~~~~~~~~~~
@@ -324,7 +307,7 @@ Cameras and Depth Clouds
 ------------------------
 
 Spot is equipped 5 RGB and depth-sensing cameras: 2 on the front, one on each side, and one in the rear.  All of these
-cameras publish at approximately 10Hz.  The cameras are grayscale.
+cameras publish at approximately 10Hz.
 
 Note that the front cameras are mounted sideways, so they have a narrower horizontal FoV, but a larger vertical one.
 The camera data likewise rotated anticlockwise by 90 degrees.

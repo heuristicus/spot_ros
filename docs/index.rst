@@ -5,7 +5,7 @@ Spot ROS User Documentation
     :maxdepth: 0
     :caption: Contents
 
-    ros_setup
     robot_setup
+    ros_setup
     driver_configuration
     ros_usage
