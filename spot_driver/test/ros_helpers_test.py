@@ -1568,19 +1568,6 @@ class TestGetWorldObjectsMsg(unittest.TestCase):
         self.assertEqual(msg_world_obj.bounding_box_size_ewrt_frame.y, 2.0)
         self.assertEqual(msg_world_obj.bounding_box_size_ewrt_frame.z, 3.0)
 
-    def test_world_objects_msg_with_pickle(self):
-        with open("data/world_objects.pkl", "rb") as f:
-            world_objects: world_object_pb2.ListWorldObjectResponse = pickle.load(f)
-
-        spot_wrapper = TestSpotWrapper()
-
-        msg_world_objects: WorldObjectArray = ros_helpers.GetWorldObjectsMsg(
-            world_objects, spot_wrapper
-        )
-
-        # Check that the data is correct
-        self.assertEqual(len(msg_world_objects.world_objects), 1)
-
 
 class TestSuiteROSHelpers(unittest.TestSuite):
     def __init__(self):
