@@ -66,7 +66,7 @@ from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
 from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
 from .ros_helpers import *
-from .spot_wrapper import SpotWrapper
+from spot_wrapper.wrapper import SpotWrapper
 
 import actionlib
 import logging
@@ -1434,10 +1434,12 @@ class SpotROS:
                 )
 
         rate = rospy.Rate(loop_rate)
+        self.robot_name = rospy.get_param("~robot_name", "spot")
         self.username = rospy.get_param("~username", "default_value")
         self.password = rospy.get_param("~password", "default_value")
         self.hostname = rospy.get_param("~hostname", "default_value")
         self.motion_deadzone = rospy.get_param("~deadzone", 0.05)
+        self.start_estop = rospy.get_param("~start_estop", True)
         self.estop_timeout = rospy.get_param("~estop_timeout", 9.0)
         self.autonomy_enabled = rospy.get_param("~autonomy_enabled", True)
         self.allow_motion = rospy.get_param("~allow_motion", True)
@@ -1479,7 +1481,9 @@ class SpotROS:
             self.username,
             self.password,
             self.hostname,
+            self.robot_name,
             self.logger,
+            self.start_estop,
             self.estop_timeout,
             self.rates,
             self.callbacks,
