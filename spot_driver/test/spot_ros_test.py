@@ -1196,15 +1196,13 @@ if __name__ == "__main__":
     import rosunit
 
     rospy.init_node(NAME, anonymous=True)
-    """
-        rosunit.unitrun(PKG, NAME, TestRobotStateCB)
-        rosunit.unitrun(PKG, NAME, TestMetricsCB)
-        rosunit.unitrun(PKG, NAME, TestLeaseCB)
-        rosunit.unitrun(PKG, NAME, TestHandImageCB)
-        rosunit.unitrun(PKG, NAME, TestPointCloudCB)
-        rosunit.unitrun(PKG, NAME, TestWorldObjectCB)
-        rosunit.unitrun(PKG, NAME, TestServiceHandlers)
-        rosunit.unitrun(PKG, NAME, TestActionHandlers)
-    """
+    rosunit.unitrun(PKG, NAME, TestRobotStateCB)
+    rosunit.unitrun(PKG, NAME, TestMetricsCB)
+    rosunit.unitrun(PKG, NAME, TestLeaseCB)
+    rosunit.unitrun(PKG, NAME, TestHandImageCB)
+    rosunit.unitrun(PKG, NAME, TestPointCloudCB)
+    rosunit.unitrun(PKG, NAME, TestWorldObjectCB)
+    rosunit.unitrun(PKG, NAME, TestServiceHandlers)
+    rosunit.unitrun(PKG, NAME, TestActionHandlers)
     rosunit.unitrun(PKG, NAME, TestWorldObjectCB)
     print("Tests complete!")

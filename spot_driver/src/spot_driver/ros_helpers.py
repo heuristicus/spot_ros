@@ -3,15 +3,13 @@ import numpy as np
 
 import rospy
 
-from std_msgs.msg import Time as StdMsgsTime
-from std_msgs.msg import Duration as StdMsgsDuration
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import PointCloud2, PointField
 from geometry_msgs.msg import PoseWithCovariance
 from geometry_msgs.msg import TwistWithCovarianceStamped
 from geometry_msgs.msg import TransformStamped, Transform
-from geometry_msgs.msg import Pose, Point, Quaternion, Polygon, Vector3
+from geometry_msgs.msg import Pose, Point, Quaternion, Polygon, Vector3, Point32
 from nav_msgs.msg import Odometry
 from tf2_msgs.msg import TFMessage
 
@@ -790,8 +788,10 @@ def GetAprilTagPropertiesMsg(
         data.fiducial_filtered_pose_status
     )
     april_tag_properties_msg.frame_name_camera = data.frame_name_camera
-    april_tag_properties_msg.detection_covariance = PoseWithCovariance(
-        pose=Pose(), covariance=data.detection_covariance.matrix.values
+    april_tag_properties_msg.detection_covariance = PoseWithCovariance()
+    april_tag_properties_msg.detection_covariance.pose = Pose()
+    april_tag_properties_msg.detection_covariance.covariance = list(
+        data.detection_covariance.matrix.values
     )
     april_tag_properties_msg.detection_covariance_reference_frame = (
         data.detection_covariance_reference_frame
@@ -811,7 +811,7 @@ def GetImagePropertiesMsg(
             geometry_pb2.Vec2
         ] = data.coordinates.vertexes
         image_properties_msg.image_data_coordinates = Polygon(
-            [Point(vec.x, vec.y, 0) for vec in data_polygon_coordinates]
+            [Point32(vec.x, vec.y, 0) for vec in data_polygon_coordinates]
         )
     elif data.keypoints:
         image_properties_msg.image_data_keypoint_type = data.keypoints.type
@@ -856,14 +856,18 @@ def GetImagePropertiesMsg(
     )
 
     image_properties_msg.image_source.image_type = data.image_source.image_type
-    image_properties_msg.image_source.pixel_formats = data.image_source.pixel_formats
-    image_properties_msg.image_source.image_formats = data.image_source.image_formats
+    image_properties_msg.image_source.pixel_formats = list(
+        data.image_source.pixel_formats
+    )
+    image_properties_msg.image_source.image_formats = list(
+        data.image_source.image_formats
+    )
 
     local_time = spot_wrapper.robotToLocalTime(data.image_capture.acquisition_time)
 
-    image_properties_msg.image_capture.acquisition_time = StdMsgsTime(
-        data=local_time.seconds
-    )
+    image_properties_msg.image_capture.acquisition_time.secs = local_time.seconds
+    image_properties_msg.image_capture.acquisition_time.nsecs = local_time.nanos
+
     image_properties_msg.image_capture.transforms_snapshot = GetFrameTreeSnapshotMsg(
         data.image_capture.transforms_snapshot
     )
@@ -874,8 +878,11 @@ def GetImagePropertiesMsg(
         image_pb2.ImageResponse(shot=data.image_capture, source=data.image_source),
         spot_wrapper,
     )
-    image_properties_msg.image_capture.capture_exposure_duration = StdMsgsDuration(
-        data=data.image_capture.capture_params.exposure_duration.seconds
+    image_properties_msg.image_capture.capture_exposure_duration.secs = (
+        data.image_capture.capture_params.exposure_duration.seconds
+    )
+    image_properties_msg.image_capture.capture_exposure_duration.nsecs = (
+        data.image_capture.capture_params.exposure_duration.nanos
     )
     image_properties_msg.image_capture.capture_sensor_gain = (
         data.image_capture.capture_params.gain
