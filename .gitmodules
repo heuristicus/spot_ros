@@ -1,3 +1,6 @@
 [submodule "spot_driver/doc/clearpath-sphinx-theme"]
 	path = spot_driver/doc/clearpath-sphinx-theme
 	url = http://github.com/clearpath-docs/clearpath-sphinx-theme.git
+[submodule "spot_wrapper"]
+	path = spot_wrapper
+	url = git@github.com:heuristicus/spot_wrapper
