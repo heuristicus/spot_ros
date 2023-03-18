@@ -27,7 +27,7 @@
     <remap from="tf" to="/tf"/>
   </node>
 
-    <test test-name="spot_ros_tests" pkg="spot_driver" type="spot_ros_test.py"/>
+    <test test-name="spot_ros_tests" pkg="spot_driver" type="spot_ros_test.py" time-limit="1000.0"/>
 
-    <test test-name="spot_driver_helper_tests" pkg="spot_driver" type="run_tests.py"/>
+    <test test-name="spot_driver_helper_tests" pkg="spot_driver" type="run_tests.py" time-limit="1000.0"/>
 </launch>
