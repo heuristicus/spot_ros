@@ -23,7 +23,7 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/catkin_ws/src
 
       # Check out the code
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           path: catkin_ws/src/spot_ros
 

@@ -32,6 +32,6 @@ jobs:
           context: .
           file: ./deploy/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/spot_ros:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/spot_ros:${{ steps.extract_branch.outputs.branch }}
           secrets: |
             "SPOTROS_GIT_BRANCH=${{ steps.extract_branch.outputs.branch }}"
