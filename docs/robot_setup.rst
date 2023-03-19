@@ -1,4 +1,4 @@
-Spot Platform Configuration
+Robot Configuration
 ===========================
 
 To configure the robot, you should consult `Boston Dynamics' support pages <https://support.bostondynamics.com/s/>`_.

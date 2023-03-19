@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Robot Configuration &mdash; Spot ROS User Documentation 0.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <title>Arm control &mdash; Spot ROS User Documentation 0.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
@@ -16,8 +16,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Computer Setup" href="ros_setup.html" />
-    <link rel="prev" title="Spot ROS User Documentation" href="index.html" /> 
+    <link rel="prev" title="Basic Driver Usage" href="ros_usage.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -40,13 +39,11 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption"><span class="caption-text">Contents</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Robot Configuration</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#networking">Networking</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Robot Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Computer Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Driver configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Arm control</a></li>
 </ul>
 
         </div>
@@ -63,9 +60,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Robot Configuration</li>
+      <li>Arm control</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/robot_setup.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/arm_usage.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -73,24 +70,60 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="robot-configuration">
-<h1>Robot Configuration<a class="headerlink" href="#robot-configuration" title="Permalink to this headline">¶</a></h1>
-<p>To configure the robot, you should consult <a class="reference external" href="https://support.bostondynamics.com/s/">Boston Dynamics’ support pages</a>.</p>
-<p>Robot administration is performed through the <a class="reference external" href="https://support.bostondynamics.com/s/article/Spot-system-administration">admin console</a>.</p>
-<div class="section" id="networking">
-<h2>Networking<a class="headerlink" href="#networking" title="Permalink to this headline">¶</a></h2>
-<p>See the <a class="reference external" href="https://support.bostondynamics.com/s/article/Spot-network-setup">network setup</a> pages for details on network configuration.</p>
-<p>Using WiFi for ROS communication is not recommended, except for monitoring purposes.</p>
-<p>The driver can output a lot of data. It is recommended that you connect the Spot to the ROS PC via a payload port. See the <a class="reference external" href="https://dev.bostondynamics.com/docs/payload/readme">payload developer guide</a> for details.</p>
-</div>
+  <div class="section" id="arm-control">
+<h1>Arm control<a class="headerlink" href="#arm-control" title="Permalink to this headline">¶</a></h1>
+<p>The driver can also send commands to the robots arm, if it has one. The following services allow control of various
+parts of the arm.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Service</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>/spot/arm_carry</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>/spot/arm_joint_move</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>/spot/arm_stow</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>/spot/arm_unstow</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>/spot/force_trajectory</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>/spot/grasp_3d</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>/spot/gripper_angle_open</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>/spot/gripper_close</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td>/spot/gripper_open</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>/spot/gripper_pose</td>
+<td>&#160;</td>
+</tr>
+</tbody>
+</table>
 </div>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="index.html" class="btn btn-neutral float-left" title="Spot ROS User Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ros_setup.html" class="btn btn-neutral float-right" title="Computer Setup" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ros_usage.html" class="btn btn-neutral float-left" title="Basic Driver Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

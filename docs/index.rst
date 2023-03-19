@@ -9,3 +9,4 @@ Spot ROS User Documentation
     ros_setup
     driver_configuration
     ros_usage
+    arm_usage

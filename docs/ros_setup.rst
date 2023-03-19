@@ -1,5 +1,5 @@
-Spot ROS Computer Setup
-=======================
+Computer Setup
+==============
 
 Building the Driver from Source
 -------------------------------
@@ -29,7 +29,7 @@ Use rosdep to install of the necessary dependencies
 
 .. code:: bash
 
-  cd ~/catkin_ws/
+  cd ~/spot_ws/
   rosdep install --from-paths spot_driver spot_msgs spot_viz spot_description --ignore-src -y
 
 Once all the necessary packages are installed, build the packages in the workspace
@@ -52,8 +52,31 @@ Adding to the URDF
 
   When adding payloads, you should always add them to the robot's configuration through the `admin panel <https://support.bostondynamics.com/s/article/Payload-configuration-requirements>`_. Adding only the URDF does not add the payload to spot's built in collision avoidance.
 
-You can add to the URDF of the robot by using the ``SPOT_URDF_EXTRAS`` environment variable, which must be set in the
-terminal from which the driver is run.. This should point to a urdf file which has an object where the parent is one
+The driver supports some configuration of the URDF via environment variables. These can either be manually set in
+the terminal before starting the driver, or added to $HOME/.bashrc as desired. The table below lists the available
+variables and their default values:
+
++---------------------+---------------+-------------------------------------------------------------------------------------------------------+
+| Variable            |Default Value  |Description                                                                                            |
++=====================+===============+=======================================================================================================+
+|SPOT_PACK            |0              |If 1, enables the Clearpath ROS backpack accessory and adds it to the URDF                             |
++---------------------+---------------+-------------------------------------------------------------------------------------------------------+
+|SPOT_LIDAR_MOUNT     |0              |If 1, adds the Lidar mount to the backpack. Requires SPOT_PACK to be 1                                 |
++---------------------+---------------+-------------------------------------------------------------------------------------------------------+
+|SPOT_VELODYNE        |0              |If 1, adds the a VLP-16 sensor to the lidar mount. Requires SPOT_LIDAR_MOUNT to be 1                   |
+|                     |               |                                                                                                       |
++---------------------+---------------+-------------------------------------------------------------------------------------------------------+
+|SPOT_ARM             |0              |If 1, adds the Spot arm to the URDF                                                                    |
++---------------------+---------------+-------------------------------------------------------------------------------------------------------+
+|SPOT_VELODYNE_XYZ    |0 0 0          |XYZ offset for the VLP-16 from the backpack lidar mount                                                |
++---------------------+---------------+-------------------------------------------------------------------------------------------------------+
+|SPOT_VELODYNE_RPY    |0 0 0          |RPY offset for the VLP-16 from the backpack lidar mount                                                |
++---------------------+---------------+-------------------------------------------------------------------------------------------------------+
+|SPOT_URDF_EXTRAS     |empty.urdf     |Optional URDF file to add additional joints and links to the robot                                     |
++---------------------+---------------+-------------------------------------------------------------------------------------------------------+
+
+You can add a custom URDF to the robot using the ``SPOT_URDF_EXTRAS`` environment variable, which must be set in the
+terminal from which the driver is run. This should point to a URDF/xacro file which has an object where the parent is one
 of the frames on the robot.
 
 It might look something like below.
