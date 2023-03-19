@@ -1048,7 +1048,9 @@ class SpotROS:
         # Give it some time to move
         rospy.sleep(2)
         self.motion_or_idle_body_pose_as.set_succeeded(
-            PoseBodyResult(success=True, message="Successfully applied in-motion pose to body")
+            PoseBodyResult(
+                success=True, message="Successfully applied in-motion pose to body"
+            )
         )
 
     def _set_in_motion_or_idle_body_pose(self, pose):

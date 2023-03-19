@@ -16,7 +16,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Spot ROS Computer Setup" href="ros_setup.html" /> 
+    <link rel="next" title="Robot Configuration" href="robot_setup.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -39,10 +39,11 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption"><span class="caption-text">Contents</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Spot ROS Computer Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Spot Platform Configuration</a></li>
-<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Configuring the ROS Driver</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Spot ROS Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Robot Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Computer Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Driver configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arm_usage.html">Arm control</a></li>
 </ul>
 
         </div>
@@ -74,63 +75,73 @@
 <div class="toctree-wrapper compound">
 <p class="caption"><span class="caption-text">Contents</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Spot ROS Computer Setup</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="ros_setup.html#setup-spot-core">Setup Spot Core</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ros_setup.html#installing-dependencies">Installing Dependencies</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ros_setup.html#setup-networking">Setup Networking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Robot Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="robot_setup.html#networking">Networking</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Computer Setup</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ros_setup.html#building-the-driver-from-source">Building the Driver from Source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_setup.html#adding-to-the-urdf">Adding to the URDF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_setup.html#building-for-melodic">Building for Melodic</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Spot Platform Configuration</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="robot_setup.html#login-to-spot-as-an-administrator">Login to Spot as an Administrator</a></li>
-<li class="toctree-l2"><a class="reference internal" href="robot_setup.html#check-the-software-version">Check the Software Version</a></li>
-<li class="toctree-l2"><a class="reference internal" href="robot_setup.html#create-a-new-user-optional">Create a New User (Optional)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="robot_setup.html#setup-networking">Setup Networking</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="robot_setup.html#change-your-pc-s-ip-address">Change your PC’s IP address</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Driver configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="driver_configuration.html#rate-parameters">Rate parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="driver_configuration.html#startup-parameters">Startup parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="driver_configuration.html#environment-variables">Environment variables</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="robot_setup.html#setup-wi-fi-optional">Setup Wi-Fi (Optional)</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Configuring the ROS Driver</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Spot ROS Driver Usage</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ros_usage.html#verify-the-urdf">Verify the URDF</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#configure-your-networking">Configure Your Networking</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#etc-network-interfaces">/etc/network/interfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#network-manager">Network Manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#configure-your-networking">Configure your networking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#running-the-driver">Running the driver</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#view-the-robot">View the robot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#taking-control-of-the-robot">Taking control of the robot</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#holding-the-lease">Holding the lease</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#emergency-stops">Emergency stops</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#enable-motor-power">Enable motor power</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#stand-the-robot-up">Stand the robot up</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#running-the-driver">Running the Driver</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#view-the-robot">View the Robot</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#taking-control-of-the-robot">Taking Control of the Robot</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#body-and-estop-control">Body and eStop Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#enable-motor-power">Enable Motor Power</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#stand-the-robot-up">Stand the Robot Up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#controlling-the-velocity">Controlling the velocity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#topic">Topic</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#controling-the-velocity">Controling the Velocity</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#ros-topics">ROS Topics</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#interactive-marker">Interactive Marker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#controlling-the-body">Controlling the body</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#static-body-pose">Static body pose</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ros_usage.html#service">Service</a></li>
+<li class="toctree-l4"><a class="reference internal" href="ros_usage.html#actionserver">Actionserver</a></li>
+<li class="toctree-l4"><a class="reference internal" href="ros_usage.html#rviz">Rviz</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#controlling-the-body">Controlling the Body</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#ros-topic">ROS Topic</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#actionserver">Actionserver</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#rviz">Rviz</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#in-motion-body-pose">In-motion body pose</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ros_usage.html#id1">Topic</a></li>
+<li class="toctree-l4"><a class="reference internal" href="ros_usage.html#id2">Actionserver</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="ros_usage.html#moving-to-a-pose">Moving to a pose</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#id1">ROS Topic</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#id2">Actionserver</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#id3">Rviz</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#setting-velocity-limits">Setting velocity limits</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#ros-topic">ROS Topic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#id4">Actionserver</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#id5">Rviz</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#setting-velocity-limits">Setting velocity limits</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ros_usage.html#cameras-and-depth-clouds">Cameras and Depth Clouds</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#monitoring-the-platform">Monitoring the Platform</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#self-righting-and-roll-over">Self righting and roll over</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#autonomous-docking">Autonomous docking</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#services">Services</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#id6">Actionserver</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ros_usage.html#id7">Rviz</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#advanced-motion-control">Advanced motion control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ros_usage.html#monitoring">Monitoring</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ros_usage.html#troubleshooting">Troubleshooting</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="arm_usage.html">Arm control</a></li>
 </ul>
 </div>
 </div>
@@ -139,13 +150,13 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ros_setup.html" class="btn btn-neutral float-right" title="Spot ROS Computer Setup" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="robot_setup.html" class="btn btn-neutral float-right" title="Robot Configuration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2020, Clearpath Robotics.</p>
+    <p>&#169; Copyright 2020, Clearpath Robotics, 2023 Oxford Robotics Institute.</p>
   </div>
 
    

@@ -16,7 +16,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 project = "Spot ROS User Documentation"
-copyright = "2020, Clearpath Robotics"
+copyright = "2020, Clearpath Robotics, 2023 Oxford Robotics Institute"
 
 # Get version number from package.xml.
 tree = etree.parse("../spot_driver/package.xml")
@@ -65,7 +65,7 @@ latex_documents = [
         master_doc,
         "SpotROSUserDocumentation.tex",
         "Spot ROS User Documentation",
-        "Dave Niewinski",
+        "Dave Niewinski, Michal Staniaszek",
         "manual",
     ),
 ]
