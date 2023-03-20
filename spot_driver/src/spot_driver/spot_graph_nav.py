@@ -3,6 +3,7 @@ import logging
 import math
 import time
 
+from bosdyn.client import robot_command
 from bosdyn.client.robot import Robot
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.lease import LeaseClient, LeaseWallet, LeaseKeepAlive
@@ -46,12 +47,12 @@ class SpotGraphNav:
         self._current_annotation_name_to_wp_id = dict()
 
     def list_graph(self, upload_path: str) -> typing.List[str]:
-        """List waypoint ids of garph_nav
+        """List waypoint ids of graph_nav
         Args:
           upload_path : Path to the root directory of the map.
         """
         ids, eds = self._list_graph_waypoint_and_edge_ids()
-        # skip waypoint_ for v2.2.1, skip waypiont for < v2.2
+
         return [
             v
             for k, v in sorted(
@@ -66,7 +67,7 @@ class SpotGraphNav:
         initial_localization_fiducial: bool = True,
         initial_localization_waypoint: typing.Optional[str] = None,
     ):
-        """navigate with graph nav.
+        """Navigate with graphnav.
 
         Args:
            upload_path : Path to the root directory of the map.
@@ -85,13 +86,16 @@ class SpotGraphNav:
         self._started_powered_on = power_state.motor_power_state == power_state.STATE_ON
         self._powered_on = self._started_powered_on
 
-        # TODO FIX ME somehow,,,, if the robot is stand, need to sit the robot before starting graph nav
-        if self._robot_params["is_standing"] and not self._robot_params["is_sitting"]:
-            raise Exception(
-                "Robot is standing, please sit the robot before starting graph nav"
+        # Sit the robot if it is not already sitting.
+        if not self._robot_params["is_sitting"]:
+            robot_command.blocking_sit(
+                command_client=self._robot_command_client, timeout_sec=10
             )
+            self._logger.info("Spot is sitting")
+        else:
+            self._logger.info("Spot is already sitting")
 
-        # TODO verify estop  / claim / power_on
+        # Claim lease, power on robot, start graphnav.
         self._lease = self._lease_wallet.get_lease()
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
         self._clear_graph()
@@ -110,12 +114,12 @@ class SpotGraphNav:
     def _get_localization_state(self, *args):
         """Get the current localization and state of the robot."""
         state = self._graph_nav_client.get_localization_state()
-        self._logger.info("Got localization: \n%s" % str(state.localization))
+        self._logger.info(f"Got localization: \n{str(state.localization)}")
         odom_tform_body = get_odom_tform_body(
             state.robot_kinematics.transforms_snapshot
         )
         self._logger.info(
-            "Got robot state in kinematic odometry frame: \n%s" % str(odom_tform_body)
+            f"Got robot state in kinematic odometry frame: \n{str(odom_tform_body)}"
         )
 
     def _set_initial_localization_fiducial(self, *args):
@@ -146,7 +150,7 @@ class SpotGraphNav:
             self._logger,
         )
         if not destination_waypoint:
-            # Failed to find the unique waypoint id.
+            self._logger.error("Failed to find waypoint id.")
             return
 
         robot_state = self._robot_state_client.get_robot_state()
@@ -244,10 +248,7 @@ class SpotGraphNav:
         if not localization_state.localization.waypoint_id:
             # The robot is not localized to the newly uploaded graph.
             self._logger.info(
-                "Upload complete! The robot is currently not localized to the map; please localize"
-            )
-            self._logger.info(
-                "the robot using commands (2) or (3) before attempting a navigation command."
+                "Upload complete! The robot is currently not localized to the map; please localize the robot using a fiducial before attempting a navigation command."
             )
 
     def _navigate_to(self, *args):
@@ -274,7 +275,7 @@ class SpotGraphNav:
             )
             return
 
-        # Stop the lease keepalive and create a new sublease for graph nav.
+        # Stop the lease keepalive and create a new sublease for graphnav.
         self._lease = self._lease_wallet.advance()
         sublease = self._lease.create_sublease()
         self._lease_keepalive.shutdown()
@@ -356,10 +357,7 @@ class SpotGraphNav:
             else:
                 all_edges_found = False
                 self._logger.error(
-                    "Failed to find an edge between waypoints: ",
-                    start_wp,
-                    " and ",
-                    end_wp,
+                    f"Failed to find an edge between waypoints: {start_wp} and {end_wp}"
                 )
                 self._logger.error(
                     "List the graph's waypoints and edges to ensure pairs of waypoints has an edge."
@@ -374,7 +372,7 @@ class SpotGraphNav:
                 )
                 return
 
-            # Stop the lease keepalive and create a new sublease for graph nav.
+            # Stop the lease keepalive and create a new sublease for graphnav.
             self._lease = self._lease_wallet.advance()
             sublease = self._lease.create_sublease()
             self._lease_keepalive.shutdown()
