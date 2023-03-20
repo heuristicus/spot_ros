@@ -10,6 +10,7 @@ from bosdyn.client.graph_nav import GraphNavClient
 from bosdyn.client.frame_helpers import get_odom_tform_body
 from bosdyn.client.power import safe_power_off, power_on, PowerClient
 from bosdyn.client.robot_command import RobotCommandClient
+from bosdyn.api import robot_state_pb2
 from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
 from bosdyn.api.graph_nav import nav_pb2
@@ -91,6 +92,8 @@ class SpotGraphNav:
             )
 
         # TODO verify estop  / claim / power_on
+        self._lease = self._lease_wallet.get_lease()
+        self._lease_keepalive = LeaseKeepAlive(self._lease_client)
         self._clear_graph()
         self._upload_graph_and_snapshots(upload_filepath)
         if initial_localization_fiducial:
@@ -212,6 +215,9 @@ class SpotGraphNav:
                 ] = waypoint_snapshot
         for edge in self._current_graph.edges:
             # Load the edge snapshots from disk.
+            self._logger.info(f"Trying edge: {edge.snapshot_id}")
+            if not edge.snapshot_id:
+                continue
             with open(
                 upload_filepath + "/edge_snapshots/{}".format(edge.snapshot_id), "rb"
             ) as snapshot_file:
@@ -238,8 +244,10 @@ class SpotGraphNav:
         if not localization_state.localization.waypoint_id:
             # The robot is not localized to the newly uploaded graph.
             self._logger.info(
-                "Upload complete! The robot is currently not localized to the map; please localize",
-                "the robot using commands (2) or (3) before attempting a navigation command.",
+                "Upload complete! The robot is currently not localized to the map; please localize"
+            )
+            self._logger.info(
+                "the robot using commands (2) or (3) before attempting a navigation command."
             )
 
     def _navigate_to(self, *args):
@@ -413,7 +421,7 @@ class SpotGraphNav:
                 )  # 10 second timeout for waiting for the state response.
                 if (
                     state_response.power_state.motor_power_state
-                    == robot_state_proto.PowerState.STATE_ON
+                    == robot_state_pb2.PowerState.STATE_ON
                 ):
                     motors_on = True
                 else:
@@ -422,9 +430,7 @@ class SpotGraphNav:
         elif is_powered_on and not should_power_on:
             # Safe power off (robot will sit then power down) when it is in a
             # powered-on state.
-            safe_power_off(
-                self._robot_clients["robot_command_client"], self._robot_state_client
-            )
+            safe_power_off(self._robot_command_client, self._robot_state_client)
         else:
             # Return the current power state without change.
             return is_powered_on
