@@ -41,6 +41,14 @@ add_message_files(
   SpotCheckKinematic.msg
   SpotCheckLoadCell.msg
   SpotCheckPayload.msg
+  AprilTagProperties.msg
+  FrameTreeSnapshot.msg
+  ParentEdge.msg
+  ImageCapture.msg
+  ImageProperties.msg
+  ImageSource.msg
+  WorldObject.msg
+  WorldObjectArray.msg
 )
 
 add_service_files(
@@ -75,6 +83,7 @@ add_action_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  sensor_msgs
   geometry_msgs
   actionlib_msgs
 )

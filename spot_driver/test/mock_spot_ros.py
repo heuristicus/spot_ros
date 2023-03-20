@@ -28,6 +28,7 @@ from bosdyn.api import (
     lease_pb2,
     geometry_pb2,
     point_cloud_pb2,
+    world_object_pb2,
 )
 from bosdyn.api.docking import docking_pb2
 from bosdyn.client.async_tasks import AsyncTasks
@@ -55,6 +56,7 @@ class TestSpotWrapper(SpotWrapper):
         self._rear_image = [image_pb2.ImageResponse()]
         self._hand_image = [image_pb2.ImageResponse()]
         self._point_cloud = [point_cloud_pb2.PointCloudResponse()]
+        self._world_objects = world_object_pb2.ListWorldObjectResponse()
 
         self._valid = True
         self._robot_params = {
@@ -153,6 +155,16 @@ class TestSpotWrapper(SpotWrapper):
     ):
         """Set the _point_cloud data"""
         self._point_cloud = point_cloud
+
+    @property
+    def world_objects(self) -> world_object_pb2.ListWorldObjectResponse:
+        """Return latest _world_objects data"""
+        return self._world_objects
+
+    @world_objects.setter
+    def world_objects(self, world_objects: world_object_pb2.ListWorldObjectResponse):
+        """Set the _world_objects data"""
+        self._world_objects = world_objects
 
     def disconnect(self):
         pass
@@ -769,6 +781,152 @@ class MockSpotROS:
         point_cloud_data.point_cloud.CopyFrom(point_cloud)
         self.spot_ros.spot_wrapper.point_clouds = [point_cloud_data]
 
+    def set_world_objects_data(self):
+        # Create ListWorldObjectResponse data
+        data = world_object_pb2.ListWorldObjectResponse()
+
+        world_object = world_object_pb2.WorldObject(
+            id=1,
+            name="world_obj_apriltag_350",
+            acquisition_time=timestamp_pb2.Timestamp(
+                seconds=1678806362, nanos=176319408
+            ),
+            transforms_snapshot=geometry_pb2.FrameTreeSnapshot(
+                child_to_parent_edge_map={
+                    "vision": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="body",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            position=geometry_pb2.Vec3(x=-8.0, y=-24.0, z=-0.5),
+                            rotation=geometry_pb2.Quaternion(
+                                x=0.0, y=0.0, z=-1.0, w=1.0
+                            ),
+                        ),
+                    ),
+                    "odom": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="body",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            position=geometry_pb2.Vec3(x=-7.0, y=-25.0, z=0.0),
+                            rotation=geometry_pb2.Quaternion(
+                                x=-1.5, y=0.0, z=0.8, w=0.5
+                            ),
+                        ),
+                    ),
+                    "filtered_fiducial_350": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="vision",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            position=geometry_pb2.Vec3(x=-11.0, y=-24.0, z=0.45),
+                            rotation=geometry_pb2.Quaternion(
+                                x=0.47, y=0.50, z=0.51, w=-0.46
+                            ),
+                        ),
+                    ),
+                    "fiducial_350": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="vision",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            position=geometry_pb2.Vec3(x=0.27, y=-0.2, z=0.61),
+                            rotation=geometry_pb2.Quaternion(
+                                x=0.73, y=-0.66, z=0.0, w=-0.11
+                            ),
+                        ),
+                    ),
+                    "body": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            rotation=geometry_pb2.Quaternion(
+                                x=0.0, y=0.0, z=0.0, w=1.0
+                            ),
+                        ),
+                    ),
+                }
+            ),
+            apriltag_properties=world_object_pb2.AprilTagProperties(
+                tag_id=350,
+                dimensions=geometry_pb2.Vec2(x=0.16, y=0.16),
+                frame_name_fiducial="fiducial_350",
+                fiducial_pose_status=world_object_pb2.AprilTagProperties.STATUS_OK,
+                frame_name_fiducial_filtered="filtered_fiducial_350",
+                fiducial_filtered_pose_status=world_object_pb2.AprilTagProperties.STATUS_OK,
+                frame_name_camera="left",
+                detection_covariance=geometry_pb2.SE3Covariance(
+                    matrix=geometry_pb2.Matrix(
+                        rows=6,
+                        cols=6,
+                        values=[
+                            0.0,
+                            0.0,
+                            -3.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.1,
+                            -9.5,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -9.7,
+                            0.0,
+                            0.0,
+                            -3.0,
+                            1.1,
+                            -9.7,
+                            8.4,
+                            -4.4,
+                            0.0,
+                            0.0,
+                            -9.5,
+                            0.0,
+                            0.0,
+                            -4.4,
+                            0.0,
+                            0.0,
+                            8.4,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                        ],
+                    )
+                ),
+                detection_covariance_reference_frame="vision",
+            ),
+            image_properties=world_object_pb2.ImageProperties(
+                camera_source="left",
+                coordinates=geometry_pb2.Polygon(
+                    vertexes=[
+                        geometry_pb2.Vec2(x=19.3, y=285.3),
+                        geometry_pb2.Vec2(x=26.2, y=336.1),
+                        geometry_pb2.Vec2(x=79.5, y=323.8),
+                        geometry_pb2.Vec2(x=74.5, y=247.8),
+                    ]
+                ),
+            ),
+            dock_properties=world_object_pb2.DockProperties(
+                dock_id=50,
+                type=docking_pb2.DOCK_TYPE_SPOT_DOCK,
+                frame_name_dock="dock",
+                unavailable=False,
+                from_prior=True,
+            ),
+            ray_properties=world_object_pb2.RayProperties(
+                frame="body",
+                ray=geometry_pb2.Ray(
+                    origin=geometry_pb2.Vec3(x=1.0, y=2.0, z=3.0),
+                    direction=geometry_pb2.Vec3(x=4.0, y=5.0, z=6.0),
+                ),
+            ),
+            bounding_box_properties=world_object_pb2.BoundingBoxProperties(
+                frame="body",
+                size_ewrt_frame=geometry_pb2.Vec3(x=1.0, y=2.0, z=3.0),
+            ),
+        )
+        data.world_objects.append(world_object)
+
+        self.spot_ros.world_objects = data
+
     def main(self):
         rospy.init_node(self.spot_ros.node_name, anonymous=True)
         # Initialize variables for transforms
@@ -788,6 +946,7 @@ class MockSpotROS:
         self.set_robot_state()
         self.set_robot_metrics()
         self.set_robot_lease()
+        self.set_world_objects_data()
 
         # Manually set robot images data
         self.set_robot_front_camera_data()
@@ -809,6 +968,7 @@ class MockSpotROS:
             self.spot_ros.SideImageCB("side_camera_test")
             self.spot_ros.HandImageCB("hand_camera_test")
             self.spot_ros.PointCloudCB("point_cloud_test")
+            self.spot_ros.WorldObjectsCB("world_objects_test")
             rate.sleep()
 
 

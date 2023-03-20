@@ -22,6 +22,7 @@ from spot_msgs.msg import Metrics
 from spot_msgs.msg import LeaseArray
 from spot_msgs.msg import FootStateArray
 from spot_msgs.msg import EStopStateArray
+from spot_msgs.msg import WorldObjectArray
 from spot_msgs.msg import WiFiState
 from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFaultState
@@ -777,6 +778,33 @@ class TestPointCloudCB(unittest.TestCase):
         self.check_point_cloud(self.data["point_cloud"])
 
 
+class TestWorldObjectCB(unittest.TestCase):
+    def setUp(self):
+        self.data = {}
+
+    def world_object_cb(self, msg: WorldObjectArray):
+        self.data["world_object"] = msg
+
+    def check_world_object(self, world_object_msg: WorldObjectArray):
+        pass
+
+    def test_world_object_cb(self):
+        self.world_object = rospy.Subscriber(
+            "/spot/world_objects", WorldObjectArray, self.world_object_cb
+        )
+
+        counter = 0
+        while not rospy.is_shutdown() and counter < 10:
+            time.sleep(1)
+            counter += 1
+
+        # Check that we got all the data
+        self.assertTrue("world_object" in self.data, "World object is empty")
+
+        # Check that the data is valid
+        self.check_world_object(self.data["world_object"])
+
+
 class TestServiceHandlers(unittest.TestCase):
     def call_service(self, service_name, *args, **kwargs):
         # Call a service and wait for it to be available
@@ -1158,6 +1186,7 @@ class TestSuiteSpotROS(unittest.TestSuite):
         self.addTest(self.loader.loadTestsFromTestCase(TestLeaseCB))
         self.addTest(self.loader.loadTestsFromTestCase(TestHandImageCB))
         self.addTest(self.loader.loadTestsFromTestCase(TestPointCloudCB))
+        self.addTest(self.loader.loadTestsFromTestCase(TestWorldObjectCB))
         self.addTest(self.loader.loadTestsFromTestCase(TestServiceHandlers))
         self.addTest(self.loader.loadTestsFromTestCase(TestActionHandlers))
 
@@ -1167,13 +1196,13 @@ if __name__ == "__main__":
     import rosunit
 
     rospy.init_node(NAME, anonymous=True)
-
     rosunit.unitrun(PKG, NAME, TestRobotStateCB)
     rosunit.unitrun(PKG, NAME, TestMetricsCB)
     rosunit.unitrun(PKG, NAME, TestLeaseCB)
     rosunit.unitrun(PKG, NAME, TestHandImageCB)
     rosunit.unitrun(PKG, NAME, TestPointCloudCB)
+    rosunit.unitrun(PKG, NAME, TestWorldObjectCB)
     rosunit.unitrun(PKG, NAME, TestServiceHandlers)
     rosunit.unitrun(PKG, NAME, TestActionHandlers)
-
+    rosunit.unitrun(PKG, NAME, TestWorldObjectCB)
     print("Tests complete!")

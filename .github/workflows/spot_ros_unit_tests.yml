@@ -23,7 +23,7 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/catkin_ws/src
 
       # Check out the code
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           path: catkin_ws/src/spot_ros
 
@@ -32,7 +32,7 @@ jobs:
           ls $GITHUB_WORKSPACE/catkin_ws/src
           ls $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
 
-      # Install the Turtlebot and Gazebo packages
+      # Install the required packages
       - name: Install dependencies (minus qttools)
         run: |
           sudo apt-get update && \

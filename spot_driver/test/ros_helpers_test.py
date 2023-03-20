@@ -3,14 +3,29 @@ PKG = "ros_helpers"
 NAME = "ros_helpers_test"
 SUITE = "ros_helpers_test.TestSuiteROSHelpers"
 
+import pickle
 import unittest
 import rospy
 
 from geometry_msgs.msg import Transform
 from spot_msgs.msg import FootState, FootStateArray
+from spot_msgs.msg import (
+    FrameTreeSnapshot,
+    AprilTagProperties,
+    ImageProperties,
+    ImageSource,
+    WorldObject,
+    WorldObjectArray,
+)
 
 from google.protobuf import wrappers_pb2, timestamp_pb2, duration_pb2
-from bosdyn.api import image_pb2, geometry_pb2, robot_state_pb2, point_cloud_pb2
+from bosdyn.api import (
+    image_pb2,
+    geometry_pb2,
+    robot_state_pb2,
+    point_cloud_pb2,
+    world_object_pb2,
+)
 from bosdyn.api.docking import docking_pb2
 from bosdyn.client.spot_check import spot_check_pb2
 from bosdyn.client.frame_helpers import (
@@ -46,7 +61,7 @@ class TestPopulateTransformStamped(unittest.TestCase):
         transform.rotation.z = 6.0
         transform.rotation.w = 7.0
 
-        current_time = rospy.Time.now()
+        current_time = rospy.Time(5, 6)
         transform_stamped = ros_helpers.populateTransformStamped(
             current_time, "parent_frame", "child_frame", transform
         )
@@ -61,7 +76,7 @@ class TestGetImageMsg(unittest.TestCase):
     def test_get_image_msg(self):
         spot_wrapper = TestSpotWrapper()
 
-        # Test getImageMsg with a valid image
+        # Test GetImageMsg with a valid image
         image_response = image_pb2.ImageResponse()
         image_response.shot.image.data = b"test"
         image_response.shot.image.cols = 640
@@ -70,7 +85,7 @@ class TestGetImageMsg(unittest.TestCase):
         image_response.shot.image.pixel_format = image_pb2.Image.PIXEL_FORMAT_RGB_U8
         image_response.shot.frame_name_image_sensor = "frontleft_fisheye_image"
 
-        image, camera_info = ros_helpers.getImageMsg(image_response, spot_wrapper)
+        image, camera_info = ros_helpers.GetImageMsg(image_response, spot_wrapper)
         self.assertEqual(image.cols, 640)
         self.assertEqual(image.rows, 480)
         self.assertEqual(image.pixel_format, 3)
@@ -415,7 +430,7 @@ class TestGenerateFeetTF(unittest.TestCase):
                 ),
             ]
         )
-        tf_message = ros_helpers.GenerateFeetTF(foot_state_msg)
+        tf_message = ros_helpers.GenerateFeetTF(foot_state_msg, rospy.Time(4, 5))
         self.assertEqual(len(tf_message.transforms), 4)
         self.assertEqual(tf_message.transforms[0].transform.translation.x, 1.0)
         self.assertEqual(tf_message.transforms[0].transform.translation.y, 2.0)
@@ -1015,7 +1030,7 @@ class TestGetSpotCheckResultsMsg(unittest.TestCase):
 
 
 class TestGetPointCloudMsg(unittest.TestCase):
-    def test_point_cloud_msg(self) -> None:
+    def test_point_cloud_msg(self):
         # Create TestSpotWrapper
         spot_wrapper = TestSpotWrapper()
 
@@ -1067,10 +1082,500 @@ class TestGetPointCloudMsg(unittest.TestCase):
         self.assertEqual(point_cloud_msg.is_dense, True)
 
 
+class TestGetFrameTreeSnapshotMsg(unittest.TestCase):
+    def test_get_frame_tree_snapshot_msg(self):
+        # Create FrameTreeSnapshot data
+        data = geometry_pb2.FrameTreeSnapshot()
+        child_parent_map = {
+            "sensor": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                parent_frame_name="body",
+                parent_tform_child=geometry_pb2.SE3Pose(
+                    position=geometry_pb2.Vec3(x=1.0, y=2.0, z=3.0),
+                    rotation=geometry_pb2.Quaternion(x=7.0, y=8.0, z=9.0, w=1.0),
+                ),
+            ),
+            "eap": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                parent_frame_name="body",
+                parent_tform_child=geometry_pb2.SE3Pose(
+                    position=geometry_pb2.Vec3(x=4.0, y=5.0, z=6.0),
+                    rotation=geometry_pb2.Quaternion(x=10.0, y=11.0, z=12.0, w=13.0),
+                ),
+            ),
+        }
+        data.child_to_parent_edge_map["eap"].CopyFrom(child_parent_map["eap"])
+        data.child_to_parent_edge_map["sensor"].CopyFrom(child_parent_map["sensor"])
+
+        # Create a frame tree snapshot message
+        frame_tree_snapshot_msg: FrameTreeSnapshot = (
+            ros_helpers.GetFrameTreeSnapshotMsg(data)
+        )
+
+        # Check that the frame tree snapshot message is correctly populated
+        self.assertEqual(frame_tree_snapshot_msg.child_edges[0], "sensor")
+        self.assertEqual(frame_tree_snapshot_msg.child_edges[1], "eap")
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[0].parent_frame_name, "body"
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[0].parent_tform_child.position.x, 1.0
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[0].parent_tform_child.position.y, 2.0
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[0].parent_tform_child.position.z, 3.0
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[0].parent_tform_child.orientation.x,
+            7.0,
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[0].parent_tform_child.orientation.y,
+            8.0,
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[0].parent_tform_child.orientation.z,
+            9.0,
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[0].parent_tform_child.orientation.w,
+            1.0,
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[1].parent_frame_name, "body"
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[1].parent_tform_child.position.x, 4.0
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[1].parent_tform_child.position.y, 5.0
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[1].parent_tform_child.position.z, 6.0
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[1].parent_tform_child.orientation.x,
+            10.0,
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[1].parent_tform_child.orientation.y,
+            11.0,
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[1].parent_tform_child.orientation.z,
+            12.0,
+        )
+        self.assertEqual(
+            frame_tree_snapshot_msg.parent_edges[1].parent_tform_child.orientation.w,
+            13.0,
+        )
+
+
+class TestGetAprilTagPropertiesMsg(unittest.TestCase):
+    def test_get_apriltag_properties_msg(self):
+        # Create AprilTagProperties data
+        data = world_object_pb2.AprilTagProperties()
+        data.tag_id = 1
+        data.dimensions.x = 2.0
+        data.dimensions.y = 3.0
+        data.frame_name_fiducial = "AprilTag20"
+        data.fiducial_pose_status = world_object_pb2.AprilTagProperties.STATUS_OK
+        data.frame_name_fiducial_filtered = "AprilTag20_filtered"
+        data.fiducial_filtered_pose_status = (
+            world_object_pb2.AprilTagProperties.STATUS_OK
+        )
+        data.frame_name_camera = "frontleft_fisheye_image"
+        data.detection_covariance.CopyFrom(
+            geometry_pb2.SE3Covariance(
+                matrix=geometry_pb2.Matrix(
+                    rows=6,
+                    cols=6,
+                    values=[float(i) for i in range(36)],
+                )
+            )
+        )
+        data.detection_covariance_reference_frame = "frontleft_fisheye_image"
+
+        # Create an AprilTagProperties message
+        apriltag_properties_msg: AprilTagProperties = (
+            ros_helpers.GetAprilTagPropertiesMsg(data)
+        )
+
+        # Check that the AprilTagProperties message is correctly populated
+        self.assertEqual(apriltag_properties_msg.tag_id, 1)
+        self.assertEqual(apriltag_properties_msg.x, 2.0)
+        self.assertEqual(apriltag_properties_msg.y, 3.0)
+        self.assertEqual(apriltag_properties_msg.frame_name_fiducial, "AprilTag20")
+        self.assertEqual(
+            apriltag_properties_msg.fiducial_pose_status,
+            AprilTagProperties.STATUS_OK,
+        )
+        self.assertEqual(
+            apriltag_properties_msg.frame_name_fiducial_filtered,
+            "AprilTag20_filtered",
+        )
+        self.assertEqual(
+            apriltag_properties_msg.fiducial_filtered_pose_status,
+            AprilTagProperties.STATUS_OK,
+        )
+        self.assertEqual(
+            apriltag_properties_msg.frame_name_camera,
+            "frontleft_fisheye_image",
+        )
+        self.assertEqual(
+            apriltag_properties_msg.detection_covariance.covariance,
+            [float(i) for i in range(36)],
+        )
+        self.assertEqual(
+            apriltag_properties_msg.detection_covariance_reference_frame,
+            "frontleft_fisheye_image",
+        )
+
+
+class TestGetImagePropertiesMsg(unittest.TestCase):
+    def test_get_image_properties_msg(self):
+        # Create TestSpotWrapper
+        spot_wrapper = TestSpotWrapper()
+
+        # Create ImageProperties data
+        data = world_object_pb2.ImageProperties()
+        data.camera_source = "frontleft"
+        data.coordinates.CopyFrom(
+            geometry_pb2.Polygon(
+                vertexes=[
+                    geometry_pb2.Vec2(x=1.0, y=2.0),
+                    geometry_pb2.Vec2(x=3.0, y=4.0),
+                ]
+            )
+        )
+        data.image_source.CopyFrom(
+            image_pb2.ImageSource(
+                name="frontleft_fisheye_image",
+                cols=640,
+                rows=480,
+                depth_scale=1.0,
+                pinhole=image_pb2.ImageSource.PinholeModel(
+                    intrinsics=image_pb2.ImageSource.PinholeModel.CameraIntrinsics(
+                        focal_length=geometry_pb2.Vec2(x=1.0, y=2.0),
+                        principal_point=geometry_pb2.Vec2(x=3.0, y=4.0),
+                        skew=geometry_pb2.Vec2(x=5.0, y=6.0),
+                    )
+                ),
+                image_type=image_pb2.ImageSource.IMAGE_TYPE_VISUAL,
+                pixel_formats=[image_pb2.Image.PIXEL_FORMAT_RGB_U8],
+                image_formats=[image_pb2.Image.FORMAT_RAW],
+            )
+        )
+
+        data.image_capture.CopyFrom(
+            image_pb2.ImageCapture(
+                acquisition_time=timestamp_pb2.Timestamp(seconds=1, nanos=2),
+                transforms_snapshot=geometry_pb2.FrameTreeSnapshot(),
+                frame_name_image_sensor="frontleft_fisheye_image",
+                image=image_pb2.Image(
+                    cols=640,
+                    rows=480,
+                    data=b"image_data",
+                    format=image_pb2.Image.FORMAT_RAW,
+                    pixel_format=image_pb2.Image.PIXEL_FORMAT_RGB_U8,
+                ),
+                capture_params=image_pb2.CaptureParameters(
+                    exposure_duration=duration_pb2.Duration(seconds=1, nanos=2),
+                    gain=3.0,
+                ),
+            )
+        )
+        data.frame_name_image_coordinates = "frontleft"
+
+        # Create an ImageProperties message
+        image_properties_msg: ImageProperties = ros_helpers.GetImagePropertiesMsg(
+            data, spot_wrapper
+        )
+
+        # Check that the ImageProperties message is correctly populated
+        self.assertEqual(image_properties_msg.camera_source, "frontleft")
+        self.assertEqual(image_properties_msg.image_data_coordinates.points[0].x, 1.0)
+        self.assertEqual(image_properties_msg.image_data_coordinates.points[0].y, 2.0)
+        self.assertEqual(image_properties_msg.image_data_coordinates.points[1].x, 3.0)
+        self.assertEqual(image_properties_msg.image_data_coordinates.points[1].y, 4.0)
+        self.assertEqual(
+            image_properties_msg.image_source.name, "frontleft_fisheye_image"
+        )
+        self.assertEqual(image_properties_msg.image_source.cols, 640)
+        self.assertEqual(image_properties_msg.image_source.rows, 480)
+        self.assertEqual(image_properties_msg.image_source.depth_scale, 1.0)
+        self.assertEqual(image_properties_msg.image_source.focal_length_x, 1.0)
+        self.assertEqual(image_properties_msg.image_source.focal_length_y, 2.0)
+        self.assertEqual(image_properties_msg.image_source.principal_point_x, 3.0)
+        self.assertEqual(image_properties_msg.image_source.principal_point_y, 4.0)
+        self.assertEqual(image_properties_msg.image_source.skew_x, 5.0)
+        self.assertEqual(image_properties_msg.image_source.skew_y, 6.0)
+        self.assertEqual(
+            image_properties_msg.image_source.image_type,
+            ImageSource.IMAGE_TYPE_VISUAL,
+        )
+        self.assertEqual(
+            image_properties_msg.image_source.pixel_formats[0],
+            ImageSource.PIXEL_FORMAT_RGB_U8,
+        )
+        self.assertEqual(
+            image_properties_msg.image_source.image_formats[0],
+            ImageSource.FORMAT_RAW,
+        )
+
+        self.assertEqual(image_properties_msg.image_capture.acquisition_time.secs, 1)
+        self.assertEqual(image_properties_msg.image_capture.acquisition_time.nsecs, 2)
+        self.assertEqual(
+            image_properties_msg.image_capture.frame_name_image_sensor,
+            "frontleft_fisheye_image",
+        )
+        self.assertEqual(image_properties_msg.image_capture.image.height, 480)
+        self.assertEqual(image_properties_msg.image_capture.image.width, 640)
+        self.assertEqual(image_properties_msg.image_capture.image.data, b"image_data")
+        self.assertEqual(
+            image_properties_msg.image_capture.image.encoding,
+            "rgb8",
+        )
+        self.assertEqual(
+            image_properties_msg.image_capture.capture_exposure_duration.secs, 1.0
+        )
+        self.assertEqual(
+            image_properties_msg.image_capture.capture_exposure_duration.nsecs, 2.0
+        )
+        self.assertEqual(image_properties_msg.image_capture.capture_sensor_gain, 3.0)
+
+        self.assertEqual(image_properties_msg.frame_name_image_coordinates, "frontleft")
+
+
+class TestGetWorldObjectsMsg(unittest.TestCase):
+    def test_get_world_objects_msg(self):
+        # Create a TestSpotWrapper
+        spot_wrapper = TestSpotWrapper()
+
+        # Create world_object_pb2.ListWorldObjectResponse test data, similar to real data
+        data = world_object_pb2.ListWorldObjectResponse()
+
+        world_object = world_object_pb2.WorldObject(
+            id=1,
+            name="world_obj_apriltag_350",
+            acquisition_time=timestamp_pb2.Timestamp(
+                seconds=1678806362, nanos=176319408
+            ),
+            transforms_snapshot=geometry_pb2.FrameTreeSnapshot(
+                child_to_parent_edge_map={
+                    "vision": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="body",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            position=geometry_pb2.Vec3(x=-8.0, y=-24.0, z=-0.5),
+                            rotation=geometry_pb2.Quaternion(
+                                x=0.0, y=0.0, z=-1.0, w=1.0
+                            ),
+                        ),
+                    ),
+                    "odom": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="body",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            position=geometry_pb2.Vec3(x=-7.0, y=-25.0, z=0.0),
+                            rotation=geometry_pb2.Quaternion(
+                                x=-1.5, y=0.0, z=0.8, w=0.5
+                            ),
+                        ),
+                    ),
+                    "filtered_fiducial_350": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="vision",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            position=geometry_pb2.Vec3(x=-11.0, y=-24.0, z=0.45),
+                            rotation=geometry_pb2.Quaternion(
+                                x=0.47, y=0.50, z=0.51, w=-0.46
+                            ),
+                        ),
+                    ),
+                    "fiducial_350": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="vision",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            position=geometry_pb2.Vec3(x=0.27, y=-0.2, z=0.61),
+                            rotation=geometry_pb2.Quaternion(
+                                x=0.73, y=-0.66, z=0.0, w=-0.11
+                            ),
+                        ),
+                    ),
+                    "body": geometry_pb2.FrameTreeSnapshot.ParentEdge(
+                        parent_frame_name="",
+                        parent_tform_child=geometry_pb2.SE3Pose(
+                            rotation=geometry_pb2.Quaternion(
+                                x=0.0, y=0.0, z=0.0, w=1.0
+                            ),
+                        ),
+                    ),
+                }
+            ),
+            apriltag_properties=world_object_pb2.AprilTagProperties(
+                tag_id=350,
+                dimensions=geometry_pb2.Vec2(x=0.16, y=0.16),
+                frame_name_fiducial="fiducial_350",
+                fiducial_pose_status=world_object_pb2.AprilTagProperties.STATUS_OK,
+                frame_name_fiducial_filtered="filtered_fiducial_350",
+                fiducial_filtered_pose_status=world_object_pb2.AprilTagProperties.STATUS_OK,
+                frame_name_camera="left",
+                detection_covariance=geometry_pb2.SE3Covariance(
+                    matrix=geometry_pb2.Matrix(
+                        rows=6,
+                        cols=6,
+                        values=[
+                            0.0,
+                            0.0,
+                            -3.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.1,
+                            -9.5,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -9.7,
+                            0.0,
+                            0.0,
+                            -3.0,
+                            1.1,
+                            -9.7,
+                            8.4,
+                            -4.4,
+                            0.0,
+                            0.0,
+                            -9.5,
+                            0.0,
+                            0.0,
+                            -4.4,
+                            0.0,
+                            0.0,
+                            8.4,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                        ],
+                    )
+                ),
+                detection_covariance_reference_frame="vision",
+            ),
+            image_properties=world_object_pb2.ImageProperties(
+                camera_source="left",
+                coordinates=geometry_pb2.Polygon(
+                    vertexes=[
+                        geometry_pb2.Vec2(x=19.3, y=285.3),
+                        geometry_pb2.Vec2(x=26.2, y=336.1),
+                        geometry_pb2.Vec2(x=79.5, y=323.8),
+                        geometry_pb2.Vec2(x=74.5, y=247.8),
+                    ]
+                ),
+            ),
+            dock_properties=world_object_pb2.DockProperties(
+                dock_id=50,
+                type=docking_pb2.DOCK_TYPE_SPOT_DOCK,
+                frame_name_dock="dock",
+                unavailable=False,
+                from_prior=True,
+            ),
+            ray_properties=world_object_pb2.RayProperties(
+                frame="body",
+                ray=geometry_pb2.Ray(
+                    origin=geometry_pb2.Vec3(x=1.0, y=2.0, z=3.0),
+                    direction=geometry_pb2.Vec3(x=4.0, y=5.0, z=6.0),
+                ),
+            ),
+            bounding_box_properties=world_object_pb2.BoundingBoxProperties(
+                frame="body",
+                size_ewrt_frame=geometry_pb2.Vec3(x=1.0, y=2.0, z=3.0),
+            ),
+        )
+        data.world_objects.append(world_object)
+
+        # Create a WorldObjects message
+        world_objects_msg: WorldObjectArray = ros_helpers.GetWorldObjectsMsg(
+            data, spot_wrapper
+        )
+
+        self.assertEqual(len(world_objects_msg.world_objects), 1)
+
+        # Check that the WorldObject is correct according to the above test data
+        msg_world_obj: WorldObject = world_objects_msg.world_objects[0]
+        self.assertEqual(msg_world_obj.id, 1)
+        self.assertEqual(msg_world_obj.name, "world_obj_apriltag_350")
+
+        # Check that the AprilTagProperties are correct
+        msg_apriltag_props: AprilTagProperties = msg_world_obj.apriltag_properties
+        self.assertEqual(msg_apriltag_props.tag_id, 350)
+        self.assertEqual(msg_apriltag_props.x, 0.16)
+        self.assertEqual(msg_apriltag_props.y, 0.16)
+        self.assertEqual(msg_apriltag_props.frame_name_fiducial, "fiducial_350")
+        self.assertEqual(
+            msg_apriltag_props.fiducial_pose_status, AprilTagProperties.STATUS_OK
+        )
+        self.assertEqual(
+            msg_apriltag_props.frame_name_fiducial_filtered, "filtered_fiducial_350"
+        )
+        self.assertEqual(
+            msg_apriltag_props.fiducial_filtered_pose_status,
+            AprilTagProperties.STATUS_OK,
+        )
+        self.assertEqual(msg_apriltag_props.frame_name_camera, "left")
+        self.assertEqual(len(msg_apriltag_props.detection_covariance.covariance), 36)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[0], 0.0)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[2], -3.0)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[9], -9.5)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[14], -9.7)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[18], 1.1)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[21], -4.4)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[24], -9.5)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[27], -4.4)
+        self.assertEqual(msg_apriltag_props.detection_covariance.covariance[30], 8.4)
+        self.assertEqual(
+            msg_apriltag_props.detection_covariance_reference_frame, "vision"
+        )
+
+        # Check that the ImageProperties are correct
+        msg_image_props: ImageProperties = msg_world_obj.image_properties
+        self.assertEqual(msg_image_props.camera_source, "left")
+        self.assertEqual(msg_image_props.image_data_coordinates.points[0].x, 19.3)
+        self.assertEqual(msg_image_props.image_data_coordinates.points[0].y, 285.3)
+        self.assertEqual(msg_image_props.image_data_coordinates.points[1].x, 26.2)
+        self.assertEqual(msg_image_props.image_data_coordinates.points[1].y, 336.1)
+        self.assertEqual(msg_image_props.image_data_coordinates.points[2].x, 79.5)
+        self.assertEqual(msg_image_props.image_data_coordinates.points[2].y, 323.8)
+        self.assertEqual(msg_image_props.image_data_coordinates.points[3].x, 74.5)
+        self.assertEqual(msg_image_props.image_data_coordinates.points[3].y, 247.8)
+
+        # Check that the DockProperties are correct
+        self.assertEqual(msg_world_obj.dock_id, 50)
+        self.assertEqual(msg_world_obj.dock_type, docking_pb2.DOCK_TYPE_SPOT_DOCK)
+        self.assertEqual(msg_world_obj.frame_name_dock, "dock")
+        self.assertEqual(msg_world_obj.dock_unavailable, False)
+        self.assertEqual(msg_world_obj.from_prior_detection, True)
+
+        # Check that the RayProperties are correct
+        self.assertEqual(msg_world_obj.ray_frame, "body")
+        self.assertEqual(msg_world_obj.ray_origin.x, 1.0)
+        self.assertEqual(msg_world_obj.ray_origin.y, 2.0)
+        self.assertEqual(msg_world_obj.ray_origin.z, 3.0)
+        self.assertEqual(msg_world_obj.ray_direction.x, 4.0)
+        self.assertEqual(msg_world_obj.ray_direction.y, 5.0)
+        self.assertEqual(msg_world_obj.ray_direction.z, 6.0)
+
+        # Check that the PoseProperties are correct
+        self.assertEqual(msg_world_obj.bounding_box_frame, "body")
+        self.assertEqual(msg_world_obj.bounding_box_size_ewrt_frame.x, 1.0)
+        self.assertEqual(msg_world_obj.bounding_box_size_ewrt_frame.y, 2.0)
+        self.assertEqual(msg_world_obj.bounding_box_size_ewrt_frame.z, 3.0)
+
+
 class TestSuiteROSHelpers(unittest.TestSuite):
-    def __init__(self) -> None:
+    def __init__(self):
         super(TestSuiteROSHelpers, self).__init__()
-        rospy.init_node("ros_helpers_test")
         self.loader = unittest.TestLoader()
         self.addTest(self.loader.loadTestsFromTestCase(TestPopulateTransformStamped))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetImageMsg))
@@ -1091,13 +1596,15 @@ class TestSuiteROSHelpers(unittest.TestSuite):
         self.addTest(self.loader.loadTestsFromTestCase(TestGetSystemFaultsFromState))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetSpotCheckResultsMsg))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetPointCloudMsg))
+        self.addTest(self.loader.loadTestsFromTestCase(TestGetFrameTreeSnapshotMsg))
+        self.addTest(self.loader.loadTestsFromTestCase(TestGetAprilTagPropertiesMsg))
+        self.addTest(self.loader.loadTestsFromTestCase(TestGetImagePropertiesMsg))
+        self.addTest(self.loader.loadTestsFromTestCase(TestGetWorldObjectsMsg))
 
 
 if __name__ == "__main__":
     print("Starting tests!")
     import rosunit
-
-    rospy.init_node("ros_helpers_test")
 
     rosunit.unitrun(PKG, NAME, TestPopulateTransformStamped)
     rosunit.unitrun(PKG, NAME, TestGetImageMsg)
@@ -1118,5 +1625,9 @@ if __name__ == "__main__":
     rosunit.unitrun(PKG, NAME, TestGetSystemFaultsFromState)
     rosunit.unitrun(PKG, NAME, TestGetSpotCheckResultsMsg)
     rosunit.unitrun(PKG, NAME, TestGetPointCloudMsg)
+    rosunit.unitrun(PKG, NAME, TestGetFrameTreeSnapshotMsg)
+    rosunit.unitrun(PKG, NAME, TestGetAprilTagPropertiesMsg)
+    rosunit.unitrun(PKG, NAME, TestGetImagePropertiesMsg)
+    rosunit.unitrun(PKG, NAME, TestGetWorldObjectsMsg)
 
     print("Tests complete!")
