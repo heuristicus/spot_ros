@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Configuring the ROS Driver &mdash; Spot ROS User Documentation 0.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <title>Driver configuration &mdash; Spot ROS User Documentation 0.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
@@ -16,8 +16,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Spot ROS Driver Usage" href="ros_usage.html" />
-    <link rel="prev" title="Spot Platform Configuration" href="robot_setup.html" /> 
+    <link rel="next" title="Basic Driver Usage" href="ros_usage.html" />
+    <link rel="prev" title="Computer Setup" href="ros_setup.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -40,10 +40,16 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption"><span class="caption-text">Contents</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Spot ROS Computer Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Spot Platform Configuration</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuring the ROS Driver</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Spot ROS Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Robot Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Computer Setup</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Driver configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#rate-parameters">Rate parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#startup-parameters">Startup parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#environment-variables">Environment variables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arm_usage.html">Arm control</a></li>
 </ul>
 
         </div>
@@ -60,7 +66,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Configuring the ROS Driver</li>
+      <li>Driver configuration</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/driver_configuration.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -70,10 +76,19 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="configuring-the-ros-driver">
-<h1>Configuring the ROS Driver<a class="headerlink" href="#configuring-the-ros-driver" title="Permalink to this headline">¶</a></h1>
-<p>There are some basic settings that can be configured to control how the driver runs and at what rate it obtains data.  Data that is more important for your applicaiton can be obtained at a higher rate.</p>
+  <div class="section" id="driver-configuration">
+<h1>Driver configuration<a class="headerlink" href="#driver-configuration" title="Permalink to this headline">¶</a></h1>
+<p>There are some basic settings that can be configured to control how the driver runs and at what rate it obtains data.
+Data that is more important for your applications can be obtained at a higher rate.</p>
 <p>The default configuration file is located at <code class="docutils literal notranslate"><span class="pre">spot_driver/config/spot_ros.yaml</span></code></p>
+<div class="section" id="rate-parameters">
+<h2>Rate parameters<a class="headerlink" href="#rate-parameters" title="Permalink to this headline">¶</a></h2>
+<p>These parameters control the rate of various callbacks and loops in the driver.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">These rates are requests and not guarantees. The rate may vary depending on your network configuration and other
+factors.</p>
+</div>
 <table border="1" class="docutils">
 <colgroup>
 <col width="23%" />
@@ -86,22 +101,57 @@
 </thead>
 <tbody valign="top">
 <tr class="row-even"><td>rates/robot_state</td>
-<td>The rate in Hz to obtain the robot’s state (include joint angles)</td>
+<td>The robot’s state (include joint angles)</td>
 </tr>
 <tr class="row-odd"><td>rates/metrics</td>
-<td>The rate in Hz to obtain the robot’s metrics</td>
+<td>The robot’s metrics</td>
 </tr>
 <tr class="row-even"><td>rates/lease</td>
-<td>The rate in Hz to obtain the robot’s lease state</td>
+<td>The robot’s lease state</td>
 </tr>
 <tr class="row-odd"><td>rates/front_image</td>
-<td>The rate in Hz to obtain the image and depth image from the front camera</td>
+<td>The image and depth image from the front camera</td>
 </tr>
 <tr class="row-even"><td>rates/side_image</td>
-<td>The rate in Hz to obtain the image and depth image from the side cameras</td>
+<td>The image and depth image from the side cameras</td>
 </tr>
-<tr class="row-odd"><td>rates/rear_image</td>
-<td>The rate in Hz to obtain the image and depth image from the rear camera</td>
+<tr class="row-odd"><td>rates/loop_frequency</td>
+<td>The image and depth image from the rear camera</td>
+</tr>
+<tr class="row-even"><td>rates/point_cloud</td>
+<td>The point cloud from the EAP lidar</td>
+</tr>
+<tr class="row-odd"><td>rates/hand_image</td>
+<td>The image and depth image from the arm’s hand camera</td>
+</tr>
+<tr class="row-even"><td>rates/feedback</td>
+<td>A feedback message with various information</td>
+</tr>
+<tr class="row-odd"><td>rates/mobility_params</td>
+<td>Parameters indicating the robot’s mobility state</td>
+</tr>
+<tr class="row-even"><td>rates/check_subscribers</td>
+<td>Check for subscribers on camera topics. Data is not published without subscribers</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="startup-parameters">
+<h2>Startup parameters<a class="headerlink" href="#startup-parameters" title="Permalink to this headline">¶</a></h2>
+<p>There are several parameters which can be used to automatically do certain actions when the driver starts.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Having the robot power its motors and stand after the driver connects is a physical action is inherently dangerous.
+Consider whether you need these settings, and ensure the area is clear before starting the driver.</p>
+</div>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Description</td>
 </tr>
 <tr class="row-even"><td>auto_claim</td>
 <td>A boolean to automatically claim the body and e stop when the driver connects</td>
@@ -114,9 +164,42 @@
 </tr>
 </tbody>
 </table>
-<div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">Having the robot power its motors and stand after the driver connects is a physical action and has inherent danger.  Make sure to use these settings with cuation and ensure the area is clear before starting the driver</p>
+</div>
+<div class="section" id="environment-variables">
+<h2>Environment variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline">¶</a></h2>
+<p>Some environment variables can modify the behaviour or configuration of the driver.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="25%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Variable</th>
+<th class="head">Default Value</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>SPOT_VELODYNE_HOST</td>
+<td>192.168.131.20</td>
+<td>IP address of the VLP-16 sensor</td>
+</tr>
+<tr class="row-odd"><td>SPOT_JOY_DEVICE</td>
+<td>/dev/input/js0</td>
+<td>The Linux joypad input device used by the joy_teleop node</td>
+</tr>
+<tr class="row-even"><td>SPOT_JOY_CONFIG</td>
+<td>spot_control/config/teleop.yaml</td>
+<td>Joypad button/axis configuration file for joy_teleop</td>
+</tr>
+<tr class="row-odd"><td>SPOT_VELODYNE_AUTOLAUNCH</td>
+<td>1</td>
+<td>If 1 and SPOT_VELODYNE is also 1, the VLP16 ROS node will start
+automatically</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 
@@ -124,14 +207,14 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="robot_setup.html" class="btn btn-neutral float-left" title="Spot Platform Configuration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ros_usage.html" class="btn btn-neutral float-right" title="Spot ROS Driver Usage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ros_setup.html" class="btn btn-neutral float-left" title="Computer Setup" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ros_usage.html" class="btn btn-neutral float-right" title="Basic Driver Usage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2020, Clearpath Robotics.</p>
+    <p>&#169; Copyright 2020, Clearpath Robotics, 2023 Oxford Robotics Institute.</p>
   </div>
 
    
