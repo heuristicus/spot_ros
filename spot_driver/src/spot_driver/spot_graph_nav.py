@@ -14,7 +14,6 @@ from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
 from bosdyn.api.graph_nav import nav_pb2
 from bosdyn.api.graph_nav import map_processing_pb2
-from bosdyn.api.graph_nav import recording_pb2
 
 from google.protobuf import wrappers_pb2
 
@@ -109,10 +108,20 @@ class SpotGraphNav:
     def navigate_to_existing_waypoint(self, waypoint_id: str):
         """Navigate to an existing waypoint.
         Args:
-            waypoint_id : Waypoint id string for where to goal
+            waypoint_id : Waypoint id string for where to go
         """
         self._get_localization_state()
         resp = self._navigate_to(waypoint_id)
+        return resp
+
+    def navigate_through_route(self, waypoint_ids: typing.List[str]):
+        """
+        Args:
+            waypoint_ids: List[str] of waypoints to follow
+        """
+        self._get_localization_state()
+        self._logger.info(f"Waypoint ids: {','.join(waypoint_ids)}")
+        resp = self._navigate_route(waypoint_ids)
         return resp
 
     def download_navigation_graph(self, download_path: str) -> typing.List[str]:
@@ -363,7 +372,7 @@ class SpotGraphNav:
                 "Upload complete! The robot is currently not localized to the map; please localize the robot using a fiducial before attempting a navigation command."
             )
 
-    def _navigate_to(self, waypoint_id: str):
+    def _navigate_to(self, waypoint_id: str) -> typing.Tuple[bool, str]:
         """Navigate to a specific waypoint."""
         self._lease = self._lease_wallet.get_lease()
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
@@ -426,8 +435,12 @@ class SpotGraphNav:
         else:
             return False, "Navigation command is not complete yet."
 
-    def _navigate_route(self, waypoint_ids: typing.List[str]):
-        """Navigate through a specific route of waypoints."""
+    def _navigate_route(
+        self, waypoint_ids: typing.List[str]
+    ) -> typing.Tuple[bool, str]:
+        """Navigate through a specific route of waypoints.
+        Note that each waypoint must have an edge between them, aka be adjacent.
+        """
         for i in range(len(waypoint_ids)):
             waypoint_ids[i] = graph_nav_util.find_unique_waypoint_id(
                 waypoint_ids[i],
@@ -439,10 +452,9 @@ class SpotGraphNav:
                 self._logger.error(
                     "navigate_route: Failed to find the unique waypoint id."
                 )
-                return
+                return False, "Failed to find the unique waypoint id."
 
         edge_ids_list = []
-        all_edges_found = True
         # Attempt to find edges in the current graph that match the ordered waypoint pairs.
         # These are necessary to create a valid route.
         for i in range(len(waypoint_ids) - 1):
@@ -452,39 +464,38 @@ class SpotGraphNav:
             if edge_id is not None:
                 edge_ids_list.append(edge_id)
             else:
-                all_edges_found = False
                 self._logger.error(
                     f"Failed to find an edge between waypoints: {start_wp} and {end_wp}"
                 )
-                self._logger.error(
-                    "List the graph's waypoints and edges to ensure pairs of waypoints has an edge."
+                return (
+                    False,
+                    f"Failed to find an edge between waypoints: {start_wp} and {end_wp}",
                 )
-                break
 
-        self._lease = self._lease_wallet.get_lease()
-        if all_edges_found:
-            # Stop the lease keepalive and create a new sublease for graphnav.
-            self._lease = self._lease_wallet.advance()
-            sublease = self._lease.create_sublease()
-            self._lease_keepalive.shutdown()
+        # TODO remove: self._lease = self._lease_wallet.get_lease()
 
-            # Navigate a specific route.
-            route = self._graph_nav_client.build_route(waypoint_ids, edge_ids_list)
-            is_finished = False
-            while not is_finished:
-                # Issue the route command about twice a second such that it is easy to terminate the
-                # navigation command (with estop or killing the program).
-                nav_route_command_id = self._graph_nav_client.navigate_route(
-                    route, cmd_duration=1.0, leases=[sublease.lease_proto]
-                )
-                time.sleep(
-                    0.5
-                )  # Sleep for half a second to allow for command execution.
-                # Poll the robot for feedback to determine if the route is complete.
-                is_finished = self._check_success(nav_route_command_id)
+        # Stop the lease keepalive and create a new sublease for graphnav.
+        self._lease = self._lease_wallet.advance()
+        sublease = self._lease.create_sublease()
+        self._lease_keepalive.shutdown()
+
+        # Navigate a specific route.
+        route = self._graph_nav_client.build_route(waypoint_ids, edge_ids_list)
+        is_finished = False
+        while not is_finished:
+            # Issue the route command about twice a second such that it is easy to terminate the
+            # navigation command (with estop or killing the program).
+            nav_route_command_id = self._graph_nav_client.navigate_route(
+                route, cmd_duration=1.0, leases=[sublease.lease_proto]
+            )
+            time.sleep(0.5)  # Sleep for half a second to allow for command execution.
+            # Poll the robot for feedback to determine if the route is complete.
+            is_finished = self._check_success(nav_route_command_id)
 
             self._lease = self._lease_wallet.advance()
             self._lease_keepalive = LeaseKeepAlive(self._lease_client)
+
+        return True, "Finished navigating route!"
 
     def _clear_graph(self, *args) -> bool:
         """Clear the state of the map on the robot, removing all waypoints and edges."""

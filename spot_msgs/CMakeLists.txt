@@ -79,6 +79,7 @@ add_action_files(
   Dock.action
   NavigateInit.action
   NavigateTo.action
+  NavigateRoute.action
   PoseBody.action
   Trajectory.action
 )

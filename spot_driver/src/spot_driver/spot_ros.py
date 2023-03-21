@@ -54,6 +54,12 @@ from spot_msgs.msg import (
     NavigateInitGoal,
 )
 from spot_msgs.msg import (
+    NavigateRouteAction,
+    NavigateRouteResult,
+    NavigateRouteFeedback,
+    NavigateRouteGoal,
+)
+from spot_msgs.msg import (
     TrajectoryAction,
     TrajectoryResult,
     TrajectoryFeedback,
@@ -402,6 +408,10 @@ class SpotROS:
         if self.navigate_as.is_active():
             self.navigate_as.set_preempted(
                 NavigateToResult(success=False, message=message)
+            )
+        if self.navigate_route_as.is_active():
+            self.navigate_route_as.set_preempted(
+                NavigateRouteResult(success=False, message=message)
             )
         if self.trajectory_server.is_active():
             self.trajectory_server.set_preempted(
@@ -1155,8 +1165,8 @@ class SpotROS:
         return TriggerResponse(resp[0], resp[1])
 
     def handle_navigate_init_feedback(self):
-        """Thread function to send navigate_to feedback"""
-        while not rospy.is_shutdown() and self.run_navigate_to:
+        """Thread function to send navigate_init feedback"""
+        while not rospy.is_shutdown() and self.run_navigate_init:
             localization_state = (
                 self.spot_wrapper._graph_nav_client.get_localization_state()
             )
@@ -1168,7 +1178,9 @@ class SpotROS:
 
     def handle_navigate_init(self, msg: NavigateInitGoal):
         if not self.robot_allowed_to_move():
-            rospy.logerr("navigate_to was requested but robot is not allowed to move.")
+            rospy.logerr(
+                "navigate_init was requested but robot is not allowed to move."
+            )
             self.navigate_init_as.set_aborted(
                 NavigateInitResult(False, "Autonomy is not enabled")
             )
@@ -1178,7 +1190,7 @@ class SpotROS:
         feedback_thread = threading.Thread(
             target=self.handle_navigate_init_feedback, args=()
         )
-        self.run_navigate_to = True
+        self.run_navigate_init = True
         feedback_thread.start()
 
         # run navigate_init
@@ -1187,7 +1199,7 @@ class SpotROS:
             initial_localization_fiducial=msg.initial_localization_fiducial,
             initial_localization_waypoint=msg.initial_localization_waypoint,
         )
-        self.run_navigate_to = False
+        self.run_navigate_init = False
         feedback_thread.join()
 
         # check status
@@ -1235,6 +1247,48 @@ class SpotROS:
             self.navigate_as.set_succeeded(NavigateToResult(resp[0], resp[1]))
         else:
             self.navigate_as.set_aborted(NavigateToResult(resp[0], resp[1]))
+
+    def handle_navigate_route_feedback(self):
+        """Thread function to send navigate_route feedback"""
+        while not rospy.is_shutdown() and self.run_navigate_route:
+            localization_state = (
+                self.spot_wrapper._graph_nav_client.get_localization_state()
+            )
+            if localization_state.localization.waypoint_id:
+                self.navigate_route_as.publish_feedback(
+                    NavigateRouteFeedback(localization_state.localization.waypoint_id)
+                )
+            rospy.Rate(10).sleep()
+
+    def handle_navigate_route(self, msg: NavigateRouteGoal):
+        if not self.robot_allowed_to_move():
+            rospy.logerr(
+                "navigate_route was requested but robot is not allowed to move."
+            )
+            self.navigate_route_as.set_aborted(
+                NavigateRouteResult(False, "Autonomy is not enabled")
+            )
+            return
+
+        # create thread to periodically publish feedback
+        feedback_thread = threading.Thread(
+            target=self.handle_navigate_route_feedback, args=()
+        )
+        self.run_navigate_route = True
+        feedback_thread.start()
+
+        # run navigate_route
+        resp = self.spot_wrapper.spot_graph_nav.navigate_through_route(
+            waypoint_ids=list(msg.waypoint_ids),
+        )
+        self.run_navigate_route = False
+        feedback_thread.join()
+
+        # check status
+        if resp[0]:
+            self.navigate_route_as.set_succeeded(NavigateRouteResult(resp[0], resp[1]))
+        else:
+            self.navigate_route_as.set_aborted(NavigateRouteResult(resp[0], resp[1]))
 
     def populate_camera_static_transforms(self, image_data):
         """Check data received from one of the image tasks and use the transform snapshot to extract the camera frame
@@ -1840,6 +1894,14 @@ class SpotROS:
             auto_start=False,
         )
         self.navigate_as.start()
+
+        self.navigate_route_as = actionlib.SimpleActionServer(
+            "navigate_route",
+            NavigateRouteAction,
+            execute_cb=self.handle_navigate_route,
+            auto_start=False,
+        )
+        self.navigate_route_as.start()
 
         self.trajectory_server = actionlib.SimpleActionServer(
             "trajectory",
