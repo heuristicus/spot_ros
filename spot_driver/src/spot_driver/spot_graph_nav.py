@@ -472,8 +472,6 @@ class SpotGraphNav:
                     f"Failed to find an edge between waypoints: {start_wp} and {end_wp}",
                 )
 
-        # TODO remove: self._lease = self._lease_wallet.get_lease()
-
         # Stop the lease keepalive and create a new sublease for graphnav.
         self._lease = self._lease_wallet.advance()
         sublease = self._lease.create_sublease()
