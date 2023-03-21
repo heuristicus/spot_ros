@@ -2,17 +2,20 @@ import typing
 import logging
 import math
 import time
+import os
 
 from bosdyn.client.robot import Robot
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.lease import LeaseClient, LeaseWallet, LeaseKeepAlive
 from bosdyn.client.graph_nav import GraphNavClient
+from bosdyn.client.map_processing import MapProcessingServiceClient
 from bosdyn.client.frame_helpers import get_odom_tform_body
-from bosdyn.client.power import safe_power_off, power_on, PowerClient
-from bosdyn.client.robot_command import RobotCommandClient
 from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
 from bosdyn.api.graph_nav import nav_pb2
+from bosdyn.api.graph_nav import map_processing_pb2
+
+from google.protobuf import wrappers_pb2
 
 from . import graph_nav_util
 
@@ -28,12 +31,11 @@ class SpotGraphNav:
         self._robot = robot
         self._logger = logger
         self._graph_nav_client: GraphNavClient = robot_clients["graph_nav_client"]
-        self._robot_state_client: RobotStateClient = robot_clients["robot_state_client"]
-        self._robot_command_client: RobotCommandClient = robot_clients[
-            "robot_command_client"
+        self._map_processing_client: MapProcessingServiceClient = robot_clients[
+            "map_processing_client"
         ]
+        self._robot_state_client: RobotStateClient = robot_clients["robot_state_client"]
         self._lease_client: LeaseClient = robot_clients["lease_client"]
-        self._power_client: PowerClient = robot_clients["power_client"]
         self._lease_wallet: LeaseWallet = self._lease_client.lease_wallet
         self._robot_params = robot_params
 
@@ -44,13 +46,13 @@ class SpotGraphNav:
         self._current_edge_snapshots = dict()  # maps id to edge snapshot
         self._current_annotation_name_to_wp_id = dict()
 
-    def list_graph(self, upload_path: str) -> typing.List[str]:
-        """List waypoint ids of garph_nav
+    def list_graph(self) -> typing.List[str]:
+        """List waypoint ids of graph_nav
         Args:
           upload_path : Path to the root directory of the map.
         """
         ids, eds = self._list_graph_waypoint_and_edge_ids()
-        # skip waypoint_ for v2.2.1, skip waypiont for < v2.2
+
         return [
             v
             for k, v in sorted(
@@ -58,14 +60,13 @@ class SpotGraphNav:
             )
         ]
 
-    def navigate_to(
+    def navigate_initial_localization(
         self,
         upload_path: str,
-        navigate_to: str,
         initial_localization_fiducial: bool = True,
         initial_localization_waypoint: typing.Optional[str] = None,
     ):
-        """navigate with graph nav.
+        """Navigate with graphnav.
 
         Args:
            upload_path : Path to the root directory of the map.
@@ -74,7 +75,7 @@ class SpotGraphNav:
            initial_localization_waypoint : Waypoint id string of current robot position (optional)
         """
         # Filepath for uploading a saved graph's and snapshots too.
-        if upload_path[-1] == "/":
+        if upload_path and upload_path[-1] == "/":
             upload_filepath = upload_path[:-1]
         else:
             upload_filepath = upload_path
@@ -84,35 +85,72 @@ class SpotGraphNav:
         self._started_powered_on = power_state.motor_power_state == power_state.STATE_ON
         self._powered_on = self._started_powered_on
 
-        # TODO FIX ME somehow,,,, if the robot is stand, need to sit the robot before starting graph nav
-        if self._robot_params["is_standing"] and not self._robot_params["is_sitting"]:
-            raise Exception(
-                "Robot is standing, please sit the robot before starting graph nav"
+        # Claim lease, power on robot, start graphnav.
+        self._lease = self._lease_wallet.get_lease()
+        self._lease_keepalive = LeaseKeepAlive(self._lease_client)
+        if upload_filepath:
+            self._clear_graph()
+            self._upload_graph_and_snapshots(upload_filepath)
+        else:
+            self._download_current_graph()
+            self._logger.info(
+                "Re-using existing graph on robot. Check that the correct graph is loaded!"
             )
-
-        # TODO verify estop  / claim / power_on
-        self._clear_graph()
-        self._upload_graph_and_snapshots(upload_filepath)
         if initial_localization_fiducial:
             self._set_initial_localization_fiducial()
         if initial_localization_waypoint:
             self._set_initial_localization_waypoint([initial_localization_waypoint])
         self._list_graph_waypoint_and_edge_ids()
         self._get_localization_state()
-        resp = self._navigate_to([navigate_to])
 
+        return True, "Localization done!"
+
+    def navigate_to_existing_waypoint(self, waypoint_id: str):
+        """Navigate to an existing waypoint.
+        Args:
+            waypoint_id : Waypoint id string for where to go
+        """
+        self._get_localization_state()
+        resp = self._navigate_to(waypoint_id)
         return resp
+
+    def navigate_through_route(self, waypoint_ids: typing.List[str]):
+        """
+        Args:
+            waypoint_ids: List[str] of waypoints to follow
+        """
+        self._get_localization_state()
+        self._logger.info(f"Waypoint ids: {','.join(waypoint_ids)}")
+        resp = self._navigate_route(waypoint_ids)
+        return resp
+
+    def download_navigation_graph(self, download_path: str) -> typing.List[str]:
+        """Download the navigation graph.
+        Args:
+            download_path : Path to the root directory of the map.
+        """
+        self._download_filepath = download_path
+        self._download_full_graph()
+        return self.list_graph()
+
+    def navigation_close_loops(
+        self, close_fiducial_loops: bool, close_odometry_loops: bool
+    ) -> typing.Tuple[bool, str]:
+        return self._auto_close_loops(close_fiducial_loops, close_odometry_loops)
+
+    def optmize_anchoring(self) -> typing.Tuple[bool, str]:
+        return self._optimize_anchoring()
 
     ## copy from spot-sdk/python/examples/graph_nav_command_line/graph_nav_command_line.py
     def _get_localization_state(self, *args):
         """Get the current localization and state of the robot."""
         state = self._graph_nav_client.get_localization_state()
-        self._logger.info("Got localization: \n%s" % str(state.localization))
+        self._logger.info(f"Got localization: \n{str(state.localization)}")
         odom_tform_body = get_odom_tform_body(
             state.robot_kinematics.transforms_snapshot
         )
         self._logger.info(
-            "Got robot state in kinematic odometry frame: \n%s" % str(odom_tform_body)
+            f"Got robot state in kinematic odometry frame: \n{str(odom_tform_body)}"
         )
 
     def _set_initial_localization_fiducial(self, *args):
@@ -143,7 +181,7 @@ class SpotGraphNav:
             self._logger,
         )
         if not destination_waypoint:
-            # Failed to find the unique waypoint id.
+            self._logger.error("Failed to find waypoint id.")
             return
 
         robot_state = self._robot_state_client.get_robot_state()
@@ -163,15 +201,105 @@ class SpotGraphNav:
             ko_tform_body=current_odom_tform_body,
         )
 
-    def _list_graph_waypoint_and_edge_ids(self, *args):
-        """List the waypoint ids and edge ids of the graph currently on the robot."""
-
-        # Download current graph
+    def _download_current_graph(self):
         graph = self._graph_nav_client.download_graph()
         if graph is None:
             self._logger.error("Empty graph.")
             return
         self._current_graph = graph
+        return graph
+
+    def _download_full_graph(self, *args):
+        """Download the graph and snapshots from the robot."""
+        graph = self._graph_nav_client.download_graph()
+        if graph is None:
+            self._logger.info("Failed to download the graph.")
+            return
+        self._write_full_graph(graph)
+        self._logger.info(
+            "Graph downloaded with {} waypoints and {} edges".format(
+                len(graph.waypoints), len(graph.edges)
+            )
+        )
+        # Download the waypoint and edge snapshots.
+        self._download_and_write_waypoint_snapshots(graph.waypoints)
+        self._download_and_write_edge_snapshots(graph.edges)
+
+    def _write_full_graph(self, graph):
+        """Download the graph from robot to the specified, local filepath location."""
+        graph_bytes = graph.SerializeToString()
+        self._write_bytes(self._download_filepath, "/graph", graph_bytes)
+
+    def _download_and_write_waypoint_snapshots(self, waypoints):
+        """Download the waypoint snapshots from robot to the specified, local filepath location."""
+        num_waypoint_snapshots_downloaded = 0
+        for waypoint in waypoints:
+            if len(waypoint.snapshot_id) == 0:
+                continue
+            try:
+                waypoint_snapshot = self._graph_nav_client.download_waypoint_snapshot(
+                    waypoint.snapshot_id
+                )
+            except Exception:
+                # Failure in downloading waypoint snapshot. Continue to next snapshot.
+                self._logger.error(
+                    "Failed to download waypoint snapshot: " + waypoint.snapshot_id
+                )
+                continue
+            self._write_bytes(
+                self._download_filepath + "/waypoint_snapshots",
+                "/" + waypoint.snapshot_id,
+                waypoint_snapshot.SerializeToString(),
+            )
+            num_waypoint_snapshots_downloaded += 1
+            self._logger.info(
+                "Downloaded {} of the total {} waypoint snapshots.".format(
+                    num_waypoint_snapshots_downloaded, len(waypoints)
+                )
+            )
+
+    def _download_and_write_edge_snapshots(self, edges):
+        """Download the edge snapshots from robot to the specified, local filepath location."""
+        num_edge_snapshots_downloaded = 0
+        num_to_download = 0
+        for edge in edges:
+            if len(edge.snapshot_id) == 0:
+                continue
+            num_to_download += 1
+            try:
+                edge_snapshot = self._graph_nav_client.download_edge_snapshot(
+                    edge.snapshot_id
+                )
+            except Exception:
+                # Failure in downloading edge snapshot. Continue to next snapshot.
+                self._logger.error(
+                    "Failed to download edge snapshot: " + edge.snapshot_id
+                )
+                continue
+            self._write_bytes(
+                self._download_filepath + "/edge_snapshots",
+                "/" + edge.snapshot_id,
+                edge_snapshot.SerializeToString(),
+            )
+            num_edge_snapshots_downloaded += 1
+            self._logger.info(
+                "Downloaded {} of the total {} edge snapshots.".format(
+                    num_edge_snapshots_downloaded, num_to_download
+                )
+            )
+
+    def _write_bytes(self, filepath: str, filename: str, data):
+        """Write data to a file."""
+        os.makedirs(filepath, exist_ok=True)
+        with open(filepath + filename, "wb+") as f:
+            f.write(data)
+            f.close()
+
+    def _list_graph_waypoint_and_edge_ids(self, *args):
+        """List the waypoint ids and edge ids of the graph currently on the robot."""
+
+        # Download current graph
+        graph = self._download_current_graph()
 
         localization_id = (
             self._graph_nav_client.get_localization_state().localization.waypoint_id
@@ -212,6 +340,9 @@ class SpotGraphNav:
                 ] = waypoint_snapshot
         for edge in self._current_graph.edges:
             # Load the edge snapshots from disk.
+            self._logger.info(f"Trying edge: {edge.snapshot_id}")
+            if not edge.snapshot_id:
+                continue
             with open(
                 upload_filepath + "/edge_snapshots/{}".format(edge.snapshot_id), "rb"
             ) as snapshot_file:
@@ -238,35 +369,28 @@ class SpotGraphNav:
         if not localization_state.localization.waypoint_id:
             # The robot is not localized to the newly uploaded graph.
             self._logger.info(
-                "Upload complete! The robot is currently not localized to the map; please localize",
-                "the robot using commands (2) or (3) before attempting a navigation command.",
+                "Upload complete! The robot is currently not localized to the map; please localize the robot using a fiducial before attempting a navigation command."
             )
 
-    def _navigate_to(self, *args):
+    def _navigate_to(self, waypoint_id: str) -> typing.Tuple[bool, str]:
         """Navigate to a specific waypoint."""
-        # Take the first argument as the destination waypoint.
-        if len(args) < 1:
-            # If no waypoint id is given as input, then return without requesting navigation.
-            self._logger.info("No waypoint provided as a destination for navigate to.")
-            return
-
         self._lease = self._lease_wallet.get_lease()
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
-            args[0][0],
+            waypoint_id,
             self._current_graph,
             self._current_annotation_name_to_wp_id,
             self._logger,
         )
         if not destination_waypoint:
-            # Failed to find the appropriate unique waypoint id for the navigation command.
-            return
-        if not self.toggle_power(should_power_on=True):
-            self._logger.info(
-                "Failed to power on the robot, and cannot complete navigate to request."
+            self._logger.error(
+                "Failed to find the appropriate unique waypoint id for the navigation command."
             )
-            return
+            return (
+                False,
+                "Failed to find the appropriate unique waypoint id for the navigation command.",
+            )
 
-        # Stop the lease keepalive and create a new sublease for graph nav.
+        # Stop the lease keepalive and create a new sublease for graphnav.
         self._lease = self._lease_wallet.advance()
         sublease = self._lease.create_sublease()
         self._lease_keepalive.shutdown()
@@ -281,17 +405,11 @@ class SpotGraphNav:
                 destination_waypoint, 1.0, leases=[sublease.lease_proto]
             )
             time.sleep(0.5)  # Sleep for half a second to allow for command execution.
-            # Poll the robot for feedback to determine if the navigation command is complete. Then sit
-            # the robot down once it is finished.
+            # Poll the robot for feedback to determine if the navigation command is complete.
             is_finished = self._check_success(nav_to_cmd_id)
 
         self._lease = self._lease_wallet.advance()
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
-
-        # Update the lease and power off the robot if appropriate.
-        if self._powered_on and not self._started_powered_on:
-            # Sit the robot down + power off after the navigation command is complete.
-            self.toggle_power(should_power_on=False)
 
         status = self._graph_nav_client.navigation_feedback(nav_to_cmd_id)
         if (
@@ -317,13 +435,12 @@ class SpotGraphNav:
         else:
             return False, "Navigation command is not complete yet."
 
-    def _navigate_route(self, *args):
-        """Navigate through a specific route of waypoints."""
-        if len(args) < 1:
-            # If no waypoint ids are given as input, then return without requesting navigation.
-            self._logger.error("No waypoints provided for navigate route.")
-            return
-        waypoint_ids = args[0]
+    def _navigate_route(
+        self, waypoint_ids: typing.List[str]
+    ) -> typing.Tuple[bool, str]:
+        """Navigate through a specific route of waypoints.
+        Note that each waypoint must have an edge between them, aka be adjacent.
+        """
         for i in range(len(waypoint_ids)):
             waypoint_ids[i] = graph_nav_util.find_unique_waypoint_id(
                 waypoint_ids[i],
@@ -332,11 +449,12 @@ class SpotGraphNav:
                 self._logger,
             )
             if not waypoint_ids[i]:
-                # Failed to find the unique waypoint id.
-                return
+                self._logger.error(
+                    "navigate_route: Failed to find the unique waypoint id."
+                )
+                return False, "Failed to find the unique waypoint id."
 
         edge_ids_list = []
-        all_edges_found = True
         # Attempt to find edges in the current graph that match the ordered waypoint pairs.
         # These are necessary to create a valid route.
         for i in range(len(waypoint_ids) - 1):
@@ -346,97 +464,40 @@ class SpotGraphNav:
             if edge_id is not None:
                 edge_ids_list.append(edge_id)
             else:
-                all_edges_found = False
                 self._logger.error(
-                    "Failed to find an edge between waypoints: ",
-                    start_wp,
-                    " and ",
-                    end_wp,
+                    f"Failed to find an edge between waypoints: {start_wp} and {end_wp}"
                 )
-                self._logger.error(
-                    "List the graph's waypoints and edges to ensure pairs of waypoints has an edge."
+                return (
+                    False,
+                    f"Failed to find an edge between waypoints: {start_wp} and {end_wp}",
                 )
-                break
 
-        self._lease = self._lease_wallet.get_lease()
-        if all_edges_found:
-            if not self.toggle_power(should_power_on=True):
-                self._logger.error(
-                    "Failed to power on the robot, and cannot complete navigate route request."
-                )
-                return
+        # Stop the lease keepalive and create a new sublease for graphnav.
+        self._lease = self._lease_wallet.advance()
+        sublease = self._lease.create_sublease()
+        self._lease_keepalive.shutdown()
 
-            # Stop the lease keepalive and create a new sublease for graph nav.
-            self._lease = self._lease_wallet.advance()
-            sublease = self._lease.create_sublease()
-            self._lease_keepalive.shutdown()
-
-            # Navigate a specific route.
-            route = self._graph_nav_client.build_route(waypoint_ids, edge_ids_list)
-            is_finished = False
-            while not is_finished:
-                # Issue the route command about twice a second such that it is easy to terminate the
-                # navigation command (with estop or killing the program).
-                nav_route_command_id = self._graph_nav_client.navigate_route(
-                    route, cmd_duration=1.0, leases=[sublease.lease_proto]
-                )
-                time.sleep(
-                    0.5
-                )  # Sleep for half a second to allow for command execution.
-                # Poll the robot for feedback to determine if the route is complete. Then sit
-                # the robot down once it is finished.
-                is_finished = self._check_success(nav_route_command_id)
+        # Navigate a specific route.
+        route = self._graph_nav_client.build_route(waypoint_ids, edge_ids_list)
+        is_finished = False
+        while not is_finished:
+            # Issue the route command about twice a second such that it is easy to terminate the
+            # navigation command (with estop or killing the program).
+            nav_route_command_id = self._graph_nav_client.navigate_route(
+                route, cmd_duration=1.0, leases=[sublease.lease_proto]
+            )
+            time.sleep(0.5)  # Sleep for half a second to allow for command execution.
+            # Poll the robot for feedback to determine if the route is complete.
+            is_finished = self._check_success(nav_route_command_id)
 
             self._lease = self._lease_wallet.advance()
             self._lease_keepalive = LeaseKeepAlive(self._lease_client)
 
-            # Update the lease and power off the robot if appropriate.
-            if self._powered_on and not self._started_powered_on:
-                # Sit the robot down + power off after the navigation command is complete.
-                self.toggle_power(should_power_on=False)
+        return True, "Finished navigating route!"
 
     def _clear_graph(self, *args) -> bool:
         """Clear the state of the map on the robot, removing all waypoints and edges."""
         return self._graph_nav_client.clear_graph(lease=self._lease.lease_proto)
-
-    def toggle_power(self, should_power_on: bool) -> bool:
-        """Power the robot on/off dependent on the current power state."""
-        is_powered_on = self.check_is_powered_on()
-        if not is_powered_on and should_power_on:
-            # Power on the robot up before navigating when it is in a powered-off state.
-            power_on(self._power_client)
-            motors_on = False
-            while not motors_on:
-                future = self._robot_state_client.get_robot_state_async()
-                state_response = future.result(
-                    timeout=10
-                )  # 10 second timeout for waiting for the state response.
-                if (
-                    state_response.power_state.motor_power_state
-                    == robot_state_proto.PowerState.STATE_ON
-                ):
-                    motors_on = True
-                else:
-                    # Motors are not yet fully powered on.
-                    time.sleep(0.25)
-        elif is_powered_on and not should_power_on:
-            # Safe power off (robot will sit then power down) when it is in a
-            # powered-on state.
-            safe_power_off(
-                self._robot_clients["robot_command_client"], self._robot_state_client
-            )
-        else:
-            # Return the current power state without change.
-            return is_powered_on
-        # Update the locally stored power state.
-        self.check_is_powered_on()
-        return self._powered_on
-
-    def check_is_powered_on(self) -> bool:
-        """Determine if the robot is powered on or off."""
-        power_state = self._robot_state_client.get_robot_state().power_state
-        self._powered_on = power_state.motor_power_state == power_state.STATE_ON
-        return self._powered_on
 
     def _check_success(self, command_id: int = -1) -> bool:
         """Use a navigation command id to get feedback from the robot and sit when command succeeds."""
@@ -491,3 +552,112 @@ class SpotGraphNav:
                         from_waypoint=waypoint1, to_waypoint=waypoint2
                     )
         return None
+
+    def _auto_close_loops(
+        self, close_fiducial_loops: bool, close_odometry_loops: bool, *args
+    ):
+        """Automatically find and close all loops in the graph."""
+        response: map_processing_pb2.ProcessTopologyResponse = (
+            self._map_processing_client.process_topology(
+                params=map_processing_pb2.ProcessTopologyRequest.Params(
+                    do_fiducial_loop_closure=wrappers_pb2.BoolValue(
+                        value=close_fiducial_loops
+                    ),
+                    do_odometry_loop_closure=wrappers_pb2.BoolValue(
+                        value=close_odometry_loops
+                    ),
+                ),
+                modify_map_on_server=True,
+            )
+        )
+        self._logger.info(
+            "Created {} new edge(s).".format(len(response.new_subgraph.edges))
+        )
+        if response.status == map_processing_pb2.ProcessTopologyResponse.STATUS_OK:
+            return True, "Successfully closed loops."
+        elif (
+            response.status
+            == map_processing_pb2.ProcessTopologyResponse.STATUS_MISSING_WAYPOINT_SNAPSHOTS
+        ):
+            return False, "Missing waypoint snapshots."
+        elif (
+            response.status
+            == map_processing_pb2.ProcessTopologyResponse.STATUS_INVALID_GRAPH
+        ):
+            return False, "Invalid graph."
+        elif (
+            response.status
+            == map_processing_pb2.ProcessTopologyResponse.STATUS_MAP_MODIFIED_DURING_PROCESSING
+        ):
+            return False, "Map modified during processing."
+        else:
+            return False, "Unknown error during map processing."
+
+    def _optimize_anchoring(self, *args):
+        """Call anchoring optimization on the server, producing a globally optimal reference frame for waypoints to be expressed in."""
+        response: map_processing_pb2.ProcessAnchoringResponse = (
+            self._map_processing_client.process_anchoring(
+                params=map_processing_pb2.ProcessAnchoringRequest.Params(),
+                modify_anchoring_on_server=True,
+                stream_intermediate_results=False,
+            )
+        )
+        if response.status == map_processing_pb2.ProcessAnchoringResponse.STATUS_OK:
+            self._logger.info(
+                "Optimized anchoring after {} iteration(s).".format(response.iteration)
+            )
+            return True, "Successfully optimized anchoring."
+        else:
+            self._logger.error("Error optimizing {}".format(response))
+            if (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_MISSING_WAYPOINT_SNAPSHOTS
+            ):
+                return False, "Missing waypoint snapshots."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_INVALID_GRAPH
+            ):
+                return False, "Invalid graph."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_OPTIMIZATION_FAILURE
+            ):
+                return False, "Optimization failure."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_INVALID_PARAMS
+            ):
+                return False, "Invalid parameters."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_CONSTRAINT_VIOLATION
+            ):
+                return False, "Constraint violation."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_MAX_ITERATIONS
+            ):
+                return False, "Max iterations, timeout."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_MAX_TIME
+            ):
+                return False, "Max time reached, timeout."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_INVALID_HINTS
+            ):
+                return False, "Invalid hints."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_MAP_MODIFIED_DURING_PROCESSING
+            ):
+                return False, "Map modified during processing."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_INVALID_GRAVITY_ALIGNMENT
+            ):
+                return False, "Invalid gravity alignment."
+            else:
+                return False, "Unknown error during anchoring optimization."

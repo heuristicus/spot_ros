@@ -5,22 +5,26 @@ import rospy
 from std_srvs.srv import TriggerResponse, SetBool, SetBoolResponse
 from spot_msgs.msg import MobilityParams
 from spot_msgs.msg import NavigateToGoal, NavigateToResult
+from spot_msgs.msg import NavigateInitGoal, NavigateInitResult
+from spot_msgs.msg import NavigateRouteGoal, NavigateRouteResult
 from spot_msgs.msg import TrajectoryResult, TrajectoryGoal
-from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
-from spot_msgs.msg import DockAction, DockGoal, DockResult
+from spot_msgs.msg import PoseBodyGoal, PoseBodyResult
+from spot_msgs.msg import DockGoal, DockResult
 from spot_msgs.srv import PosedStandResponse, PosedStandRequest
 from spot_msgs.srv import ClearBehaviorFaultResponse
 from spot_msgs.srv import SetLocomotionResponse
 from spot_msgs.srv import SetSwingHeightResponse
 from spot_msgs.srv import SetVelocityResponse
-from spot_msgs.srv import ListGraphResponse
+from spot_msgs.srv import ListGraphResponse, ListGraphRequest
 from spot_msgs.srv import DockResponse, GetDockStateResponse
 from spot_msgs.srv import GripperAngleMoveResponse, GripperAngleMoveRequest
 from spot_msgs.srv import ArmJointMovementResponse, ArmJointMovementRequest
 from spot_msgs.srv import ArmForceTrajectoryResponse
 from spot_msgs.srv import HandPoseResponse, HandPoseRequest
-from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
+from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse
 from spot_msgs.srv import Grasp3dRequest, Grasp3dResponse
+from spot_msgs.srv import DownloadGraphRequest, DownloadGraphResponse
+from spot_msgs.srv import GraphCloseLoopsRequest, GraphCloseLoopsResponse
 
 from bosdyn.api import (
     image_pb2,
@@ -248,7 +252,7 @@ class TestSpotROS(SpotROS):
     def handle_terrain_params(self, req: MobilityParams) -> typing.Tuple[bool, str]:
         return True, "Successfully called terrain_params"
 
-    def handle_list_graph(self, upload_path) -> ListGraphResponse:
+    def handle_list_graph(self, req: ListGraphRequest) -> ListGraphResponse:
         return ListGraphResponse(waypoint_ids=["1", "2", "3"])
 
     def handle_roll_over_right(self, req) -> TriggerResponse:
@@ -314,12 +318,26 @@ class TestSpotROS(SpotROS):
     def handle_grasp_3d(self, srv_data: Grasp3dRequest) -> Grasp3dResponse:
         return Grasp3dResponse(success=True, message="Successfully called grasp_3d")
 
-    def handle_navigate_to(self, msg: NavigateToGoal):
+    def handle_navigate_init(self, goal: NavigateInitGoal):
+        self.navigate_init_as.set_succeeded(
+            NavigateInitResult(
+                success=True, message="Successfully called navigate_init"
+            )
+        )
+
+    def handle_navigate_to(self, goal: NavigateToGoal):
         self.navigate_as.set_succeeded(
             NavigateToResult(success=True, message="Successfully called navigate_to")
         )
 
-    def handle_trajectory(self, msg: TrajectoryGoal):
+    def handle_navigate_route(self, goal: NavigateRouteGoal):
+        self.navigate_route_as.set_succeeded(
+            NavigateRouteResult(
+                success=True, message="Successfully called navigate_route"
+            )
+        )
+
+    def handle_trajectory(self, goal: TrajectoryGoal):
         self.trajectory_server.set_succeeded(
             TrajectoryResult(success=True, message="Successfully called trajectory")
         )
@@ -341,6 +359,21 @@ class TestSpotROS(SpotROS):
 
     def handle_dock_action(self, req: DockGoal):
         self.dock_as.set_succeeded(DockResult(True, "Successfully called dock"))
+
+    def handle_download_graph(self, req: DownloadGraphRequest) -> DownloadGraphResponse:
+        return DownloadGraphResponse(waypoint_ids=["1", "2", "3"])
+
+    def handle_graph_close_loops(
+        self, req: GraphCloseLoopsRequest
+    ) -> GraphCloseLoopsResponse:
+        return GraphCloseLoopsResponse(
+            success=True, message="Successfully called graph_close_loops"
+        )
+
+    def handle_graph_optimize_anchoring(self, req) -> TriggerResponse:
+        return TriggerResponse(
+            success=True, message="Successfully called graph_optimize_anchoring"
+        )
 
 
 # Run the mock SpotROS class as a node
