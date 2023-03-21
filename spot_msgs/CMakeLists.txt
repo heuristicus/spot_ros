@@ -53,6 +53,7 @@ add_message_files(
 
 add_service_files(
   FILES
+  DownloadGraph.srv
   ListGraph.srv
   SetLocomotion.srv
   SetSwingHeight.srv
@@ -75,6 +76,7 @@ add_service_files(
 add_action_files(
   FILES
   Dock.action
+  NavigateInit.action
   NavigateTo.action
   PoseBody.action
   Trajectory.action

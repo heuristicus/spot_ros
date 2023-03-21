@@ -2,6 +2,7 @@ import typing
 import logging
 import math
 import time
+import os
 
 from bosdyn.client import robot_command
 from bosdyn.client.robot import Robot
@@ -46,7 +47,7 @@ class SpotGraphNav:
         self._current_edge_snapshots = dict()  # maps id to edge snapshot
         self._current_annotation_name_to_wp_id = dict()
 
-    def list_graph(self, upload_path: str) -> typing.List[str]:
+    def list_graph(self) -> typing.List[str]:
         """List waypoint ids of graph_nav
         Args:
           upload_path : Path to the root directory of the map.
@@ -60,10 +61,9 @@ class SpotGraphNav:
             )
         ]
 
-    def navigate_to(
+    def navigate_initial_localization(
         self,
         upload_path: str,
-        navigate_to: str,
         initial_localization_fiducial: bool = True,
         initial_localization_waypoint: typing.Optional[str] = None,
     ):
@@ -76,7 +76,7 @@ class SpotGraphNav:
            initial_localization_waypoint : Waypoint id string of current robot position (optional)
         """
         # Filepath for uploading a saved graph's and snapshots too.
-        if upload_path[-1] == "/":
+        if upload_path and upload_path[-1] == "/":
             upload_filepath = upload_path[:-1]
         else:
             upload_filepath = upload_path
@@ -86,29 +86,43 @@ class SpotGraphNav:
         self._started_powered_on = power_state.motor_power_state == power_state.STATE_ON
         self._powered_on = self._started_powered_on
 
-        # Sit the robot if it is not already sitting.
-        if not self._robot_params["is_sitting"]:
-            robot_command.blocking_sit(
-                command_client=self._robot_command_client, timeout_sec=10
-            )
-            self._logger.info("Spot is sitting")
-        else:
-            self._logger.info("Spot is already sitting")
-
         # Claim lease, power on robot, start graphnav.
         self._lease = self._lease_wallet.get_lease()
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
-        self._clear_graph()
-        self._upload_graph_and_snapshots(upload_filepath)
+        if upload_filepath:
+            self._clear_graph()
+            self._upload_graph_and_snapshots(upload_filepath)
+        else:
+            self._download_current_graph()
+            self._logger.info(
+                "Re-using existing graph on robot. Check that the correct graph is loaded!"
+            )
         if initial_localization_fiducial:
             self._set_initial_localization_fiducial()
         if initial_localization_waypoint:
             self._set_initial_localization_waypoint([initial_localization_waypoint])
         self._list_graph_waypoint_and_edge_ids()
         self._get_localization_state()
-        resp = self._navigate_to([navigate_to])
 
+        return True, "Localization done!"
+
+    def navigate_to_existing_waypoint(self, waypoint_id: str):
+        """Navigate to an existing waypoint.
+        Args:
+            waypoint_id : Waypoint id string for where to goal
+        """
+        self._get_localization_state()
+        resp = self._navigate_to(waypoint_id)
         return resp
+
+    def download_navigation_graph(self, download_path: str):
+        """Download the navigation graph.
+        Args:
+            download_path : Path to the root directory of the map.
+        """
+        self._download_filepath = download_path
+        self._download_full_graph()
+        return self.list_graph()
 
     ## copy from spot-sdk/python/examples/graph_nav_command_line/graph_nav_command_line.py
     def _get_localization_state(self, *args):
@@ -170,15 +184,105 @@ class SpotGraphNav:
             ko_tform_body=current_odom_tform_body,
         )
 
-    def _list_graph_waypoint_and_edge_ids(self, *args):
-        """List the waypoint ids and edge ids of the graph currently on the robot."""
-
-        # Download current graph
+    def _download_current_graph(self):
         graph = self._graph_nav_client.download_graph()
         if graph is None:
             self._logger.error("Empty graph.")
             return
         self._current_graph = graph
+        return graph
+
+    def _download_full_graph(self, *args):
+        """Download the graph and snapshots from the robot."""
+        graph = self._graph_nav_client.download_graph()
+        if graph is None:
+            self._logger.info("Failed to download the graph.")
+            return
+        self._write_full_graph(graph)
+        self._logger.info(
+            "Graph downloaded with {} waypoints and {} edges".format(
+                len(graph.waypoints), len(graph.edges)
+            )
+        )
+        # Download the waypoint and edge snapshots.
+        self._download_and_write_waypoint_snapshots(graph.waypoints)
+        self._download_and_write_edge_snapshots(graph.edges)
+
+    def _write_full_graph(self, graph):
+        """Download the graph from robot to the specified, local filepath location."""
+        graph_bytes = graph.SerializeToString()
+        self._write_bytes(self._download_filepath, "/graph", graph_bytes)
+
+    def _download_and_write_waypoint_snapshots(self, waypoints):
+        """Download the waypoint snapshots from robot to the specified, local filepath location."""
+        num_waypoint_snapshots_downloaded = 0
+        for waypoint in waypoints:
+            if len(waypoint.snapshot_id) == 0:
+                continue
+            try:
+                waypoint_snapshot = self._graph_nav_client.download_waypoint_snapshot(
+                    waypoint.snapshot_id
+                )
+            except Exception:
+                # Failure in downloading waypoint snapshot. Continue to next snapshot.
+                self._logger.error(
+                    "Failed to download waypoint snapshot: " + waypoint.snapshot_id
+                )
+                continue
+            self._write_bytes(
+                self._download_filepath + "/waypoint_snapshots",
+                "/" + waypoint.snapshot_id,
+                waypoint_snapshot.SerializeToString(),
+            )
+            num_waypoint_snapshots_downloaded += 1
+            self._logger.info(
+                "Downloaded {} of the total {} waypoint snapshots.".format(
+                    num_waypoint_snapshots_downloaded, len(waypoints)
+                )
+            )
+
+    def _download_and_write_edge_snapshots(self, edges):
+        """Download the edge snapshots from robot to the specified, local filepath location."""
+        num_edge_snapshots_downloaded = 0
+        num_to_download = 0
+        for edge in edges:
+            if len(edge.snapshot_id) == 0:
+                continue
+            num_to_download += 1
+            try:
+                edge_snapshot = self._graph_nav_client.download_edge_snapshot(
+                    edge.snapshot_id
+                )
+            except Exception:
+                # Failure in downloading edge snapshot. Continue to next snapshot.
+                self._logger.error(
+                    "Failed to download edge snapshot: " + edge.snapshot_id
+                )
+                continue
+            self._write_bytes(
+                self._download_filepath + "/edge_snapshots",
+                "/" + edge.snapshot_id,
+                edge_snapshot.SerializeToString(),
+            )
+            num_edge_snapshots_downloaded += 1
+            self._logger.info(
+                "Downloaded {} of the total {} edge snapshots.".format(
+                    num_edge_snapshots_downloaded, num_to_download
+                )
+            )
+
+    def _write_bytes(self, filepath: str, filename: str, data):
+        """Write data to a file."""
+        os.makedirs(filepath, exist_ok=True)
+        with open(filepath + filename, "wb+") as f:
+            f.write(data)
+            f.close()
+
+    def _list_graph_waypoint_and_edge_ids(self, *args):
+        """List the waypoint ids and edge ids of the graph currently on the robot."""
+
+        # Download current graph
+        graph = self._download_current_graph()
 
         localization_id = (
             self._graph_nav_client.get_localization_state().localization.waypoint_id
@@ -251,17 +355,11 @@ class SpotGraphNav:
                 "Upload complete! The robot is currently not localized to the map; please localize the robot using a fiducial before attempting a navigation command."
             )
 
-    def _navigate_to(self, *args):
+    def _navigate_to(self, waypoint_id: str):
         """Navigate to a specific waypoint."""
-        # Take the first argument as the destination waypoint.
-        if len(args) < 1:
-            # If no waypoint id is given as input, then return without requesting navigation.
-            self._logger.info("No waypoint provided as a destination for navigate to.")
-            return
-
         self._lease = self._lease_wallet.get_lease()
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
-            args[0][0],
+            waypoint_id,
             self._current_graph,
             self._current_annotation_name_to_wp_id,
             self._logger,
@@ -290,8 +388,7 @@ class SpotGraphNav:
                 destination_waypoint, 1.0, leases=[sublease.lease_proto]
             )
             time.sleep(0.5)  # Sleep for half a second to allow for command execution.
-            # Poll the robot for feedback to determine if the navigation command is complete. Then sit
-            # the robot down once it is finished.
+            # Poll the robot for feedback to determine if the navigation command is complete.
             is_finished = self._check_success(nav_to_cmd_id)
 
         self._lease = self._lease_wallet.advance()
@@ -326,13 +423,8 @@ class SpotGraphNav:
         else:
             return False, "Navigation command is not complete yet."
 
-    def _navigate_route(self, *args):
+    def _navigate_route(self, waypoint_ids: typing.List[str]):
         """Navigate through a specific route of waypoints."""
-        if len(args) < 1:
-            # If no waypoint ids are given as input, then return without requesting navigation.
-            self._logger.error("No waypoints provided for navigate route.")
-            return
-        waypoint_ids = args[0]
         for i in range(len(waypoint_ids)):
             waypoint_ids[i] = graph_nav_util.find_unique_waypoint_id(
                 waypoint_ids[i],
@@ -341,7 +433,9 @@ class SpotGraphNav:
                 self._logger,
             )
             if not waypoint_ids[i]:
-                # Failed to find the unique waypoint id.
+                self._logger.error(
+                    "navigate_route: Failed to find the unique waypoint id."
+                )
                 return
 
         edge_ids_list = []
@@ -389,17 +483,11 @@ class SpotGraphNav:
                 time.sleep(
                     0.5
                 )  # Sleep for half a second to allow for command execution.
-                # Poll the robot for feedback to determine if the route is complete. Then sit
-                # the robot down once it is finished.
+                # Poll the robot for feedback to determine if the route is complete.
                 is_finished = self._check_success(nav_route_command_id)
 
             self._lease = self._lease_wallet.advance()
             self._lease_keepalive = LeaseKeepAlive(self._lease_client)
-
-            # Update the lease and power off the robot if appropriate.
-            if self._powered_on and not self._started_powered_on:
-                # Sit the robot down + power off after the navigation command is complete.
-                self.toggle_power(should_power_on=False)
 
     def _clear_graph(self, *args) -> bool:
         """Clear the state of the map on the robot, removing all waypoints and edges."""
