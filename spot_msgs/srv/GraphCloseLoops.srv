@@ -1,0 +1,5 @@
+bool close_fiducial_loops
+bool close_odometry_loops
+---
+bool success   # indicate successful run of triggered service
+string message # informational, e.g. for error messages

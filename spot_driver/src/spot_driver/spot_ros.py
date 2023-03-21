@@ -61,6 +61,11 @@ from spot_msgs.msg import (
 )
 from spot_msgs.srv import ListGraph, ListGraphRequest, ListGraphResponse
 from spot_msgs.srv import DownloadGraph, DownloadGraphRequest, DownloadGraphResponse
+from spot_msgs.srv import (
+    GraphCloseLoops,
+    GraphCloseLoopsRequest,
+    GraphCloseLoopsResponse,
+)
 from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
 from spot_msgs.srv import SetTerrainParams
 from spot_msgs.srv import SetObstacleParams
@@ -1135,6 +1140,20 @@ class SpotROS:
         )
         return DownloadGraphResponse(resp)
 
+    def handle_graph_close_loops(
+        self, msg: GraphCloseLoopsRequest
+    ) -> GraphCloseLoopsResponse:
+        """ROS service handler for closing loops in GraphNav map"""
+        resp = self.spot_wrapper.spot_graph_nav.navigation_close_loops(
+            msg.close_fiducial_loops, msg.close_odometry_loops
+        )
+        return GraphCloseLoopsResponse(resp[0], resp[1])
+
+    def handle_graph_optimize_anchoring(self, msg) -> TriggerResponse:
+        """ROS service handler for triggering graph anchoring optimization"""
+        resp = self.spot_wrapper.spot_graph_nav.optmize_anchoring()
+        return TriggerResponse(resp[0], resp[1])
+
     def handle_navigate_init_feedback(self):
         """Thread function to send navigate_to feedback"""
         while not rospy.is_shutdown() and self.run_navigate_to:
@@ -1769,6 +1788,12 @@ class SpotROS:
 
         rospy.Service("list_graph", ListGraph, self.handle_list_graph)
         rospy.Service("download_graph", DownloadGraph, self.handle_download_graph)
+        rospy.Service(
+            "graph_close_loops", GraphCloseLoops, self.handle_graph_close_loops
+        )
+        rospy.Service(
+            "optimize_graph_anchoring", Trigger, self.handle_graph_optimize_anchoring
+        )
 
         rospy.Service("roll_over_right", Trigger, self.handle_roll_over_right)
         rospy.Service("roll_over_left", Trigger, self.handle_roll_over_left)

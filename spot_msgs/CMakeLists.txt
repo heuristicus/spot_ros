@@ -55,6 +55,7 @@ add_service_files(
   FILES
   DownloadGraph.srv
   ListGraph.srv
+  GraphCloseLoops.srv
   SetLocomotion.srv
   SetSwingHeight.srv
   SetVelocity.srv

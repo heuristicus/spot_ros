@@ -11,6 +11,7 @@ from bosdyn.client.async_tasks import AsyncPeriodicQuery, AsyncTasks
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder
 from bosdyn.client.graph_nav import GraphNavClient
+from bosdyn.client.map_processing import MapProcessingServiceClient
 from bosdyn.client.power import PowerClient
 from bosdyn.client.lease import LeaseClient
 from bosdyn.client.image import ImageClient, build_image_request
@@ -607,6 +608,9 @@ class SpotWrapper:
                     self._graph_nav_client = self._robot.ensure_client(
                         GraphNavClient.default_service_name
                     )
+                    self._map_processing_client = self._robot.ensure_client(
+                        MapProcessingServiceClient.default_service_name
+                    )
                     self._power_client = self._robot.ensure_client(
                         PowerClient.default_service_name
                     )
@@ -634,6 +638,7 @@ class SpotWrapper:
                         "robot_state_client": self._robot_state_client,
                         "robot_command_client": self._robot_command_client,
                         "graph_nav_client": self._graph_nav_client,
+                        "map_processing_client": self._map_processing_client,
                         "power_client": self._power_client,
                         "lease_client": self._lease_client,
                         "image_client": self._image_client,

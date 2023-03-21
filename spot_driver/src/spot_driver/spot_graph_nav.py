@@ -4,18 +4,19 @@ import math
 import time
 import os
 
-from bosdyn.client import robot_command
 from bosdyn.client.robot import Robot
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.lease import LeaseClient, LeaseWallet, LeaseKeepAlive
 from bosdyn.client.graph_nav import GraphNavClient
+from bosdyn.client.map_processing import MapProcessingServiceClient
 from bosdyn.client.frame_helpers import get_odom_tform_body
-from bosdyn.client.power import safe_power_off, power_on, PowerClient
-from bosdyn.client.robot_command import RobotCommandClient
-from bosdyn.api import robot_state_pb2
 from bosdyn.api.graph_nav import graph_nav_pb2
 from bosdyn.api.graph_nav import map_pb2
 from bosdyn.api.graph_nav import nav_pb2
+from bosdyn.api.graph_nav import map_processing_pb2
+from bosdyn.api.graph_nav import recording_pb2
+
+from google.protobuf import wrappers_pb2
 
 from . import graph_nav_util
 
@@ -31,12 +32,11 @@ class SpotGraphNav:
         self._robot = robot
         self._logger = logger
         self._graph_nav_client: GraphNavClient = robot_clients["graph_nav_client"]
-        self._robot_state_client: RobotStateClient = robot_clients["robot_state_client"]
-        self._robot_command_client: RobotCommandClient = robot_clients[
-            "robot_command_client"
+        self._map_processing_client: MapProcessingServiceClient = robot_clients[
+            "map_processing_client"
         ]
+        self._robot_state_client: RobotStateClient = robot_clients["robot_state_client"]
         self._lease_client: LeaseClient = robot_clients["lease_client"]
-        self._power_client: PowerClient = robot_clients["power_client"]
         self._lease_wallet: LeaseWallet = self._lease_client.lease_wallet
         self._robot_params = robot_params
 
@@ -115,7 +115,7 @@ class SpotGraphNav:
         resp = self._navigate_to(waypoint_id)
         return resp
 
-    def download_navigation_graph(self, download_path: str):
+    def download_navigation_graph(self, download_path: str) -> typing.List[str]:
         """Download the navigation graph.
         Args:
             download_path : Path to the root directory of the map.
@@ -123,6 +123,14 @@ class SpotGraphNav:
         self._download_filepath = download_path
         self._download_full_graph()
         return self.list_graph()
+
+    def navigation_close_loops(
+        self, close_fiducial_loops: bool, close_odometry_loops: bool
+    ) -> typing.Tuple[bool, str]:
+        return self._auto_close_loops(close_fiducial_loops, close_odometry_loops)
+
+    def optmize_anchoring(self) -> typing.Tuple[bool, str]:
+        return self._optimize_anchoring()
 
     ## copy from spot-sdk/python/examples/graph_nav_command_line/graph_nav_command_line.py
     def _get_localization_state(self, *args):
@@ -365,13 +373,13 @@ class SpotGraphNav:
             self._logger,
         )
         if not destination_waypoint:
-            # Failed to find the appropriate unique waypoint id for the navigation command.
-            return
-        if not self.toggle_power(should_power_on=True):
-            self._logger.info(
-                "Failed to power on the robot, and cannot complete navigate to request."
+            self._logger.error(
+                "Failed to find the appropriate unique waypoint id for the navigation command."
             )
-            return
+            return (
+                False,
+                "Failed to find the appropriate unique waypoint id for the navigation command.",
+            )
 
         # Stop the lease keepalive and create a new sublease for graphnav.
         self._lease = self._lease_wallet.advance()
@@ -393,11 +401,6 @@ class SpotGraphNav:
 
         self._lease = self._lease_wallet.advance()
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
-
-        # Update the lease and power off the robot if appropriate.
-        if self._powered_on and not self._started_powered_on:
-            # Sit the robot down + power off after the navigation command is complete.
-            self.toggle_power(should_power_on=False)
 
         status = self._graph_nav_client.navigation_feedback(nav_to_cmd_id)
         if (
@@ -460,12 +463,6 @@ class SpotGraphNav:
 
         self._lease = self._lease_wallet.get_lease()
         if all_edges_found:
-            if not self.toggle_power(should_power_on=True):
-                self._logger.error(
-                    "Failed to power on the robot, and cannot complete navigate route request."
-                )
-                return
-
             # Stop the lease keepalive and create a new sublease for graphnav.
             self._lease = self._lease_wallet.advance()
             sublease = self._lease.create_sublease()
@@ -492,43 +489,6 @@ class SpotGraphNav:
     def _clear_graph(self, *args) -> bool:
         """Clear the state of the map on the robot, removing all waypoints and edges."""
         return self._graph_nav_client.clear_graph(lease=self._lease.lease_proto)
-
-    def toggle_power(self, should_power_on: bool) -> bool:
-        """Power the robot on/off dependent on the current power state."""
-        is_powered_on = self.check_is_powered_on()
-        if not is_powered_on and should_power_on:
-            # Power on the robot up before navigating when it is in a powered-off state.
-            power_on(self._power_client)
-            motors_on = False
-            while not motors_on:
-                future = self._robot_state_client.get_robot_state_async()
-                state_response = future.result(
-                    timeout=10
-                )  # 10 second timeout for waiting for the state response.
-                if (
-                    state_response.power_state.motor_power_state
-                    == robot_state_pb2.PowerState.STATE_ON
-                ):
-                    motors_on = True
-                else:
-                    # Motors are not yet fully powered on.
-                    time.sleep(0.25)
-        elif is_powered_on and not should_power_on:
-            # Safe power off (robot will sit then power down) when it is in a
-            # powered-on state.
-            safe_power_off(self._robot_command_client, self._robot_state_client)
-        else:
-            # Return the current power state without change.
-            return is_powered_on
-        # Update the locally stored power state.
-        self.check_is_powered_on()
-        return self._powered_on
-
-    def check_is_powered_on(self) -> bool:
-        """Determine if the robot is powered on or off."""
-        power_state = self._robot_state_client.get_robot_state().power_state
-        self._powered_on = power_state.motor_power_state == power_state.STATE_ON
-        return self._powered_on
 
     def _check_success(self, command_id: int = -1) -> bool:
         """Use a navigation command id to get feedback from the robot and sit when command succeeds."""
@@ -583,3 +543,112 @@ class SpotGraphNav:
                         from_waypoint=waypoint1, to_waypoint=waypoint2
                     )
         return None
+
+    def _auto_close_loops(
+        self, close_fiducial_loops: bool, close_odometry_loops: bool, *args
+    ):
+        """Automatically find and close all loops in the graph."""
+        response: map_processing_pb2.ProcessTopologyResponse = (
+            self._map_processing_client.process_topology(
+                params=map_processing_pb2.ProcessTopologyRequest.Params(
+                    do_fiducial_loop_closure=wrappers_pb2.BoolValue(
+                        value=close_fiducial_loops
+                    ),
+                    do_odometry_loop_closure=wrappers_pb2.BoolValue(
+                        value=close_odometry_loops
+                    ),
+                ),
+                modify_map_on_server=True,
+            )
+        )
+        self._logger.info(
+            "Created {} new edge(s).".format(len(response.new_subgraph.edges))
+        )
+        if response.status == map_processing_pb2.ProcessTopologyResponse.STATUS_OK:
+            return True, "Successfully closed loops."
+        elif (
+            response.status
+            == map_processing_pb2.ProcessTopologyResponse.STATUS_MISSING_WAYPOINT_SNAPSHOTS
+        ):
+            return False, "Missing waypoint snapshots."
+        elif (
+            response.status
+            == map_processing_pb2.ProcessTopologyResponse.STATUS_INVALID_GRAPH
+        ):
+            return False, "Invalid graph."
+        elif (
+            response.status
+            == map_processing_pb2.ProcessTopologyResponse.STATUS_MAP_MODIFIED_DURING_PROCESSING
+        ):
+            return False, "Map modified during processing."
+        else:
+            return False, "Unknown error during map processing."
+
+    def _optimize_anchoring(self, *args):
+        """Call anchoring optimization on the server, producing a globally optimal reference frame for waypoints to be expressed in."""
+        response: map_processing_pb2.ProcessAnchoringResponse = (
+            self._map_processing_client.process_anchoring(
+                params=map_processing_pb2.ProcessAnchoringRequest.Params(),
+                modify_anchoring_on_server=True,
+                stream_intermediate_results=False,
+            )
+        )
+        if response.status == map_processing_pb2.ProcessAnchoringResponse.STATUS_OK:
+            self._logger.info(
+                "Optimized anchoring after {} iteration(s).".format(response.iteration)
+            )
+            return True, "Successfully optimized anchoring."
+        else:
+            self._logger.error("Error optimizing {}".format(response))
+            if (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_MISSING_WAYPOINT_SNAPSHOTS
+            ):
+                return False, "Missing waypoint snapshots."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_INVALID_GRAPH
+            ):
+                return False, "Invalid graph."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_OPTIMIZATION_FAILURE
+            ):
+                return False, "Optimization failure."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_INVALID_PARAMS
+            ):
+                return False, "Invalid parameters."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_CONSTRAINT_VIOLATION
+            ):
+                return False, "Constraint violation."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_MAX_ITERATIONS
+            ):
+                return False, "Max iterations, timeout."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_MAX_TIME
+            ):
+                return False, "Max time reached, timeout."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_INVALID_HINTS
+            ):
+                return False, "Invalid hints."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_MAP_MODIFIED_DURING_PROCESSING
+            ):
+                return False, "Map modified during processing."
+            elif (
+                response.status
+                == map_processing_pb2.ProcessAnchoringResponse.STATUS_INVALID_GRAVITY_ALIGNMENT
+            ):
+                return False, "Invalid gravity alignment."
+            else:
+                return False, "Unknown error during anchoring optimization."
