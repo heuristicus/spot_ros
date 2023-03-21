@@ -13,8 +13,13 @@ import spot_driver.graph_nav_util as graph_nav_util
 
 class TestGraphNavUtilShortCode(unittest.TestCase):
     def test_id_to_short_code(self):
-        self.assertEqual(graph_nav_util.id_to_short_code("AB-CD-EF"), "AC", "AC!=AC")
-        self.assertEqual(graph_nav_util.id_to_short_code("AB-CD-EF-1"), "AC", "AC!=AC")
+        self.assertEqual(
+            graph_nav_util.id_to_short_code("ebony-pug-mUzxLNq.TkGlVIxga+UKAQ=="), "ep"
+        )
+        self.assertEqual(
+            graph_nav_util.id_to_short_code("erose-simian-sug9xpxhCxgft7Mtbhr98A=="),
+            "es",
+        )
 
 
 class TestGraphNavUtilFindUniqueWaypointId(unittest.TestCase):

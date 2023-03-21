@@ -1138,28 +1138,28 @@ class SpotROS:
         mobility_params.body_control.CopyFrom(body_control)
         self.spot_wrapper.set_mobility_params(mobility_params)
 
-    def handle_list_graph(self, msg: ListGraphRequest) -> ListGraphResponse:
+    def handle_list_graph(self, req: ListGraphRequest) -> ListGraphResponse:
         """ROS service handler for listing graph_nav waypoint_ids"""
         resp = self.spot_wrapper.spot_graph_nav.list_graph()
         return ListGraphResponse(resp)
 
-    def handle_download_graph(self, msg: DownloadGraphRequest) -> DownloadGraphResponse:
+    def handle_download_graph(self, req: DownloadGraphRequest) -> DownloadGraphResponse:
         """ROS service handler for downloading graph_nav waypoint_ids"""
         resp = self.spot_wrapper.spot_graph_nav.download_navigation_graph(
-            msg.download_filepath
+            req.download_filepath
         )
         return DownloadGraphResponse(resp)
 
     def handle_graph_close_loops(
-        self, msg: GraphCloseLoopsRequest
+        self, req: GraphCloseLoopsRequest
     ) -> GraphCloseLoopsResponse:
         """ROS service handler for closing loops in GraphNav map"""
         resp = self.spot_wrapper.spot_graph_nav.navigation_close_loops(
-            msg.close_fiducial_loops, msg.close_odometry_loops
+            req.close_fiducial_loops, req.close_odometry_loops
         )
         return GraphCloseLoopsResponse(resp[0], resp[1])
 
-    def handle_graph_optimize_anchoring(self, msg) -> TriggerResponse:
+    def handle_graph_optimize_anchoring(self, req) -> TriggerResponse:
         """ROS service handler for triggering graph anchoring optimization"""
         resp = self.spot_wrapper.spot_graph_nav.optmize_anchoring()
         return TriggerResponse(resp[0], resp[1])
@@ -1176,7 +1176,7 @@ class SpotROS:
                 )
             rospy.Rate(10).sleep()
 
-    def handle_navigate_init(self, msg: NavigateInitGoal):
+    def handle_navigate_init(self, req: NavigateInitGoal):
         if not self.robot_allowed_to_move():
             rospy.logerr(
                 "navigate_init was requested but robot is not allowed to move."
@@ -1195,9 +1195,9 @@ class SpotROS:
 
         # run navigate_init
         resp = self.spot_wrapper.spot_graph_nav.navigate_initial_localization(
-            upload_path=msg.upload_path,
-            initial_localization_fiducial=msg.initial_localization_fiducial,
-            initial_localization_waypoint=msg.initial_localization_waypoint,
+            upload_path=req.upload_path,
+            initial_localization_fiducial=req.initial_localization_fiducial,
+            initial_localization_waypoint=req.initial_localization_waypoint,
         )
         self.run_navigate_init = False
         feedback_thread.join()
@@ -1220,7 +1220,7 @@ class SpotROS:
                 )
             rospy.Rate(10).sleep()
 
-    def handle_navigate_to(self, msg: NavigateToGoal):
+    def handle_navigate_to(self, req: NavigateToGoal):
         if not self.robot_allowed_to_move():
             rospy.logerr("navigate_to was requested but robot is not allowed to move.")
             self.navigate_as.set_aborted(
@@ -1237,7 +1237,7 @@ class SpotROS:
 
         # run navigate_to
         resp = self.spot_wrapper.spot_graph_nav.navigate_to_existing_waypoint(
-            waypoint_id=msg.navigate_to,
+            waypoint_id=req.navigate_to,
         )
         self.run_navigate_to = False
         feedback_thread.join()
@@ -1260,7 +1260,7 @@ class SpotROS:
                 )
             rospy.Rate(10).sleep()
 
-    def handle_navigate_route(self, msg: NavigateRouteGoal):
+    def handle_navigate_route(self, req: NavigateRouteGoal):
         if not self.robot_allowed_to_move():
             rospy.logerr(
                 "navigate_route was requested but robot is not allowed to move."
@@ -1279,7 +1279,7 @@ class SpotROS:
 
         # run navigate_route
         resp = self.spot_wrapper.spot_graph_nav.navigate_through_route(
-            waypoint_ids=list(msg.waypoint_ids),
+            waypoint_ids=list(req.waypoint_ids),
         )
         self.run_navigate_route = False
         feedback_thread.join()
