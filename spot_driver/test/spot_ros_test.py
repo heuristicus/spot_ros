@@ -28,7 +28,9 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFaultState
 from spot_msgs.msg import SystemFaultState
 from spot_msgs.msg import BatteryStateArray
+from spot_msgs.msg import NavigateInitAction, NavigateInitGoal
 from spot_msgs.msg import NavigateToAction, NavigateToGoal
+from spot_msgs.msg import NavigateRouteAction, NavigateRouteGoal
 from spot_msgs.msg import TrajectoryAction, TrajectoryGoal
 from spot_msgs.msg import PoseBodyAction, PoseBodyGoal
 from spot_msgs.msg import DockAction, DockGoal
@@ -45,7 +47,9 @@ from spot_msgs.srv import GripperAngleMoveResponse
 from spot_msgs.srv import ArmForceTrajectoryResponse
 from spot_msgs.srv import ArmJointMovementResponse
 from spot_msgs.srv import HandPoseResponse
-from spot_msgs.srv import Grasp3dRequest, Grasp3dResponse
+from spot_msgs.srv import Grasp3dResponse
+from spot_msgs.srv import DownloadGraphResponse
+from spot_msgs.srv import GraphCloseLoopsResponse
 
 from bosdyn.api import robot_state_pb2, geometry_pb2
 
@@ -966,9 +970,7 @@ class TestServiceHandlers(unittest.TestCase):
 
     def test_list_graph(self):
         # Test that the list graph service works
-        resp: ListGraphResponse = self.call_service(
-            "/spot/list_graph", "test_file/path"
-        )
+        resp: ListGraphResponse = self.call_service("/spot/list_graph")
 
         self.assertEqual(
             resp.waypoint_ids, ["1", "2", "3"], "List graph service failed"
@@ -1085,8 +1087,44 @@ class TestServiceHandlers(unittest.TestCase):
         self.assertTrue(resp.success, "Spot Check service failed")
         self.assertEqual(resp.message, "Successfully called spot_check")
 
+    def test_download_graph(self):
+        resp: DownloadGraphResponse = self.call_service("/spot/download_graph")
+
+        self.assertEqual(resp.waypoint_ids, ["1", "2", "3"])
+
+    def test_graph_close_loops(self):
+        resp: GraphCloseLoopsResponse = self.call_service("/spot/graph_close_loops")
+
+        self.assertTrue(resp.success, "Graph close loops service failed")
+        self.assertEqual(resp.message, "Successfully called graph_close_loops")
+
+    def test_optimize_graph_anchoring(self):
+        resp: TriggerResponse = self.call_service("/spot/optimize_graph_anchoring")
+
+        self.assertTrue(resp.success, "Optimize graph anchoring service failed")
+        self.assertEqual(resp.message, "Successfully called graph_optimize_anchoring")
+
 
 class TestActionHandlers(unittest.TestCase):
+    def test_navigate_init_action(self):
+        self.navigate_init_action_client = actionlib.SimpleActionClient(
+            "/spot/navigate_init", NavigateInitAction
+        )
+        self.navigate_init_action_client.wait_for_server()
+
+        goal = NavigateInitGoal()
+        goal.upload_path = "test_file/path"
+        goal.initial_localization_fiducial = False
+        goal.initial_localization_waypoint = "waypoint1"
+
+        self.navigate_init_action_client.send_goal(goal)
+        self.navigate_init_action_client.wait_for_result()
+
+        result = self.navigate_init_action_client.get_result()
+
+        self.assertEqual(result.message, "Successfully called navigate_init")
+        self.assertTrue(result.success, "Navigate_init action failed")
+
     def test_navigate_to_action(self):
         self.navigate_to_action_client = actionlib.SimpleActionClient(
             "/spot/navigate_to", NavigateToAction
@@ -1094,10 +1132,7 @@ class TestActionHandlers(unittest.TestCase):
         self.navigate_to_action_client.wait_for_server()
 
         goal = NavigateToGoal()
-        goal.upload_path = "test_file/path"
         goal.navigate_to = "1"
-        goal.initial_localization_fiducial = False
-        goal.initial_localization_waypoint = "waypoint1"
 
         self.navigate_to_action_client.send_goal(goal)
         self.navigate_to_action_client.wait_for_result()
@@ -1106,6 +1141,23 @@ class TestActionHandlers(unittest.TestCase):
 
         self.assertEqual(result.message, "Successfully called navigate_to")
         self.assertTrue(result.success, "Navigate to action failed")
+
+    def test_navigate_route_action(self):
+        self.navigate_route_action_client = actionlib.SimpleActionClient(
+            "/spot/navigate_route", NavigateRouteAction
+        )
+        self.navigate_route_action_client.wait_for_server()
+
+        goal = NavigateRouteGoal()
+        goal.waypoint_ids = ["waypoint1", "waypoint2", "waypoint1"]
+
+        self.navigate_route_action_client.send_goal(goal)
+        self.navigate_route_action_client.wait_for_result()
+
+        result = self.navigate_route_action_client.get_result()
+
+        self.assertEqual(result.message, "Successfully called navigate_route")
+        self.assertTrue(result.success, "Navigate_route action failed")
 
     def test_trajectory_action(self):
         self.trajectory_action_client = actionlib.SimpleActionClient(
