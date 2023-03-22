@@ -375,6 +375,9 @@ class TestSpotROS(SpotROS):
             success=True, message="Successfully called graph_optimize_anchoring"
         )
 
+    def handle_arm_gaze(self, req) -> TriggerResponse:
+        return TriggerResponse(success=True, message="Successfully called arm_gaze")
+
 
 # Run the mock SpotROS class as a node
 class MockSpotROS:
@@ -993,15 +996,9 @@ class MockSpotROS:
 
         while not rospy.is_shutdown():
             # Call publish callbacks
-            self.spot_ros.RobotStateCB("robot_state_test")
-            self.spot_ros.MetricsCB("metrics_test")
-            self.spot_ros.LeaseCB("lease_test")
-            self.spot_ros.FrontImageCB("front_camera_test")
-            self.spot_ros.RearImageCB("rear_camera_test")
-            self.spot_ros.SideImageCB("side_camera_test")
-            self.spot_ros.HandImageCB("hand_camera_test")
-            self.spot_ros.PointCloudCB("point_cloud_test")
-            self.spot_ros.WorldObjectsCB("world_objects_test")
+            for callback_name, callback in self.spot_ros.callbacks.items():
+                callback(callback_name)
+
             rate.sleep()
 
 

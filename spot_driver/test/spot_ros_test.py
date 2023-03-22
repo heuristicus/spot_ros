@@ -1104,6 +1104,12 @@ class TestServiceHandlers(unittest.TestCase):
         self.assertTrue(resp.success, "Optimize graph anchoring service failed")
         self.assertEqual(resp.message, "Successfully called graph_optimize_anchoring")
 
+    def test_arm_gaze(self):
+        resp: TriggerResponse = self.call_service("/spot/arm_gaze")
+
+        self.assertTrue(resp.success, "Arm gaze service failed")
+        self.assertEqual(resp.message, "Successfully called arm_gaze")
+
 
 class TestActionHandlers(unittest.TestCase):
     def test_navigate_init_action(self):
@@ -1256,5 +1262,4 @@ if __name__ == "__main__":
     rosunit.unitrun(PKG, NAME, TestWorldObjectCB)
     rosunit.unitrun(PKG, NAME, TestServiceHandlers)
     rosunit.unitrun(PKG, NAME, TestActionHandlers)
-    rosunit.unitrun(PKG, NAME, TestWorldObjectCB)
     print("Tests complete!")

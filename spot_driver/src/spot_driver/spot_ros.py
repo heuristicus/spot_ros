@@ -1480,6 +1480,11 @@ class SpotROS:
         )
         return Grasp3dResponse(resp[0], resp[1])
 
+    def handle_arm_gaze(self, srv_data) -> TriggerResponse:
+        """ROS service handler to do a gaze with the arm"""
+        resp = self.spot_wrapper.spot_arm.arm_gaze()
+        return TriggerResponse(resp[0], resp[1])
+
     ##################################################################
 
     def shutdown(self):
@@ -1872,6 +1877,7 @@ class SpotROS:
         )
         rospy.Service("gripper_pose", HandPose, self.handle_gripper_pose)
         rospy.Service("grasp_3d", Grasp3d, self.handle_grasp_3d)
+        rospy.Service("arm_gaze", Trigger, self.handle_arm_gaze)
 
         # Stop service calls other services so initialise it after them to prevent crashes which can happen if
         # the service is immediately called

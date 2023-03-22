@@ -5,11 +5,17 @@ import logging
 from bosdyn.util import seconds_to_duration
 from bosdyn.client.frame_helpers import (
     ODOM_FRAME_NAME,
-    BODY_FRAME_NAME,
+    GRAV_ALIGNED_BODY_FRAME_NAME,
+    get_a_tform_b,
 )
-from bosdyn.client import robot_command
+from bosdyn.client import robot_command, math_helpers
 from bosdyn.client.robot import Robot
-from bosdyn.client.robot_command import RobotCommandBuilder, RobotCommandClient
+from bosdyn.client.robot_state import RobotStateClient
+from bosdyn.client.robot_command import (
+    RobotCommandBuilder,
+    RobotCommandClient,
+    block_until_arm_arrives,
+)
 from bosdyn.client.manipulation_api_client import ManipulationApiClient
 from bosdyn.api import robot_command_pb2
 from bosdyn.api import arm_command_pb2
@@ -55,6 +61,7 @@ class SpotArm:
         self._manipulation_client: ManipulationApiClient = robot_clients[
             "manipulation_client"
         ]
+        self._robot_state_client: RobotStateClient = robot_clients["robot_state_client"]
         self._robot_command: typing.Callable = robot_clients["robot_command_method"]
 
     def ensure_arm_power_and_stand(self) -> typing.Tuple[bool, str]:
@@ -503,3 +510,220 @@ class SpotArm:
             return False, "An error occured while trying to grasp from pose"
 
         return True, "Grasped successfully"
+
+    def arm_gaze(self) -> typing.Tuple[bool, str]:
+        """
+        Gaze action from Spot SDK python examples.
+        """
+        # Unstow the arm
+        unstow = RobotCommandBuilder.arm_ready_command()
+
+        # Issue the command via the RobotCommandClient
+        unstow_command_id = self._robot_command_client.robot_command(unstow)
+        self._logger.info("Unstow command issued.")
+
+        block_until_arm_arrives(self._robot_command_client, unstow_command_id, 3.0)
+
+        # Convert the location from the moving base frame to the world frame.
+        robot_state = self._robot_state_client.get_robot_state()
+        odom_T_flat_body = get_a_tform_b(
+            robot_state.kinematic_state.transforms_snapshot,
+            ODOM_FRAME_NAME,
+            GRAV_ALIGNED_BODY_FRAME_NAME,
+        )
+
+        # Look at a point 3 meters in front and 4 meters to the left.
+        # We are not specifying a hand location, the robot will pick one.
+        gaze_target_in_odom = odom_T_flat_body.transform_point(x=3.0, y=4.0, z=0)
+
+        gaze_command = RobotCommandBuilder.arm_gaze_command(
+            gaze_target_in_odom[0],
+            gaze_target_in_odom[1],
+            gaze_target_in_odom[2],
+            ODOM_FRAME_NAME,
+        )
+        # Make the open gripper RobotCommand
+        gripper_command = RobotCommandBuilder.claw_gripper_open_command()
+
+        # Combine the arm and gripper commands into one RobotCommand
+        synchro_command = RobotCommandBuilder.build_synchro_command(
+            gripper_command, gaze_command
+        )
+
+        # Send the request
+        self._logger.info("Requesting gaze.")
+        gaze_command_id = self._robot_command_client.robot_command(synchro_command)
+
+        block_until_arm_arrives(self._robot_command_client, gaze_command_id, 4.0)
+
+        # Look to the left and the right with the hand.
+        # Robot's frame is X+ forward, Z+ up, so left and right is +/- in Y.
+        x = 4.0  # look 4 meters ahead
+        start_y = 2.0
+        end_y = -2.0
+        z = 0  # Look ahead, not up or down
+
+        traj_time = 5.5  # take 5.5 seconds to look from left to right.
+
+        start_pos_in_odom_tuple = odom_T_flat_body.transform_point(x=x, y=start_y, z=z)
+        start_pos_in_odom = geometry_pb2.Vec3(
+            x=start_pos_in_odom_tuple[0],
+            y=start_pos_in_odom_tuple[1],
+            z=start_pos_in_odom_tuple[2],
+        )
+
+        end_pos_in_odom_tuple = odom_T_flat_body.transform_point(x=x, y=end_y, z=z)
+        end_pos_in_odom = geometry_pb2.Vec3(
+            x=end_pos_in_odom_tuple[0],
+            y=end_pos_in_odom_tuple[1],
+            z=end_pos_in_odom_tuple[2],
+        )
+
+        # Create the trajectory points
+        point1 = trajectory_pb2.Vec3TrajectoryPoint(point=start_pos_in_odom)
+
+        duration_seconds = int(traj_time)
+        duration_nanos = int((traj_time - duration_seconds) * 1e9)
+
+        point2 = trajectory_pb2.Vec3TrajectoryPoint(
+            point=end_pos_in_odom,
+            time_since_reference=Duration(
+                seconds=duration_seconds, nanos=duration_nanos
+            ),
+        )
+
+        # Build the trajectory proto
+        traj_proto = trajectory_pb2.Vec3Trajectory(points=[point1, point2])
+
+        # Build the proto
+        gaze_cmd = arm_command_pb2.GazeCommand.Request(
+            target_trajectory_in_frame1=traj_proto,
+            frame1_name=ODOM_FRAME_NAME,
+            frame2_name=ODOM_FRAME_NAME,
+        )
+        arm_command = arm_command_pb2.ArmCommand.Request(arm_gaze_command=gaze_cmd)
+        synchronized_command = synchronized_command_pb2.SynchronizedCommand.Request(
+            arm_command=arm_command
+        )
+        command = robot_command_pb2.RobotCommand(
+            synchronized_command=synchronized_command
+        )
+
+        # Make the open gripper RobotCommand
+        gripper_command = RobotCommandBuilder.claw_gripper_open_command()
+
+        # Combine the arm and gripper commands into one RobotCommand
+        synchro_command = RobotCommandBuilder.build_synchro_command(
+            gripper_command, command
+        )
+
+        # Send the request
+        gaze_command_id = self._robot_command_client.robot_command(command)
+        self._logger.info("Sending gaze trajectory.")
+
+        # Wait until the robot completes the gaze before issuing the next command.
+        block_until_arm_arrives(
+            self._robot_command_client, gaze_command_id, timeout_sec=traj_time + 3.0
+        )
+
+        # ------------- #
+
+        # Now make a gaze trajectory that moves the hand around while maintaining the gaze.
+        # We'll use the same trajectory as before, but add a trajectory for the hand to move to.
+
+        # Hand will start to the left (while looking left) and move to the right.
+        hand_x = 0.75  # in front of the robot.
+        hand_y = 0  # centered
+        hand_z_start = 0  # body height
+        hand_z_end = 0.25  # above body height
+
+        hand_vec3_start = geometry_pb2.Vec3(x=hand_x, y=hand_y, z=hand_z_start)
+        hand_vec3_end = geometry_pb2.Vec3(x=hand_x, y=hand_y, z=hand_z_end)
+
+        # We specify an orientation for the hand, which the robot will use its remaining degree
+        # of freedom to achieve.  Most of it will be ignored in favor of the gaze direction.
+        qw = 1
+        qx = 0
+        qy = 0
+        qz = 0
+        quat = geometry_pb2.Quaternion(w=qw, x=qx, y=qy, z=qz)
+
+        # Build a trajectory
+        hand_pose1_in_flat_body = geometry_pb2.SE3Pose(
+            position=hand_vec3_start, rotation=quat
+        )
+        hand_pose2_in_flat_body = geometry_pb2.SE3Pose(
+            position=hand_vec3_end, rotation=quat
+        )
+
+        hand_pose1_in_odom = odom_T_flat_body * math_helpers.SE3Pose.from_obj(
+            hand_pose1_in_flat_body
+        )
+        hand_pose2_in_odom = odom_T_flat_body * math_helpers.SE3Pose.from_obj(
+            hand_pose2_in_flat_body
+        )
+
+        traj_point1 = trajectory_pb2.SE3TrajectoryPoint(
+            pose=hand_pose1_in_odom.to_proto()
+        )
+
+        # We'll make this trajectory the same length as the one above.
+        traj_point2 = trajectory_pb2.SE3TrajectoryPoint(
+            pose=hand_pose2_in_odom.to_proto(),
+            time_since_reference=Duration(
+                seconds=duration_seconds, nanos=duration_nanos
+            ),
+        )
+
+        hand_traj = trajectory_pb2.SE3Trajectory(points=[traj_point1, traj_point2])
+
+        # Build the proto
+        gaze_cmd = arm_command_pb2.GazeCommand.Request(
+            target_trajectory_in_frame1=traj_proto,
+            frame1_name=ODOM_FRAME_NAME,
+            tool_trajectory_in_frame2=hand_traj,
+            frame2_name=ODOM_FRAME_NAME,
+        )
+
+        arm_command = arm_command_pb2.ArmCommand.Request(arm_gaze_command=gaze_cmd)
+        synchronized_command = synchronized_command_pb2.SynchronizedCommand.Request(
+            arm_command=arm_command
+        )
+        command = robot_command_pb2.RobotCommand(
+            synchronized_command=synchronized_command
+        )
+
+        # Make the open gripper RobotCommand
+        gripper_command = RobotCommandBuilder.claw_gripper_open_command()
+
+        # Combine the arm and gripper commands into one RobotCommand
+        synchro_command = RobotCommandBuilder.build_synchro_command(
+            gripper_command, command
+        )
+
+        # Send the request
+        gaze_command_id = self._robot_command_client.robot_command(synchro_command)
+        self._logger.info("Sending gaze trajectory with hand movement.")
+
+        # Wait until the robot completes the gaze before powering off.
+        block_until_arm_arrives(
+            self._robot_command_client, gaze_command_id, timeout_sec=traj_time + 3.0
+        )
+
+        # Stow the arm
+        stow = RobotCommandBuilder.arm_stow_command()
+        # Make the open gripper RobotCommand
+        gripper_command = RobotCommandBuilder.claw_gripper_close_command()
+
+        # Combine the arm and gripper commands into one RobotCommand
+        synchro_command = RobotCommandBuilder.build_synchro_command(
+            gripper_command, stow
+        )
+
+        # Issue the command via the RobotCommandClient
+        stow_command_id = self._robot_command_client.robot_command(synchro_command)
+        self._logger.info("Stow command issued.")
+
+        block_until_arm_arrives(self._robot_command_client, stow_command_id, 3.0)
+
+        return True, "Gaze successful"
