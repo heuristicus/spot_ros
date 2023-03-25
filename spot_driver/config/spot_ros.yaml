@@ -14,6 +14,17 @@ rates:
   feedback: 10.0
   mobility_params: 10.0
   check_subscribers: 10.0
+
+# If true, automatically claim the lease when the driver starts
 auto_claim: False
+# If true, automatically power on when the driver starts (requires auto_claim)
 auto_power_on: False
+# If true, automatically stand when the driver starts (requires auto_power_on)
 auto_stand: False
+
+claim:
+  # If true, forcefully take the lease, instead of acquiring it, which can fail if someone else has it
+  use_take_lease: False
+  # If true, try and claim the lease when doing actions if we don't already have it. Also automatically powers on for
+  # stand, rollover and self-right commands
+  get_lease_on_action: False
