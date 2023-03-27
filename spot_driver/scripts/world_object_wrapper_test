@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+
+import logging
+
+from spot_driver.spot_wrapper import SpotWrapper
+from spot_driver.utils.world_objects_wrapper import WorldObjectHandler
+
+from bosdyn.client.image import ImageClient, build_image_request
+from bosdyn.api.image_pb2 import Image 
+
+import cv2
+import numpy as np
+import apriltag
+
+
+def image_shot_to_np(image, gray=True):
+    im = cv2.imdecode(
+            np.frombuffer(image.data, dtype=np.uint8),
+        -1)
+    if gray: im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    return np.array(im)
+
+def detect_objects_using_hand_cam(image_client, source='hand_color_image'):
+    im_req = build_image_request(
+                    source,
+                    pixel_format=Image.PixelFormat.PIXEL_FORMAT_RGB_U8,
+                )
+    pb2_im = image_client.get_image([im_req])
+    np_image =  image_shot_to_np(pb2_im[0].shot.image)
+            # .reshape((image.rows, image.cols, 3))
+
+    options = apriltag.DetectorOptions(families="tag36h11")
+    detector = apriltag.Detector(options)
+    detections = detector.detect(np_image)
+    # Estimate tag pose
+    intrinsics = pb2_im[0].source.pinhole.intrinsics
+    cam_params = (
+        intrinsics.focal_length.x, 
+        intrinsics.focal_length.y,
+        intrinsics.principal_point.x, 
+        intrinsics.principal_point.y
+        )
+    tag_size=0.036  # meters
+    poses = [
+        detector.detection_pose(d, cam_params, tag_size)[0] 
+        for d in detections
+    ]
+
+    return poses, pb2_im
+
+
+
+
+
+
+if __name__=='__main__':
+
+    FORMAT = '%(message)s'
+    logging.basicConfig(format=FORMAT)
+    logger = logging.getLogger("rosout")
+    logger.debug('Starting code.')
+
+    spot_wrapper = SpotWrapper('admin', 
+                               'pvwmr4j08osj', 
+                               '10.0.0.3',  #'192.168.80.3',
+                                logger=logger,
+                                estop_timeout=9.0,)
+
+
+    logger.setLevel('DEBUG')
+    spot_wrapper.claim()
+    # spot_wrapper.power_on()
+    # spot_wrapper.stand()
+    
+    logger.debug('Successfully started.')
+    
+    world_object_wrapper = WorldObjectHandler(spot_wrapper._robot)
+
+    logger.debug('Created object wrapper.')
+
+    image_client = spot_wrapper._robot.ensure_client(ImageClient.default_service_name)
+    
+    poses, pb2_ims = detect_objects_using_hand_cam(image_client)
+
+    if len(poses) == 0:
+        logger.error('Could not detect tag...')
+        exit(1)
+
+    obj_name = 'apriltag'
+    world_object_wrapper.add_cam_detected_object(obj_name, poses[0], pb2_ims[0].shot, {'grasp':[1,2,3]})
+    logger.debug('Added April tag object')
+
+    logger.debug('Getting object in frame.')
+
+    wo = world_object_wrapper.get_object_transform(obj_name)
+    logger.debug(wo)
+
+    logger.debug(f'world_object_wrapper known frames {world_object_wrapper.get_known_frames()}')
+
+
+    logger.debug(f'image frame_tree contains {[k for k in pb2_ims[0].shot.transforms_snapshot.child_to_parent_edge_map]}')
+
+    logger.debug(f'now lets add an object without providing its corresponding frame_tree.')
+    world_object_wrapper.add_object('second_tag', 
+                                    poses[0], 
+                                    pb2_ims[0].shot.frame_name_image_sensor)  # 'vision')
+    logger.debug(f'Success!!!')
+
+
+    logger.debug(f'all the frames known by the world object wrapper: {world_object_wrapper.get_all_known_frames()}')
+
+    # # Add detection to frame tree
+    # edges = dict(pb2_im[0].shot.transforms_snapshot.child_to_parent_edge_map)
+
+    # T0 = np.eye(4)
+    # pb2pose = self._pose_mat_to_pb2(T0)
+    # add_edge_to_tree(edges, pb2pose, pb2_im[0].shot.frame_name_image_sensor, 'apriltag')
+    # new_frames = geometry_pb2.FrameTreeSnapshot(child_to_parent_edge_map=edges)
