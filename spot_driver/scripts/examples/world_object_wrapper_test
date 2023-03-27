@@ -13,11 +13,6 @@ import numpy as np
 import apriltag
 
 
-import time
-import rospy
-import tf2_ros
-from geometry_msgs.msg import TransformStamped
-
 def image_shot_to_np(image, gray=True):
     im = cv2.imdecode(
             np.frombuffer(image.data, dtype=np.uint8),
@@ -52,6 +47,56 @@ def detect_objects_using_hand_cam(image_client, source='hand_color_image'):
 
     return poses, pb2_im
 
+
+import rospy
+import tf2_ros
+import tf2_msgs.msg
+import geometry_msgs.msg
+import tf
+import tf.msg
+
+# reference: http://wiki.ros.org/tf2/Tutorials/Adding%20a%20frame%20%28Python%29
+class FixedTFBroadcaster:
+
+    def __init__(self, wow, name, ref):
+        # self.pub_tf = rospy.Publisher("/tf/testing_wold_objs", tf2_msgs.msg.TFMessage, queue_size=1)
+        
+        # broadcaster = tf2_ros.StaticTransformBroadcaster()
+        
+        self.pub_tf = rospy.Publisher("/tf/testing_wold_objs", tf.msg.tfMessage, queue_size=1)
+
+        while not rospy.is_shutdown():
+            # Run this loop at about 2Hz
+            rospy.sleep(0.5)
+            
+            try:
+                tag_T = wow.get_object_transform(name, ref)
+
+                t = geometry_msgs.msg.TransformStamped()
+
+                t.header.stamp = rospy.Time.now()
+                t.header.frame_id = ref
+                t.child_frame_id = name
+
+                t.transform.translation.x = float(tag_T.x)
+                t.transform.translation.y = float(tag_T.y)
+                t.transform.translation.z = float(tag_T.z)
+
+                t.transform.rotation.x = tag_T.rot.x
+                t.transform.rotation.y = tag_T.rot.y
+                t.transform.rotation.z = tag_T.rot.z
+                t.transform.rotation.w = tag_T.rot.w
+
+                # tfm = tf2_msgs.msg.TFMessage([t])
+                # self.pub_tf.publish(tfm)
+
+                # broadcaster.sendTransform(t)
+
+                tfm = tf.msg.tfMessage([t])
+                self.pub_tf.publish(tfm)
+
+            except Exception as e: 
+                logger.debug(e)
 
 
 
@@ -133,34 +178,10 @@ if __name__=='__main__':
         logger.debug(f'\t{o.name}')
 
 
-    logger.debug(f'Now publish the transform in a 1 Hz loop')
+    logger.debug(f'Now publish the transform in a 1 Hz loop')    
+    ref = sensor_frame  #'vision'
+    name = tag2_name
+    rospy.init_node('fixed_tf2_broadcaster')
+    tfb = FixedTFBroadcaster(world_object_wrapper, name, ref)
 
-    rospy.init_node('my_tf_broadcaster')
-    rate = rospy.Rate(1.0)
-    broadcaster = tf2_ros.StaticTransformBroadcaster()
-    relative_frame = sensor_frame  #'vision'
-    tag_name = tag2_name
-    while not rospy.is_shutdown():
-        try:
-            # tag_T = world_object_wrapper.get_object_transform(tag_name, relative_frame)
-            tag_T = poses[0]
-
-            static_transformStamped = TransformStamped()
-
-            static_transformStamped.header.stamp = rospy.Time.now()
-            static_transformStamped.header.frame_id = relative_frame
-            static_transformStamped.child_frame_id = tag_name
-
-            static_transformStamped.transform.translation.x = float(tag_T.x)
-            static_transformStamped.transform.translation.y = float(tag_T.y)
-            static_transformStamped.transform.translation.z = float(tag_T.z)
-
-            static_transformStamped.transform.rotation.x = tag_T.rot.x
-            static_transformStamped.transform.rotation.y = tag_T.rot.y
-            static_transformStamped.transform.rotation.z = tag_T.rot.z
-            static_transformStamped.transform.rotation.w = tag_T.rot.w
-
-            broadcaster.sendTransform(static_transformStamped)
-        except Exception as e: 
-            logger.debug(e)
-        rate.sleep()
+    rospy.spin()
