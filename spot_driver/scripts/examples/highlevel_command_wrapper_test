@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+
+import logging
+
+from spot_driver.spot_wrapper import SpotWrapper
+from spot_driver.highlevel_command_wrapper import HighlevelCommandSpotWrapper
+
+
+
+if __name__=='__main__':
+    '''
+    NOTE: This script test the WorldObjectHandler class without requiring 
+    any ros specific code. The wrapper could be used with other pure python 
+    code.
+    ''' 
+    FORMAT = '%(message)s'
+    logging.basicConfig(format=FORMAT)
+    logger = logging.getLogger("rosout")
+    logger.debug('Starting code.')
+
+    spot_wrapper = SpotWrapper('admin', 
+                               'pvwmr4j08osj', 
+                               '10.0.0.3',  #'192.168.80.3',
+                                logger=logger,
+                                estop_timeout=9.0,)
+
+    logger.setLevel('DEBUG')
+    spot_wrapper.claim()
+    spot_wrapper.power_on()
+    spot_wrapper.stand()
+
+    logger.debug('Successfully started.')
+    
+    command_wrapper = HighlevelCommandSpotWrapper(spot_wrapper)
+
+    logger.debug('Created command wrapper.')
+
+    command_wrapper.walk_to_object(pose, 
+                                   'body', 
+                                   distance=0.5, 
+                                   axis='z')
+
+    logger.debug(f'Success!!!')
