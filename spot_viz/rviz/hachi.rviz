@@ -6,9 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /DepthClouds1
-        - /DepthClouds1/FrontLeftDepthCloud1
-        - /PointCloud21
+        - /TF1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 808
   - Class: rviz/Selection
@@ -28,7 +27,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: RearDepthCloud
   - Class: spot_viz/SpotControlPanel
     Name: SpotControlPanel
 Preferences:
@@ -407,7 +406,7 @@ Visualization Manager:
           Decay Time: 0
           Depth Map Topic: /spot/depth/frontleft/image
           Depth Map Transport Hint: raw
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
@@ -423,15 +422,15 @@ Visualization Manager:
           Topic Filter: true
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Alpha: 1
           Auto Size:
             Auto Size Factor: 1
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 3.260444164276123
-            Min Value: -0.12758135795593262
+            Max Value: 2.6376423835754395
+            Min Value: -5.300692081451416
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -466,8 +465,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 2.525723457336426
-            Min Value: -0.08886635303497314
+            Max Value: 1.7095638513565063
+            Min Value: -0.06518586724996567
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -502,8 +501,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.635010004043579
-            Min Value: -0.017765522003173828
+            Max Value: 0.16315828263759613
+            Min Value: -4.1549973487854
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -538,8 +537,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.3494317531585693
-            Min Value: -0.10471296310424805
+            Max Value: 0.7192510962486267
+            Min Value: -4.024796009063721
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -568,7 +567,7 @@ Visualization Manager:
           Use Fixed Frame: true
           Use rainbow: true
           Value: true
-      Enabled: true
+      Enabled: false
       Name: DepthClouds
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
@@ -578,21 +577,6 @@ Visualization Manager:
       Show Descriptions: true
       Show Visual Aids: false
       Update Topic: /twist_marker_server/update
-      Value: false
-    - Class: rviz/TF
-      Enabled: false
-      Frame Timeout: 15
-      Frames:
-        All Enabled: true
-      Marker Alpha: 1
-      Marker Scale: 1
-      Name: TF
-      Show Arrows: true
-      Show Axes: true
-      Show Names: true
-      Tree:
-        {}
-      Update Interval: 0
       Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
@@ -624,7 +608,7 @@ Visualization Manager:
       Value: false
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
+    Background Color: 0; 0; 0
     Default Light: true
     Fixed Frame: gpe
     Frame Rate: 30
@@ -650,7 +634,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 8.359951972961426
+      Distance: 0.5756173729896545
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -658,17 +642,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.1083885207772255
-        Y: 1.1389347314834595
-        Z: 1.2422560453414917
+        X: 0.3038458228111267
+        Y: 1.2127459049224854
+        Z: 0.49266907572746277
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4552038311958313
+      Pitch: 0.14520405232906342
       Target Frame: <Fixed Frame>
-      Yaw: 4.798589706420898
+      Yaw: 1.7954037189483643
     Saved: ~
 Window Geometry:
   Displays:

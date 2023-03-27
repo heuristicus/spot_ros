@@ -75,14 +75,14 @@
     <inertia ixx="0.002129" ixy="0.0" ixz="-0.0" iyy="0.001681" iyz="0.000162" izz="0.003403"/>
   </inertial>
   <visual>
-    <origin rpy="0 0 0" xyz="0.87709 -0.823505 -0.0185"/>
+    <origin rpy="0 0 0" xyz="0.0145 -0.823505 -0.0185"/>
     <geometry>
       <mesh filename="package://spot_description/meshes/arm/finger.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin rpy="0 0 0" xyz="0.87709 -0.823505 -0.0185"/>
+    <origin rpy="0 0 0" xyz="0.0145 -0.823505 -0.0185"/>
     <geometry>
       <mesh filename="package://spot_description/meshes/arm/finger.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -228,7 +228,7 @@
 </joint>
 
 <joint name="arm_gripper" type="revolute">
-  <origin rpy="0 0 0" xyz="-0.86859 0.043915 -0.029"/>
+  <origin rpy="0 0 0" xyz="0.0 0.043915 -0.029"/>
   <parent link="gripper"/>
   <child link="finger"/>
   <axis xyz="1.0 -0.0 0.0"/>
