@@ -6,7 +6,6 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 808
@@ -27,7 +26,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: RearDepthCloud
+    SyncSource: ""
   - Class: spot_viz/SpotControlPanel
     Name: SpotControlPanel
 Preferences:
@@ -197,110 +196,10 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/TF
-      Enabled: true
+      Enabled: false
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        arm0.link_wr1:
-          Value: true
-        back:
-          Value: true
-        back_fisheye:
-          Value: true
-        base_arm_link:
-          Value: true
-        base_link:
-          Value: true
-        body:
-          Value: true
-        finger:
-          Value: true
-        flat_body:
-          Value: true
-        front_left_foot:
-          Value: true
-        front_left_hip:
-          Value: true
-        front_left_lower_leg:
-          Value: true
-        front_left_upper_leg:
-          Value: true
-        front_rail:
-          Value: true
-        front_right_foot:
-          Value: true
-        front_right_hip:
-          Value: true
-        front_right_lower_leg:
-          Value: true
-        front_right_upper_leg:
-          Value: true
-        frontleft:
-          Value: true
-        frontleft_fisheye:
-          Value: true
-        frontright:
-          Value: true
-        frontright_fisheye:
-          Value: true
-        gpe:
-          Value: true
-        gripper:
-          Value: true
-        hand:
-          Value: true
-        hand_color_image_sensor:
-          Value: true
-        hand_depth_sensor:
-          Value: true
-        head:
-          Value: true
-        left:
-          Value: true
-        left_fisheye:
-          Value: true
-        link1:
-          Value: true
-        link2:
-          Value: true
-        link3:
-          Value: true
-        link4:
-          Value: true
-        link_wr1:
-          Value: true
-        odom:
-          Value: true
-        real_front_rail:
-          Value: true
-        real_rear_rail:
-          Value: true
-        rear_left_foot:
-          Value: true
-        rear_left_hip:
-          Value: true
-        rear_left_lower_leg:
-          Value: true
-        rear_left_upper_leg:
-          Value: true
-        rear_rail:
-          Value: true
-        rear_right_foot:
-          Value: true
-        rear_right_hip:
-          Value: true
-        rear_right_lower_leg:
-          Value: true
-        rear_right_upper_leg:
-          Value: true
-        right:
-          Value: true
-        right_fisheye:
-          Value: true
-        vision:
-          Value: true
-        wrist:
-          Value: true
       Marker Alpha: 1
       Marker Scale: 0.25
       Name: TF
@@ -308,83 +207,9 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        odom:
-          body:
-            arm0.link_wr1:
-              hand_color_image_sensor:
-                {}
-              hand_depth_sensor:
-                {}
-            base_arm_link:
-              link1:
-                link2:
-                  link3:
-                    link4:
-                      wrist:
-                        gripper:
-                          finger:
-                            {}
-            base_link:
-              {}
-            flat_body:
-              {}
-            front_left_foot:
-              {}
-            front_left_hip:
-              front_left_upper_leg:
-                front_left_lower_leg:
-                  {}
-            front_rail:
-              {}
-            front_right_foot:
-              {}
-            front_right_hip:
-              front_right_upper_leg:
-                front_right_lower_leg:
-                  {}
-            hand:
-              {}
-            head:
-              back:
-                back_fisheye:
-                  {}
-              frontleft:
-                frontleft_fisheye:
-                  {}
-              frontright:
-                frontright_fisheye:
-                  {}
-              left:
-                left_fisheye:
-                  {}
-              right:
-                right_fisheye:
-                  {}
-            link_wr1:
-              {}
-            real_front_rail:
-              real_rear_rail:
-                {}
-            rear_left_foot:
-              {}
-            rear_left_hip:
-              rear_left_upper_leg:
-                rear_left_lower_leg:
-                  {}
-            rear_rail:
-              {}
-            rear_right_foot:
-              {}
-            rear_right_hip:
-              rear_right_upper_leg:
-                rear_right_lower_leg:
-                  {}
-            vision:
-              {}
-          gpe:
-            {}
+        {}
       Update Interval: 0
-      Value: true
+      Value: false
     - Class: rviz/Group
       Displays:
         - Alpha: 0.5
@@ -634,7 +459,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 0.5756173729896545
+      Distance: 2.7630646228790283
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -650,9 +475,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.14520405232906342
+      Pitch: 0.18520407378673553
       Target Frame: <Fixed Frame>
-      Yaw: 1.7954037189483643
+      Yaw: 4.210391044616699
     Saved: ~
 Window Geometry:
   Displays:

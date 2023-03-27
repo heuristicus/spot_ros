@@ -163,7 +163,6 @@ class WorldObjectHandler:
                                           frame_tree,
                                           kwargs)        
 
-
     def get_known_frames(self):
         '''
         TODO: currently just for testing.
@@ -175,11 +174,9 @@ class WorldObjectHandler:
         tree = self._get_frame_tree_with_frame(VISION_FRAME_NAME)
         return [f for f in tree.child_to_parent_edge_map]        
 
-    def _newid(self):
-        id = len(self._ids2names) + 1
-        self._ids2names[id]=None
-        return id
-
+    def get_world_objects(self): 
+        return self._wo_client.list_world_objects().world_objects
+    
     def get_object(self, name, id=None)->WorldObject:
         if id is None:
             ids = [k for k, v in self._ids2names.items() if v == name]
@@ -189,14 +186,13 @@ class WorldObjectHandler:
             elif len(ids) == 0: 
                 raise RuntimeError('No object with this name.')
             else: id = ids[0]
-
         def get_object_with_id(id):
-            wos = self._wo_client.list_world_objects()
-            for obj in wos.world_objects:
-                print(f'looking at obj with id {obj.id}')
+            for obj in self.get_world_objects():
                 if obj.id == id: return obj
-                
-        return get_object_with_id(id) 
+        obj = get_object_with_id(id) 
+        if not isinstance(obj, WorldObject): 
+            raise RuntimeError(f'Failed to find object {name}, {id}.')
+        return obj
         
     def get_object_transform(self, name, relative_frame=VISION_FRAME_NAME, id=None)->SE3Pose:
         '''

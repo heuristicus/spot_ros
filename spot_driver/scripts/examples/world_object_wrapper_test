@@ -13,6 +13,11 @@ import numpy as np
 import apriltag
 
 
+import time
+import rospy
+import tf2_ros
+from geometry_msgs.msg import TransformStamped
+
 def image_shot_to_np(image, gray=True):
     im = cv2.imdecode(
             np.frombuffer(image.data, dtype=np.uint8),
@@ -27,7 +32,6 @@ def detect_objects_using_hand_cam(image_client, source='hand_color_image'):
                 )
     pb2_im = image_client.get_image([im_req])
     np_image =  image_shot_to_np(pb2_im[0].shot.image)
-            # .reshape((image.rows, image.cols, 3))
 
     options = apriltag.DetectorOptions(families="tag36h11")
     detector = apriltag.Detector(options)
@@ -66,7 +70,7 @@ if __name__=='__main__':
 
     spot_wrapper = SpotWrapper('admin', 
                                'pvwmr4j08osj', 
-                               '10.0.0.3',  #'192.168.80.3',
+                               '192.168.80.3',  #'10.0.0.3', 
                                 logger=logger,
                                 estop_timeout=9.0,)
 
@@ -90,25 +94,73 @@ if __name__=='__main__':
         logger.error('Could not detect tag...')
         exit(1)
 
-    obj_name = 'apriltag'
-    world_object_wrapper.add_cam_detected_object(obj_name, poses[0], pb2_ims[0].shot, {'grasp':[1,2,3]})
+    tag1_name = 'apriltag'
+    logger.debug(f"id: {world_object_wrapper.add_cam_detected_object(tag1_name, poses[0], pb2_ims[0].shot, {'grasp':[1,2,3]})}")
     logger.debug('Added April tag object')
 
     logger.debug('Getting object in frame.')
 
-    wo = world_object_wrapper.get_object_transform(obj_name)
+    logger.debug('\n'+'#'*50)
+    wo = world_object_wrapper.get_object_transform(tag1_name)
     logger.debug(wo)
+    logger.debug('trying again...')
+    world_object_wrapper.get_object_transform(tag1_name)
+    logger.debug(wo)
+    logger.debug('Success!')
 
-    logger.debug(f'world_object_wrapper known frames {world_object_wrapper.get_known_frames()}')
 
+    # NOTE: takes a bit of time removed temporarily for convinience.
+    # logger.debug('#'*50)
+    # logger.debug(f'world_object_wrapper known frames {world_object_wrapper.get_known_frames()}')
+    # logger.debug(f'image frame_tree contains {[k for k in pb2_ims[0].shot.transforms_snapshot.child_to_parent_edge_map]}')
 
-    logger.debug(f'image frame_tree contains {[k for k in pb2_ims[0].shot.transforms_snapshot.child_to_parent_edge_map]}')
-
+    logger.debug('\n'+'#'*50)
     logger.debug(f'now lets add an object without providing its corresponding frame_tree.')
-    world_object_wrapper.add_object('second_tag', 
-                                    poses[0], 
-                                    pb2_ims[0].shot.frame_name_image_sensor)  # 'vision')
+    sensor_frame = pb2_ims[0].shot.frame_name_image_sensor
+    tag2_name = 'second_tag'
+    logger.debug(f"id: { world_object_wrapper.add_object(tag2_name, poses[0], sensor_frame)}")
     logger.debug(f'Success!!!')
 
 
-    logger.debug(f'all the frames known by the world object wrapper: {world_object_wrapper.get_all_known_frames()}')
+    # logger.debug(f'all the frames known by the world object wrapper: {world_object_wrapper.get_all_known_frames()}')
+    logger.debug('\n'+'#'*50)
+    logger.debug(f'\nlets see all the objects we have:')
+    for o in world_object_wrapper.get_world_objects():
+        logger.debug(f'\t{o.name}')
+    logger.debug('Again...')
+    logger.debug(f'lets see all the objects we have:')
+    for o in world_object_wrapper.get_world_objects():
+        logger.debug(f'\t{o.name}')
+
+
+    logger.debug(f'Now publish the transform in a 1 Hz loop')
+
+    rospy.init_node('my_tf_broadcaster')
+    rate = rospy.Rate(1.0)
+    broadcaster = tf2_ros.StaticTransformBroadcaster()
+    relative_frame = sensor_frame  #'vision'
+    tag_name = tag2_name
+    while not rospy.is_shutdown():
+        try:
+            # tag_T = world_object_wrapper.get_object_transform(tag_name, relative_frame)
+            tag_T = poses[0]
+
+            static_transformStamped = TransformStamped()
+
+            static_transformStamped.header.stamp = rospy.Time.now()
+            static_transformStamped.header.frame_id = relative_frame
+            static_transformStamped.child_frame_id = tag_name
+
+            static_transformStamped.transform.translation.x = float(tag_T.x)
+            static_transformStamped.transform.translation.y = float(tag_T.y)
+            static_transformStamped.transform.translation.z = float(tag_T.z)
+
+            static_transformStamped.transform.rotation.x = tag_T.rot.x
+            static_transformStamped.transform.rotation.y = tag_T.rot.y
+            static_transformStamped.transform.rotation.z = tag_T.rot.z
+            static_transformStamped.transform.rotation.w = tag_T.rot.w
+
+            broadcaster.sendTransform(static_transformStamped)
+        except Exception as e: 
+            logger.debug(e)
+        rate.sleep()
