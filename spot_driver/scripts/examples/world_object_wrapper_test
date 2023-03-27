@@ -54,7 +54,11 @@ def detect_objects_using_hand_cam(image_client, source='hand_color_image'):
 
 
 if __name__=='__main__':
-
+    '''
+    NOTE: This script test the WorldObjectHandler class without requiring 
+    any ros specific code. The wrapper could be used with other pure python 
+    code.
+    ''' 
     FORMAT = '%(message)s'
     logging.basicConfig(format=FORMAT)
     logger = logging.getLogger("rosout")
@@ -108,11 +112,3 @@ if __name__=='__main__':
 
 
     logger.debug(f'all the frames known by the world object wrapper: {world_object_wrapper.get_all_known_frames()}')
-
-    # # Add detection to frame tree
-    # edges = dict(pb2_im[0].shot.transforms_snapshot.child_to_parent_edge_map)
-
-    # T0 = np.eye(4)
-    # pb2pose = self._pose_mat_to_pb2(T0)
-    # add_edge_to_tree(edges, pb2pose, pb2_im[0].shot.frame_name_image_sensor, 'apriltag')
-    # new_frames = geometry_pb2.FrameTreeSnapshot(child_to_parent_edge_map=edges)
