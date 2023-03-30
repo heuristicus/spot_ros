@@ -12,7 +12,9 @@
   <arg name="driver_config" default="$(find spot_driver)/config/hachi_ros.yaml"/>
 
   <include file="$(find spot_description)/launch/description.launch" />
-  <include file="$(find spot_driver)/launch/control.launch" />
+  <include file="$(find spot_driver)/launch/control.launch" >
+    <arg name="joy" value="false"/>
+  </include>
   <include file="$(find spot_driver)/launch/accessories.launch" />
 
   <node pkg="spot_driver" type="spot_ros" name="spot_ros"  ns="spot" output="screen">

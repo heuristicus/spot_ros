@@ -10,9 +10,9 @@ rates:
   side_image:  1.0
   rear_image:  1.0
   hand_image:  1.0
-  hand_pointcloud: 5.0
+  hand_pointcloud: 1.0
   feedback: 10.0
   mobility_params: 10.0
-auto_claim: False
-auto_power_on: False
+auto_claim: True
+auto_power_on: True
 auto_stand: False

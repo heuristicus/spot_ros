@@ -18,6 +18,8 @@ from bosdyn.client.frame_helpers import (
     get_odom_tform_body,
     ODOM_FRAME_NAME,
     BODY_FRAME_NAME,
+    VISION_FRAME_NAME,
+    get_se2_a_tform_b
 )
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
@@ -35,7 +37,13 @@ from bosdyn.client import math_helpers
 from bosdyn.client import robot_command
 from bosdyn.client.exceptions import InternalServerError
 
+from bosdyn.client.math_helpers import SE2Pose as bdSE2Pose
+from bosdyn.client.math_helpers import Quat as bdQuat
+
 from . import graph_nav_util
+from .utils.feedback_handlers import (
+    handle_se2_traj_cmd_feedback
+)
 
 from bosdyn.api import arm_command_pb2
 import bosdyn.api.robot_state_pb2 as robot_state_proto
@@ -207,7 +215,7 @@ class AsyncIdle(AsyncPeriodicQuery):
                 ):
                     self._spot_wrapper._is_standing = False
                 else:
-                    self._logger.warn("Stand command in unknown state")
+                    self._logger.warn(f"Stand command in unknown state {status}")
                     self._spot_wrapper._is_standing = False
             except (ResponseError, RpcError) as e:
                 self._logger.error("Error when getting robot command feedback: %s", e)
@@ -736,14 +744,17 @@ class SpotWrapper:
             self._estop_keepalive = None
             self._estop_endpoint = None
 
-    def getLease(self):
+    def getLease(self, hijack=False):
         """Get a lease for the robot and keep the lease alive automatically."""
-        self._lease = self._lease_client.acquire()
+        
+        if hijack: self._lease = self._lease_client.take()
+        else: self._lease = self._lease_client.acquire()
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
 
     def releaseLease(self):
         """Return the lease on the body."""
         if self._lease:
+            self._lease_keepalive.shutdown()
             self._lease_client.return_lease(self._lease)
             self._lease = None
 
@@ -894,8 +905,10 @@ class SpotWrapper:
         goal_y,
         goal_heading,
         cmd_duration,
+        reference_frame=BODY_FRAME_NAME,
         frame_name="odom",
         precise_position=False,
+        blocking=False
     ):
         """Send a trajectory motion command to the robot.
 
@@ -908,55 +921,42 @@ class SpotWrapper:
             precise_position: if set to false, the status STATUS_NEAR_GOAL and STATUS_AT_GOAL will be equivalent. If
             true, the robot must complete its final positioning before it will be considered to have successfully
             reached the goal.
+            reference_frame: The frame in which the goal is represented
 
         Returns: (bool, str) tuple indicating whether the command was successfully sent, and a message
         """
+        
+        if frame_name not in [ODOM_FRAME_NAME, VISION_FRAME_NAME]: 
+            raise ValueError("frame_name must be 'vision' or 'odom'")
+        self._logger.info("trajectory_cmd: goal_x: {}, goal_y: {}, goal_heading: {}, cmd_duration: {}, frame_name: {}, precise_position: {}".format(goal_x, goal_y, goal_heading, cmd_duration, frame_name, precise_position))
         self._at_goal = False
         self._near_goal = False
         self._trajectory_status_unknown = False
         self._last_trajectory_command_precise = precise_position
-        self._logger.info("got command duration of {}".format(cmd_duration))
         end_time = time.time() + cmd_duration
-        if frame_name == "vision":
-            vision_tform_body = frame_helpers.get_vision_tform_body(
-                self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot
-            )
-            body_tform_goal = math_helpers.SE3Pose(
-                x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading)
-            )
-            vision_tform_goal = vision_tform_body * body_tform_goal
-            response = self._robot_command(
+
+        T_in_ref = bdSE2Pose(x=goal_x, y=goal_y, angle=goal_heading)
+
+        transforms = self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot
+        target_T_ref = get_se2_a_tform_b(transforms, frame_name, reference_frame)
+        T_in_target = target_T_ref * T_in_ref
+
+        response = self._robot_command(
                 RobotCommandBuilder.synchro_se2_trajectory_point_command(
-                    goal_x=vision_tform_goal.x,
-                    goal_y=vision_tform_goal.y,
-                    goal_heading=vision_tform_goal.rot.to_yaw(),
-                    frame_name=frame_helpers.VISION_FRAME_NAME,
+                    goal_x=T_in_target.x,
+                    goal_y=T_in_target.y,
+                    goal_heading=T_in_target.angle,
+                    frame_name=frame_name,
                     params=self._mobility_params,
                 ),
                 end_time_secs=end_time,
             )
-        elif frame_name == "odom":
-            odom_tform_body = frame_helpers.get_odom_tform_body(
-                self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot
-            )
-            body_tform_goal = math_helpers.SE3Pose(
-                x=goal_x, y=goal_y, z=0, rot=math_helpers.Quat.from_yaw(goal_heading)
-            )
-            odom_tform_goal = odom_tform_body * body_tform_goal
-            response = self._robot_command(
-                RobotCommandBuilder.synchro_se2_trajectory_point_command(
-                    goal_x=odom_tform_goal.x,
-                    goal_y=odom_tform_goal.y,
-                    goal_heading=odom_tform_goal.rot.to_yaw(),
-                    frame_name=frame_helpers.ODOM_FRAME_NAME,
-                    params=self._mobility_params,
-                ),
-                end_time_secs=end_time,
-            )
-        else:
-            raise ValueError("frame_name must be 'vision' or 'odom'")
-        if response[0]:
+
+        if response[0]: 
             self._last_trajectory_command = response[2]
+            if blocking: 
+                handle_se2_traj_cmd_feedback(response[2], self._robot_command_client)
+
         return response[0], response[1]
 
     def list_graph(self, upload_path):
@@ -1028,16 +1028,17 @@ class SpotWrapper:
         if not self._robot.has_arm():
             return False, "Spot with an arm is required for this service"
 
-        try:
-            self._logger.info("Spot is powering on within the timeout of 20 secs")
-            self._robot.power_on(timeout_sec=20)
-            assert self._robot.is_powered_on(), "Spot failed to power on"
-            self._logger.info("Spot is powered on")
-        except Exception as e:
-            return (
-                False,
-                "Exception occured while Spot or its arm were trying to power on",
-            )
+        if not self._robot.is_powered_on():
+            try:
+                self._logger.info("Spot is powering on within the timeout of 20 secs")
+                self._robot.power_on(timeout_sec=20)
+                assert self._robot.is_powered_on(), "Spot failed to power on"
+                self._logger.info("Spot is powered on")
+            except Exception as e:
+                return (
+                    False,
+                    f"Exception occured while Spot or its arm were trying to power on\n{e}",
+                )
 
         if not self._is_standing:
             robot_command.blocking_stand(

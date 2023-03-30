@@ -62,6 +62,7 @@ add_action_files(
   NavigateTo.action
   PoseBody.action
   Trajectory.action
+  Gripper.action
 )
 
 generate_messages(

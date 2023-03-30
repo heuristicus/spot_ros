@@ -6,8 +6,8 @@ from visualization_msgs.msg import *
 
 import rospy
 import actionlib
-import actionlib_tutorials.msg
-from spot_msgs.msg import TrajectoryAction,TrajectoryResult, TrajectoryFeedback, TrajectoryGoal
+from spot_msgs.msg import TrajectoryAction, TrajectoryGoal
+from spot_msgs.msg import GripperAction, GripperGoal
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Duration
 
@@ -89,7 +89,7 @@ def _get_ros_stamped_pose(position, orientation):
     p.x, p.y, p.z = position.x, position.y, position.z
     return pose
 
-class GrabChairMarkerCallback(object):
+class GoToMarkerCallback(object):
 
     def __init__(self):
         rospy.loginfo("Setting up client...")
@@ -111,6 +111,27 @@ class GrabChairMarkerCallback(object):
         self._client.wait_for_result()
         result = self._client.get_result()
         rospy.loginfo(result)
+
+
+class GrabMarkerCallback(object):
+
+    def __init__(self):
+        rospy.loginfo("Setting up client...")
+        self._client = actionlib.SimpleActionClient('spot/grasp', GripperAction)
+        rospy.loginfo("Waiting for server...")
+        self._client.wait_for_server()
+        rospy.loginfo("Connected ChairHandle marker to trajectory server.")
+
+    def __call__(self, feedback):
+        ros_pose = _get_ros_stamped_pose(feedback.pose.position, feedback.pose.orientation)
+        ros_pose.header.frame_id = feedback.header.frame_id
+        rospy.loginfo(ros_pose)
+        goal = GripperGoal(pose=ros_pose.pose, header=ros_pose.header)
+        self._client.send_goal(goal)
+        self._client.wait_for_result()
+        result = self._client.get_result()
+        rospy.loginfo(result)
+
 
 
 # class GrabChairMarkerCallback(object):
@@ -168,7 +189,8 @@ def main():
 
     # Add a menu
     menu_handler = MenuHandler()
-    menu_handler.insert("goto", callback=GrabChairMarkerCallback())
+    menu_handler.insert("goto", callback=GoToMarkerCallback())
+    menu_handler.insert("grasp", callback=GrabMarkerCallback())
     # menu_handler.insert("button", callback=menuCb)
     menu_handler.apply(server, int_marker.name)
 
