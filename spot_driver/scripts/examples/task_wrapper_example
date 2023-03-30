@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import logging
+import time 
+
+from spot_driver.spot_wrapper import SpotWrapper
+from spot_driver.highlevel_command_wrapper import SpotTaskWrapper
+
+import numpy as np
+
+if __name__=='__main__':
+    '''
+    NOTE: This script test the WorldObjectHandler class without requiring 
+    any ros specific code. The wrapper could be used with other pure python 
+    code.
+    ''' 
+    FORMAT = '%(message)s'
+    logging.basicConfig(format=FORMAT)
+    logger = logging.getLogger("rosout")
+    logger.debug('Starting code.')
+
+    spot_wrapper = SpotWrapper('admin', 
+                               'pvwmr4j08osj', 
+                               '192.168.80.3',  #'192.168.80.3','10.0.0.3', 
+                                logger=logger,
+                                estop_timeout=9.0,)
+
+    logger.setLevel('DEBUG')
+    
+    logger.debug('Powering on...')
+    spot_wrapper.getLease(hijack=True)
+    spot_wrapper.power_on()
+
+    logger.debug('Standing...')
+    spot_wrapper.ensure_arm_power_and_stand()
+
+    logger.debug('Turn 90 degrees clockwise.')
+    command_wrapper = SpotTaskWrapper(spot_wrapper)
+    pose = np.array([[ 0.0,  1.0,  0.0,  0.0],
+                     [-1.0,  0.0,  0.0,  0.0],
+                     [ 0.0,  0.0,  1.0,  0.0],
+                     [ 0.0,  0.0,  0.0,  1.0]])
+    command_wrapper.go_to(pose, 'body', distance=0.0, dir_axis='x', up_axis='z')
+    # pose = np.eye(4); pose[0:3, 3] = [0.2, 0, 0]
+
+    logger.debug('Turn 90 degrees counter-clockwise.')
+    pose = np.array([[ 0.0, -1.0,  0.0],
+                     [ 1.0,  0.0,  0.0],
+                     [ 0.0,  0.0,  1.0]])
+    command_wrapper.go_to(pose, 'body', distance=0.0, dir_axis='x', up_axis='z')
+    
+    logger.debug('Move forward 20cm.')
+    command_wrapper.go_to(np.eye(4), 'body', distance=-0.2, dir_axis='x', up_axis='z')
+
+    logger.debug('Move back 20cm.')
+    command_wrapper.go_to(np.eye(4), 'body', distance=0.2, dir_axis='x', up_axis='z')
+
+    # time.sleep(5)
+    spot_wrapper.safe_power_off()
+    spot_wrapper.releaseLease()
+
+
+    logger.debug(f'Success!!!')

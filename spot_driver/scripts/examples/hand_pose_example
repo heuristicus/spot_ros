@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import logging
+import time 
 
 from spot_driver.spot_wrapper import SpotWrapper
-from spot_driver.highlevel_command_wrapper import HighlevelCommandSpotWrapper
-
-
+from bosdyn.client.math_helpers import SE3Pose
+from quaternion import from_euler_angles, quaternion
+import numpy as np
 
 if __name__=='__main__':
     '''
@@ -20,24 +21,31 @@ if __name__=='__main__':
 
     spot_wrapper = SpotWrapper('admin', 
                                'pvwmr4j08osj', 
-                               '10.0.0.3',  #'192.168.80.3',
+                               '192.168.80.3',  # WIFI
+                            #    '10.0.0.3',    # Ethernet
                                 logger=logger,
                                 estop_timeout=9.0,)
 
     logger.setLevel('DEBUG')
-    spot_wrapper.claim()
-    spot_wrapper.power_on()
-    spot_wrapper.stand()
-
-    logger.debug('Successfully started.')
     
-    command_wrapper = HighlevelCommandSpotWrapper(spot_wrapper)
+    logger.debug('Powering on...')
+    spot_wrapper.getLease(hijack=True)
+    spot_wrapper.power_on()
 
-    logger.debug('Created command wrapper.')
+    logger.debug('Standing...')
+    spot_wrapper.ensure_arm_power_and_stand()
 
-    command_wrapper.walk_to_object(pose, 
-                                   'body', 
-                                   distance=0.5, 
-                                   axis='z')
+    logger.debug('Moving hand to a pose...')
+    
+    rot =from_euler_angles(0, 0, 0)
+    pose = SE3Pose(x=0.5, y=0.5, z=0.5, rot=rot)
+    
+    logger.debug(f'Results:')
+    logger.debug(spot_wrapper.hand_pose(pose))
+   
+    # time.sleep(5)
+    spot_wrapper.safe_power_off()
+    spot_wrapper.releaseLease()
+
 
     logger.debug(f'Success!!!')

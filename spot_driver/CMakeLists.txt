@@ -16,7 +16,8 @@ include_directories(
 catkin_install_python(PROGRAMS
     scripts/spot_ros
     scripts/examples/world_object_wrapper_test
-    scripts/examples/highlevel_command_wrapper_test
+    scripts/examples/task_wrapper_example
+    scripts/examples/hand_pose_example
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
