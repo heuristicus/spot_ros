@@ -96,6 +96,7 @@ from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
 from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
 from spot_driver.ros_helpers import *
+from spot_driver.spot_config import *
 from spot_driver.spot_wrapper import SpotWrapper
 
 
@@ -1616,6 +1617,14 @@ class SpotROS:
                 )
 
     def initialize_spot_wrapper(self):
+        if self.depth_in_visual:
+            # Replace the depth name with the depth_in_visual_frame name
+            front_image_sources[2] = "frontleft_depth_in_visual_frame"
+            front_image_sources[3] = "frontright_depth_in_visual_frame"
+            side_image_sources[2] = "left_depth_in_visual_frame"
+            side_image_sources[3] = "right_depth_in_visual_frame"
+            rear_image_sources[1] = "back_depth_in_visual_frame"
+
         if not self.spot_wrapper:
             self.spot_wrapper = SpotWrapper(
                 self.username,
@@ -1969,6 +1978,7 @@ class SpotROS:
         self.autonomy_enabled = rospy.get_param("~autonomy_enabled", True)
         self.allow_motion = rospy.get_param("~allow_motion", True)
         self.is_charging = False
+        self.depth_in_visual = rospy.get_param("~depth_in_visual", False)
 
         self.initialize_tf2()
 
@@ -1977,6 +1987,7 @@ class SpotROS:
         rospy.loginfo("Starting ROS driver for Spot")
         self.initialize_spot_wrapper()
         if not self.spot_wrapper.is_valid or not self.spot_wrapper:
+            rospy.logerr("Spot wrapper failed to initialize")
             return
 
         self.initialize_publishers()

@@ -34,6 +34,7 @@ from .spot_estop_lease import SpotEstopLease
 from .spot_docking import SpotDocking
 from .spot_graph_nav import SpotGraphNav
 from .spot_check import SpotCheck
+from .spot_config import *
 
 from bosdyn.api import world_object_pb2, geometry_pb2
 from bosdyn.api import robot_command_pb2
@@ -46,34 +47,6 @@ from bosdyn.api import manipulation_api_pb2
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from bosdyn.client.manipulation_api_client import ManipulationApiClient
-
-front_image_sources = [
-    "frontleft_fisheye_image",
-    "frontright_fisheye_image",
-    "frontleft_depth",
-    "frontright_depth",
-]
-"""List of image sources for front image periodic query"""
-side_image_sources = [
-    "left_fisheye_image",
-    "right_fisheye_image",
-    "left_depth",
-    "right_depth",
-]
-"""List of image sources for side image periodic query"""
-rear_image_sources = ["back_fisheye_image", "back_depth"]
-"""List of image sources for rear image periodic query"""
-VELODYNE_SERVICE_NAME = "velodyne-point-cloud"
-"""Service name for getting pointcloud of VLP16 connected to Spot Core"""
-point_cloud_sources = ["velodyne-point-cloud"]
-"""List of point cloud sources"""
-hand_image_sources = [
-    "hand_image",
-    "hand_depth",
-    "hand_color_image",
-    "hand_depth_in_hand_color_frame",
-]
-"""List of image sources for hand image periodic query"""
 
 
 class AsyncRobotState(AsyncPeriodicQuery):
