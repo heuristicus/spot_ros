@@ -945,7 +945,6 @@ class ImageStreamHandlerROS(ROSHandler):
         last_image_time = self.image_client.last_image_time
         while not rospy.is_shutdown():
             if last_image_time != self.image_client.last_image_time:
-
                 image = self.cv_bridge.cv2_to_imgmsg(
                     self.image_client.last_image, "bgr8"
                 )

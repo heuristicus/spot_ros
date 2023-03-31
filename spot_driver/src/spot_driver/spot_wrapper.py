@@ -106,6 +106,7 @@ def robotToLocalTime(timestamp, robot):
 
     return rtime
 
+
 class AsyncRobotState(AsyncPeriodicQuery):
     """Class to get robot state at regular intervals.  get_robot_state_async query sent to the robot at every tick.  Callback registered to defined callback function.
 
@@ -680,10 +681,12 @@ class SpotWrapper:
                 authenticated = True
             except RpcError as err:
                 sleep_secs = 15
-                logger.warn("Failed to communicate with robot: {}\nEnsure the robot is powered on and you can "
-                                  "ping {}. Robot may still be booting. Will retry in {} seconds".format(err,
-                                                                                                         hostname,
-                                                                                                         sleep_secs))
+                logger.warn(
+                    "Failed to communicate with robot: {}\nEnsure the robot is powered on and you can "
+                    "ping {}. Robot may still be booting. Will retry in {} seconds".format(
+                        err, hostname, sleep_secs
+                    )
+                )
                 time.sleep(sleep_secs)
             except bosdyn.client.auth.InvalidLoginError as err:
                 logger.error("Failed to log in to robot: {}".format(err))
