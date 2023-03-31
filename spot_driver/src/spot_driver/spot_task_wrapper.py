@@ -147,27 +147,44 @@ class SpotTaskWrapper:
                             body_pitch=pose_euler[pitch_axis])
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+    def _to_position_and_quaternion(self, pose:np.array):
+        '''
+        Returns position and quaternion from a pose matrix.
+            quaternion is in the form (w, x, y, z)
+        '''
+        pose = self._to_se3(pose)
+        p = pose[0:3, 3]
+        q = R.from_matrix(pose[0:3, 0:3]).as_quat()[[3,0,1,2]]
+        return p, q
+
     def grasp(self, pose:np.array, reference_frame:str, **kwargs):
         self._string_feedback = ''
-        try:
-            self._string_feedback = f'Grasping pose {pose} in frame {reference_frame}'
+        # try:
+        self._string_feedback = f'Grasping pose {pose} in frame {reference_frame}'
 
-            self._string_feedback = 'Approaching desired robot pose.'
-            self.go_to(pose, reference_frame, distance=1.0, **kwargs)
+        self._string_feedback = 'Approaching desired robot pose.'
+        self.go_to(pose, reference_frame, distance=1.2, **kwargs)
 
-            self._string_feedback = 'Preparing arm.'
-            self.spot.arm_unstow()
-            self.spot.gripper_open()
+        self._string_feedback = 'Preparing arm.'
+        # self.spot.arm_unstow()
+        # self.spot.gripper_open()
 
-            pre_grasp = self._offset_pose(pose, 0.2, 'x')
-            print('pose\n', pose)
-            self.spot.hand_pose(pre_grasp)
-            self.spot.hand_pose(pose)
-            self._string_feedback = 'Succeeded'
-            status = True
-        except Exception as e:
-            self._string_feedback = f'Failed to grasp object: {e}'
-            status = False
+        pre_grasp = self._offset_pose(pose, 0.25, 'x')
+        p, q = self._to_position_and_quaternion(pre_grasp)
+        self.spot.hand_pose(p, q)
+
+        self.spot.gripper_open()
+
+        self._string_feedback = 'Approaching object.'
+        grasp_pose = self._offset_pose(pose, 0.0, 'x')
+        p, q = self._to_position_and_quaternion(grasp_pose)
+        self.spot.hand_pose(p, q)
+
+        self._string_feedback = 'Succeeded'
+        status = True
+        # except Exception as e:
+        #     self._string_feedback = f'Failed to grasp object: {e}'
+        #     status = False
             
         self.spot.arm_stow()
         self.spot.gripper_close()

@@ -1,6 +1,8 @@
 import time
 import math
 
+import numpy as np
+
 import bosdyn.client.auth
 from bosdyn.client import create_standard_sdk, ResponseError, RpcError
 from bosdyn.client import robot_command
@@ -38,6 +40,7 @@ from bosdyn.client import robot_command
 from bosdyn.client.exceptions import InternalServerError
 
 from bosdyn.client.math_helpers import SE2Pose as bdSE2Pose
+from bosdyn.client.math_helpers import SE3Pose as bdSE3Pose
 from bosdyn.client.math_helpers import Quat as bdQuat
 
 from . import graph_nav_util
@@ -450,6 +453,7 @@ class SpotWrapper:
             initialised = False
             while not initialised:
                 try:
+                    self._robot.time_sync.wait_for_sync()
                     self._robot_state_client = self._robot.ensure_client(
                         RobotStateClient.default_service_name
                     )
@@ -1356,71 +1360,70 @@ class SpotWrapper:
 
         return True, "Opened gripper successfully"
 
-    def hand_pose(self, pose_points):
+    def hand_pose(self, 
+                  position:np.array,
+                  quaternion:np.array, 
+                  reference_frame:str = BODY_FRAME_NAME, 
+                  duration:float = 5.0, 
+                  gripper_opening:float = None,
+                  blocking=True, 
+                ):
+        '''
+        Commands the gripper to move to a configuration.
+        :param position: The position of the gripper in the reference frame.
+        :param quaternion: The orientation of the gripper in the reference frame.
+                           Quaternion is in the form (w, x, y, z).
+        :param reference_frame: The reference frame of the position and orientation.
+                                Defaults to BODY_FRAME_NAME.
+        :param duration: The time in seconds to move to the target pose.
+                         Defaults to 5.0.
+        :param gripper_opening: The fraction of the gripper opening. If None, the gripper
+                                will not be commanded.  Defaults to None.
+        :param blocking: If True, the function will block until the command is complete.
+        '''
         try:
             success, msg = self.ensure_arm_power_and_stand()
             if not success:
                 self._logger.info(msg)
                 return False, msg
             else:
-                # Move the arm to a spot in front of the robot given a pose for the gripper.
-                # Build a position to move the arm to (in meters, relative to the body frame origin.)
-                position = geometry_pb2.Vec3(
-                    x=pose_points.position.x,
-                    y=pose_points.position.y,
-                    z=pose_points.position.z,
+                arm_cmd = RobotCommandBuilder.arm_pose_command(
+                    *position, *quaternion, reference_frame, duration
                 )
+                
+                if gripper_opening:
+                    claw_cmd = RobotCommandBuilder.claw_gripper_open_fraction_command
+                    gripper_cmd = claw_cmd(gripper_opening)
+                    command = RobotCommandBuilder.build_synchro_command(gripper_cmd, arm_cmd)
+                else: 
+                    command = RobotCommandBuilder.build_synchro_command(arm_cmd)
 
-                # # Rotation as a quaternion.
-                rotation = geometry_pb2.Quaternion(
-                    w=pose_points.orientation.w,
-                    x=pose_points.orientation.x,
-                    y=pose_points.orientation.y,
-                    z=pose_points.orientation.z,
-                )
-
-                seconds = 5.0
-                duration = seconds_to_duration(seconds)
-
-                # Build the SE(3) pose of the desired hand position in the moving body frame.
-                hand_pose = geometry_pb2.SE3Pose(position=position, rotation=rotation)
-                hand_pose_traj_point = trajectory_pb2.SE3TrajectoryPoint(
-                    pose=hand_pose, time_since_reference=duration
-                )
-                hand_trajectory = trajectory_pb2.SE3Trajectory(
-                    points=[hand_pose_traj_point]
-                )
-
-                arm_cartesian_command = arm_command_pb2.ArmCartesianCommand.Request(
-                    root_frame_name=BODY_FRAME_NAME,
-                    pose_trajectory_in_task=hand_trajectory,
-                )
-                arm_command = arm_command_pb2.ArmCommand.Request(
-                    arm_cartesian_command=arm_cartesian_command
-                )
-                synchronized_command = (
-                    synchronized_command_pb2.SynchronizedCommand.Request(
-                        arm_command=arm_command
-                    )
-                )
-
-                # robot_command = self._robot_command(RobotCommandBuilder.build_synchro_command(synchronized_command))
-                robot_command = robot_command_pb2.RobotCommand(
-                    synchronized_command=synchronized_command
-                )
-
-                command = self._robot_command(
-                    RobotCommandBuilder.build_synchro_command(robot_command)
-                )
 
                 # Send the request
-                self._robot_command_client.robot_command(command)
+                cmd_id = self._robot_command_client.robot_command(command)
                 self._logger.info("Moving arm to position.")
 
-                time.sleep(6.0)
+                ARM_FEEDBACK = arm_command_pb2.ArmCartesianCommand.Feedback
+                if blocking: 
+                    status = arm_car_feedback.status
+                    while status == ARM_FEEDBACK.STATUS_IN_PROGRESS:
+                        feedback_resp = self._robot_command_client.robot_command_feedback(cmd_id)
+                        arm_car_feedback = feedback_resp.feedback.synchronized_feedback\
+                                                        .arm_command_feedback.arm_cartesian_feedback
+                        self._logger.info(
+                            'Distance to go: ' +
+                            '{:.2f} meters'.format(arm_car_feedback.measured_pos_distance_to_goal) +
+                            ', {:.2f} radians'.format(arm_car_feedback.measured_rot_distance_to_goal))
+
+                        time.sleep(0.25)
+                        status = arm_car_feedback.status
+                    if status == ARM_FEEDBACK.STATUS_TRAJECTORY_COMPLETE:
+                        self._logger.info('Move complete.')
+                    else:
+                        self._logger.info('Move failed. Arm status: {}'.format(status))
 
         except Exception as e:
-            return False, "An error occured while trying to move arm"
+            return False, f"Error in hand_pose:\n{e}"
 
         return True, "Moved arm successfully"
 

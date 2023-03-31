@@ -37,11 +37,13 @@ if __name__=='__main__':
 
     logger.debug('Moving hand to a pose...')
     
-    rot =from_euler_angles(0, 0, 0)
-    pose = SE3Pose(x=0.5, y=0.5, z=0.5, rot=rot)
+    quat = from_euler_angles(0, 0, 0)
+    position = [1.0, 0.0, 0.0]
     
-    logger.debug(f'Results:')
-    logger.debug(spot_wrapper.hand_pose(pose))
+    results = spot_wrapper.hand_pose(position, 
+                                     [quat.w, quat.x, quat.y, quat.z],
+                                     duration=3.0, gripper_opening=1.0)
+    logger.debug(f'Results: {results}')
    
     # time.sleep(5)
     spot_wrapper.safe_power_off()
