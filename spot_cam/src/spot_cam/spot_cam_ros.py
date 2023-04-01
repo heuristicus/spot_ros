@@ -28,6 +28,7 @@ from spot_cam.msg import (
 )
 from spot_cam.srv import (
     LoadSound,
+    LookAtPoint,
     PlaySound,
     SetBool,
     SetFloat,
@@ -248,6 +249,11 @@ class CompositorHandlerROS(ROSHandler):
         """
         Handle a request to set the IR overlay
         """
+        if req.x < 0 or req.x > 1 or req.y < 0 or req.y > 1:
+            return (
+                False,
+                "requested x or y position out of bounds, valid values are in the range [0,1]",
+            )
         self.set_ir_meter_overlay(req.x, req.y, req.enable)
         return True, "Successfully set IR overlay"
 
@@ -723,6 +729,10 @@ class PTZHandlerROS(ROSHandler):
     def __init__(self, wrapper: SpotCamWrapper):
         super().__init__()
         self.client = wrapper.ptz
+
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
         self.ptz_list_publisher = rospy.Publisher(
             "/spot/cam/ptz/list", PTZDescriptionArray, queue_size=1, latch=True
         )
@@ -740,6 +750,9 @@ class PTZHandlerROS(ROSHandler):
         )
         self.autofocus_service = rospy.Service(
             "/spot/cam/ptz/reset_autofocus", Trigger, self.handle_reset_autofocus
+        )
+        self.look_at_point_service = rospy.Service(
+            "/spot/cam/ptz/look_at_point", LookAtPoint, self.handle_look_at_point
         )
         self.publish_ptz_list()
 
@@ -865,6 +878,8 @@ class PTZHandlerROS(ROSHandler):
         """
         Handle a request to set the ptz position
         """
+        if not req.command.ptz.name:
+            return False, "PTZ name not specified."
         self.set_ptz_position(
             req.command.ptz.name, req.command.pan, req.command.tilt, req.command.zoom
         )
@@ -917,6 +932,12 @@ class PTZHandlerROS(ROSHandler):
         Initialise or reset the ptz lens autofocus
         """
         self.client.initialise_lens()
+
+    def handle_look_at_point(self, req):
+        """
+        Handle a request to look at a point in space
+        """
+        return self.look_at_point(req.target, req.image_width, req.zoom_level)
 
 
 class ImageStreamHandlerROS(ROSHandler):

@@ -34,6 +34,7 @@ add_message_files(
 add_service_files(
   FILES
   LoadSound.srv
+  LookAtPoint.srv
   PlaySound.srv
   SetBool.srv
   SetFloat.srv
