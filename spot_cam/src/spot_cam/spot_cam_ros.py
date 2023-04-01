@@ -23,6 +23,7 @@ from spot_cam.msg import (
     PTZState,
     PTZStateArray,
     StreamParams,
+    StringMultiArray,
     Temperature,
     TemperatureArray,
 )
@@ -216,9 +217,9 @@ class CompositorHandlerROS(ROSHandler):
             self.handle_set_ir_meter_overlay,
         )
         self.screen_list_pub = rospy.Publisher(
-            "/spot/cam/screens", String, queue_size=1, latch=True
+            "/spot/cam/screens", StringMultiArray, queue_size=1, latch=True
         )
-        self.screen_list_pub.publish(str(self.client.list_screens()))
+        self.screen_list_pub.publish(self.client.list_screens())
         self.set_ir_colormap_service = rospy.Service(
             "/spot/cam/set_ir_colormap", SetIRColormap, self.handle_set_ir_colormap
         )

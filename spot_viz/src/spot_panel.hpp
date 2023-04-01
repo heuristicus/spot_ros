@@ -13,6 +13,7 @@
 #include <QDoubleSpinBox>
 #include <QComboBox>
 #include <std_msgs/Bool.h>
+#include <std_msgs/Float32MultiArray.h>
 #include <spot_msgs/EStopStateArray.h>
 #include <spot_msgs/MobilityParams.h>
 #include <spot_msgs/TerrainParams.h>
@@ -21,6 +22,8 @@
 #include <spot_msgs/SetLocomotion.h>
 #include <spot_msgs/BatteryStateArray.h>
 #include <spot_msgs/PowerState.h>
+#include <spot_cam/PTZDescriptionArray.h>
+#include <spot_cam/StringMultiArray.h>
 
 
 namespace spot_viz
@@ -59,6 +62,9 @@ class ControlPanel : public rviz::Panel
     void selfRight();
     void dock();
     void undock();
+    void setCamPTZ();
+    void setCamScreen();
+    void setCamLED(double);
 
     private:
 
@@ -107,6 +113,8 @@ class ControlPanel : public rviz::Panel
     void batteryCallback(const spot_msgs::BatteryStateArray::ConstPtr &battery);
     void powerCallback(const spot_msgs::PowerState::ConstPtr &power);
     void motionAllowedCallback(const std_msgs::Bool &motion_allowed);
+    void ptzCallback(const spot_cam::PTZDescriptionArray &ptz_descriptions);
+    void screensCallback(const spot_cam::StringMultiArray &screens);
 
     ros::NodeHandle nh_;
     ros::ServiceClient sitService_;
@@ -138,6 +146,8 @@ class ControlPanel : public rviz::Panel
     ros::Subscriber batterySub_;
     ros::Subscriber powerSub_;
     ros::Subscriber motionAllowedSub_;
+    ros::Subscriber camScreensSub_;
+    ros::Subscriber camPTZSub_;
 
     QPushButton* claimLeaseButton;
     QPushButton* releaseLeaseButton;
@@ -193,6 +203,20 @@ class ControlPanel : public rviz::Panel
     QDoubleSpinBox* yawSpin;
     QDoubleSpinBox* frictionSpin;
     QDoubleSpinBox* obstaclePaddingSpin;
+
+    // Spot cam
+    ros::Publisher camLEDPub_;
+    ros::ServiceClient camSetPTZService_;
+    ros::ServiceClient camSetScreenService_;
+
+    QPushButton* setPTZButton;
+    QPushButton* setScreenButton;
+    QComboBox* chooseScreenComboBox;
+    QComboBox* choosePTZComboBox;
+    QDoubleSpinBox* LEDSpinBox;
+    QDoubleSpinBox* panSpinBox;
+    QDoubleSpinBox* tiltSpinBox;
+    QDoubleSpinBox* zoomSpinBox;
 
     spot_msgs::MobilityParams _lastMobilityParams;
 

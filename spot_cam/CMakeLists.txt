@@ -27,6 +27,7 @@ add_message_files(
   PTZState.msg
   PTZStateArray.msg
   StreamParams.msg
+  StringMultiArray.msg
   Temperature.msg
   TemperatureArray.msg
 )
