@@ -12,104 +12,67 @@ from bosdyn.api.manipulation_api_pb2 import (WalkToObjectRayInWorld,
                                              ManipulationApiFeedbackRequest,
                                              )
 
-from bosdyn.api.geometry_pb2 import SE3Pose, Vec3, Quaternion
+from bosdyn.client.frame_helpers import (BODY_FRAME_NAME, 
+                                         ODOM_FRAME_NAME, 
+                                         VISION_FRAME_NAME,
+                                         )
 
-from bosdyn.client.frame_helpers import (BODY_FRAME_NAME, ODOM_FRAME_NAME, VISION_FRAME_NAME,
-                                         get_se2_a_tform_b)
-
-
-
-import bosdyn.client
-import bosdyn.client.util
-from bosdyn.api import basic_command_pb2
-from bosdyn.api import geometry_pb2 as geo
-from bosdyn.api.basic_command_pb2 import RobotCommandFeedbackStatus
-from bosdyn.client import math_helpers
-from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
-from bosdyn.client.robot_command import (RobotCommandBuilder, RobotCommandClient,
-                                         block_for_trajectory_cmd, blocking_stand)
-from bosdyn.client.robot_state import RobotStateClient
+from bosdyn.client.math_helpers import SE2Pose as bdSE2Pose
+from bosdyn.client.math_helpers import SE3Pose as bdSE3Pose
 
 
 # others
 import numpy as np
+import logging
 import time
-from enum import Enum
-from scipy.spatial.transform import Rotation as R 
 
 class SpotTaskWrapper:
 
-    def __init__(self, spot: SpotWrapper):
+    def _init_logger(self, logger:logging.Logger=None):
+        class LogHandler(logging.Handler):
+            def emit(self, record): self._string_feedback = record
+        self._log_handler = LogHandler()
+        if logger is None: logger = logging.getLogger(__name__)
+        logger.addHandler(self._log_handler)
+        self._log = logger
+
+    def __init__(self, spot: SpotWrapper, logger:logging.Logger=None):
         self.spot = spot
         self._robot = spot._robot
-
-
+        self._init_logger(logger)
         assert self._robot.has_arm(), "Robot requires an arm to run this example."
-
         self._manip_cli = self._robot.ensure_client(ManipulationApiClient.default_service_name)
-        self._string_feedback = ''
-
 
     @property
     def feedback(self): return self._string_feedback
 
-    def walk_to(self, dx, dy, dyaw, frame_name, robot_command_client, robot_state_client, stairs=False):
-        frame_tree = robot_state_client.get_robot_state().kinematic_state.transforms_snapshot
-        body_tform_goal = math_helpers.SE2Pose(x=dx, y=dy, angle=dyaw)
-        # We do not want to command this goal in body frame because the body will move, thus shifting
-        # our goal. Instead, we transform this offset to get the goal position in the output frame
-        # (which will be either odom or vision).
-        out_tform_body = get_se2_a_tform_b(frame_tree, frame_name, BODY_FRAME_NAME)
-        out_tform_goal = out_tform_body * body_tform_goal
-
-        # Command the robot to go to the goal point in the specified frame. The command will stop at the
-        # new position.
-        robot_cmd = RobotCommandBuilder.synchro_se2_trajectory_point_command(
-            goal_x=out_tform_goal.x, goal_y=out_tform_goal.y, goal_heading=out_tform_goal.angle,
-            frame_name=frame_name, params=RobotCommandBuilder.mobility_params(stair_hint=stairs))
-        end_time = 10.0
-        cmd_id = robot_command_client.robot_command(lease=None, command=robot_cmd,
-                                                    end_time_secs=time.time() + end_time)
-        # Wait until the robot has reached the goal.
-        while True:
-            feedback = robot_command_client.robot_command_feedback(cmd_id)
-            mobility_feedback = feedback.feedback.synchronized_feedback.mobility_command_feedback
-            if mobility_feedback.status != RobotCommandFeedbackStatus.STATUS_PROCESSING:
-                print("Failed to reach the goal")
-                return False
-            traj_feedback = mobility_feedback.se2_trajectory_feedback
-            if (traj_feedback.status == traj_feedback.STATUS_AT_GOAL and
-                    traj_feedback.body_movement_status == traj_feedback.BODY_STATUS_SETTLED):
-                print("Arrived at the goal.")
-                return True
-            time.sleep(1)
-
-
-    def _to_se3(self, pose:np.array):
+    def _pose_np_to_bd(self, pose:np.array, se3=False):
         if pose.shape == (3,3):
-            pose3 = np.eye(4)
-            pose3[0:2, 0:2], pose3[0:2, 3] = pose[0:2, 0:2], pose[0:2, 2]
-            pose = pose3
-        elif pose.shape == (3,) or pose.shape == (3,1):
-            pose3 = np.eye(4); pose3[0:3, 3] = pose
-            pose = pose3
-        elif pose.shape == (2,) or pose.shape == (2,1):
-            pose3 = np.eye(4); pose3[0:2, 3] = pose
-            pose = pose3
-        return pose
+            pose = bdSE2Pose.from_matrix(pose)
+            if se3: pose = pose.get_closest_se3_transform()
+        else: 
+            pose = bdSE3Pose.from_matrix(pose)
+        return pose    
+     
+    def _pose_bd_to_vectors(self, pose:bdSE3Pose):
+        pos = [pose.position.x, pose.position.y, pose.position.z]
+        rot = [pose.rotation.w, pose.rotation.x, pose.rotation.y, pose.rotation.z]
+        return pos, rot
 
-    def _offset_pose(self, pose, distance, axis):
+    def _offset_pose(self, pose:bdSE3Pose, distance, axis):
+
         all_axis = {'x':0, 'y':1, 'z':2}
         dir = np.eye(3)[all_axis[axis]] 
-        pose = self._to_se3(pose)
         offset = np.eye(4)
         offset[0:3, 3] = -dir * distance
-        return pose @ offset
+        offset = bdSE3Pose.from_matrix(offset)
+        
+        return pose * offset
 
     def go_to(self, 
-              pose:np.array, 
+              pose, 
               relative_frame:str, 
-              distance:float=0.25, 
+              distance:float=0.0, 
               dir_axis:str='x', 
               up_axis:str='z', 
               body_height=None, 
@@ -117,20 +80,18 @@ class SpotTaskWrapper:
         '''
         TODO: Document
         '''
-        axis = {'x':0, 'y':1, 'z':2}
-        dir = np.eye(3)[axis[dir_axis]] 
+        if isinstance(pose, np.ndarray):
+            pose = self._pose_np_to_bd(pose, se3=True)
+        pose = self._offset_pose(pose, distance, dir_axis)
+        pos, rot = pose.position, pose.rotation
 
-        pose = self._to_se3(pose) # Treat it as se3
-
-        offset = np.concatenate((-dir * distance, np.array([1])))
-        position = (pose @ offset)[0:3]
-        pose_rot = R.from_matrix(pose[:3,:3])
-        pose_euler = pose_rot.as_euler(''.join([str(k).lower() for k in axis.keys()]))
-        heading = pose_euler[axis[up_axis]]
+        heading = rot.to_roll() if up_axis == 'x'\
+             else rot.to_pitch() if up_axis == 'y'\
+             else rot.to_yaw()        
     
         # TODO: handle this response
         self.spot.trajectory_cmd(
-            goal_x=position[0], goal_y=position[1], 
+            goal_x=pos.x, goal_y=pos.y, 
             goal_heading=heading,
             cmd_duration=5, reference_frame=relative_frame,
             blocking=blocking,
@@ -143,49 +104,51 @@ class SpotTaskWrapper:
                 if k not in [dir_axis, up_axis]: pitch_axis = axis[str(k)]
             
             self.spot.stand(body_height=body_height, 
-                            body_roll=pose_euler[roll_axis],
-                            body_pitch=pose_euler[pitch_axis])
+                            body_roll=euler[roll_axis],
+                            body_pitch=euler[pitch_axis])
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    def _to_position_and_quaternion(self, pose:np.array):
-        '''
-        Returns position and quaternion from a pose matrix.
-            quaternion is in the form (w, x, y, z)
-        '''
-        pose = self._to_se3(pose)
-        p = pose[0:3, 3]
-        q = R.from_matrix(pose[0:3, 0:3]).as_quat()[[3,0,1,2]]
-        return p, q
-
-    def grasp(self, pose:np.array, reference_frame:str, **kwargs):
+    def grasp(self, pose, reference_frame:str, **kwargs):
         self._string_feedback = ''
         # try:
-        self._string_feedback = f'Grasping pose {pose} in frame {reference_frame}'
+        self._log.info(f'Grasping pose {pose} in frame {reference_frame}')
+        
+        if isinstance(pose, np.ndarray):
+            pose = self._pose_np_to_bd(pose, se3=True)
 
-        self._string_feedback = 'Approaching desired robot pose.'
-        self.go_to(pose, reference_frame, distance=1.2, **kwargs)
+        TARGET_FRAME = VISION_FRAME_NAME
+        pose = self.spot._transform_bd_pose(pose, reference_frame, TARGET_FRAME)
+
+        self._log.info('Approaching desired robot pose.')
+        self.go_to(pose, TARGET_FRAME, distance=1.0, **kwargs)
 
         self._string_feedback = 'Preparing arm.'
-        # self.spot.arm_unstow()
-        # self.spot.gripper_open()
+        print(self._string_feedback)
 
         pre_grasp = self._offset_pose(pose, 0.25, 'x')
-        p, q = self._to_position_and_quaternion(pre_grasp)
-        self.spot.hand_pose(p, q)
+        
+        pos, rot = self._pose_bd_to_vectors(pre_grasp)
+        status, msg = self.spot.hand_pose(pos, rot, 
+                                          reference_frame=TARGET_FRAME, 
+                                          duration=2.0)
+        self._log.info(f'Pre-grasp status: {msg}')
+        if status is False: raise(Exception('Failed to reach pre-grasp.'))
 
         self.spot.gripper_open()
 
-        self._string_feedback = 'Approaching object.'
-        grasp_pose = self._offset_pose(pose, 0.0, 'x')
-        p, q = self._to_position_and_quaternion(grasp_pose)
-        self.spot.hand_pose(p, q)
+        self._log.info('Approaching object...')
+        pos, rot = self._pose_bd_to_vectors(pose)
+        status, msg = self.spot.hand_pose(pos, rot, 
+                                          reference_frame=TARGET_FRAME, 
+                                          duration=1.0)
+        self._log.info(f'Approach status: {msg}')
+        if status is False: raise(Exception('Failed to reach pre-grasp.'))
+        time.sleep(5)
 
-        self._string_feedback = 'Succeeded'
-        status = True
+        self._log.info('Succeeded')
         # except Exception as e:
         #     self._string_feedback = f'Failed to grasp object: {e}'
         #     status = False
             
         self.spot.arm_stow()
         self.spot.gripper_close()
-        return status

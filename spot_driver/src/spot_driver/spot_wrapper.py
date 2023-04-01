@@ -21,7 +21,8 @@ from bosdyn.client.frame_helpers import (
     ODOM_FRAME_NAME,
     BODY_FRAME_NAME,
     VISION_FRAME_NAME,
-    get_se2_a_tform_b
+    get_se2_a_tform_b,
+    get_a_tform_b
 )
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive
@@ -903,6 +904,16 @@ class SpotWrapper:
         self._last_velocity_command_time = end_time
         return response[0], response[1]
 
+    def _transform_bd_pose(self, pose, reference_frame:str, target_frame:str):
+        Tf_tree = self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot
+        if isinstance(pose, bdSE2Pose):
+            T = get_se2_a_tform_b(Tf_tree, target_frame, reference_frame)
+        elif isinstance(pose, bdSE3Pose):
+            T = get_a_tform_b(Tf_tree, target_frame, reference_frame)
+        else:
+            raise ValueError("pose must be either bdSE2Pose or bdSE3Pose")
+        return T * pose
+
     def trajectory_cmd(
         self,
         goal_x,
@@ -940,10 +951,10 @@ class SpotWrapper:
         end_time = time.time() + cmd_duration
 
         T_in_ref = bdSE2Pose(x=goal_x, y=goal_y, angle=goal_heading)
-
-        transforms = self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot
-        target_T_ref = get_se2_a_tform_b(transforms, frame_name, reference_frame)
-        T_in_target = target_T_ref * T_in_ref
+        # transforms = self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot
+        # target_T_ref = get_se2_a_tform_b(transforms, frame_name, reference_frame)
+        # T_in_target = target_T_ref * T_in_ref
+        T_in_target = self._transform_bd_pose(T_in_ref, reference_frame, frame_name)
 
         response = self._robot_command(
                 RobotCommandBuilder.synchro_se2_trajectory_point_command(
@@ -1405,7 +1416,7 @@ class SpotWrapper:
 
                 ARM_FEEDBACK = arm_command_pb2.ArmCartesianCommand.Feedback
                 if blocking: 
-                    status = arm_car_feedback.status
+                    status = ARM_FEEDBACK.STATUS_IN_PROGRESS
                     while status == ARM_FEEDBACK.STATUS_IN_PROGRESS:
                         feedback_resp = self._robot_command_client.robot_command_feedback(cmd_id)
                         arm_car_feedback = feedback_resp.feedback.synchronized_feedback\
@@ -1421,6 +1432,7 @@ class SpotWrapper:
                         self._logger.info('Move complete.')
                     else:
                         self._logger.info('Move failed. Arm status: {}'.format(status))
+                        raise Exception(str(status))
 
         except Exception as e:
             return False, f"Error in hand_pose:\n{e}"
