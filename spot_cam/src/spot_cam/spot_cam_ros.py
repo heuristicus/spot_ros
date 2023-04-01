@@ -42,7 +42,7 @@ from spot_cam.srv import (
 from std_msgs.msg import Float32MultiArray, Float32, String
 from std_srvs.srv import Trigger
 
-from spot_cam.spot_cam_wrapper import SpotCamWrapper
+from spot_wrapper.cam_wrapper import SpotCamWrapper
 from spot_driver.ros_helpers import getSystemFaults
 
 

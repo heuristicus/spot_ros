@@ -22,7 +22,7 @@ from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
 from spot_msgs.msg import DockState
-from spot_driver.spot_wrapper import robotToLocalTime
+from spot_wrapper.wrapper import robotToLocalTime
 
 from bosdyn.api import image_pb2, point_cloud_pb2
 from bosdyn.client.math_helpers import SE3Pose

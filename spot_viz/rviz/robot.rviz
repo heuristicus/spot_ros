@@ -338,7 +338,7 @@ Visualization Manager:
       Name: Spot CAM image
       Normalize Range: true
       Queue Size: 2
-      Transport Hint: raw
+      Transport Hint: compressed
       Unreliable: false
       Value: false
   Enabled: true
