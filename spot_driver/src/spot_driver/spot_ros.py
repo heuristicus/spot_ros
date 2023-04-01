@@ -66,7 +66,7 @@ from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
 from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
 from .ros_helpers import *
-from .spot_wrapper import SpotWrapper
+from spot_wrapper.wrapper import SpotWrapper
 
 import actionlib
 import logging
@@ -1047,8 +1047,10 @@ class SpotROS:
             self._set_in_motion_or_idle_body_pose(goal.body_pose)
         # Give it some time to move
         rospy.sleep(2)
-        self.body_pose_as.set_succeeded(
-            PoseBodyResult(success=True, message="Successfully posed body")
+        self.motion_or_idle_body_pose_as.set_succeeded(
+            PoseBodyResult(
+                success=True, message="Successfully applied in-motion pose to body"
+            )
         )
 
     def _set_in_motion_or_idle_body_pose(self, pose):
@@ -1415,7 +1417,8 @@ class SpotROS:
                 )
 
     def main(self):
-        """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
+        """Main function for the SpotROS class. Gets config from ROS and initializes the wrapper. Holds lease from
+        wrapper and updates all async tasks at the ROS rate"""
         rospy.init_node("spot_ros", anonymous=True)
 
         self.rates = rospy.get_param("~rates", {})
@@ -1434,13 +1437,17 @@ class SpotROS:
                 )
 
         rate = rospy.Rate(loop_rate)
+        self.robot_name = rospy.get_param("~robot_name", "spot")
         self.username = rospy.get_param("~username", "default_value")
         self.password = rospy.get_param("~password", "default_value")
         self.hostname = rospy.get_param("~hostname", "default_value")
         self.motion_deadzone = rospy.get_param("~deadzone", 0.05)
+        self.start_estop = rospy.get_param("~start_estop", True)
         self.estop_timeout = rospy.get_param("~estop_timeout", 9.0)
         self.autonomy_enabled = rospy.get_param("~autonomy_enabled", True)
         self.allow_motion = rospy.get_param("~allow_motion", True)
+        self.use_take_lease = rospy.get_param("~use_take_lease", False)
+        self.get_lease_on_action = rospy.get_param("~get_lease_on_action", False)
         self.is_charging = False
 
         self.tf_buffer = tf2_ros.Buffer()
@@ -1476,13 +1483,17 @@ class SpotROS:
 
         rospy.loginfo("Starting ROS driver for Spot")
         self.spot_wrapper = SpotWrapper(
-            self.username,
-            self.password,
-            self.hostname,
-            self.logger,
-            self.estop_timeout,
-            self.rates,
-            self.callbacks,
+            username=self.username,
+            password=self.password,
+            hostname=self.hostname,
+            robot_name=self.robot_name,
+            logger=self.logger,
+            start_estop=self.start_estop,
+            estop_timeout=self.estop_timeout,
+            rates=self.rates,
+            callbacks=self.callbacks,
+            use_take_lease=self.use_take_lease,
+            get_lease_on_action=self.get_lease_on_action,
         )
 
         if not self.spot_wrapper.is_valid:

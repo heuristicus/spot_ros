@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>spot_viz</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>The spot_viz package</description>
 
-  <maintainer email="dniewinski@clearpathrobotics.com">Dave Niewinski</maintainer>
+  <maintainer email="michal@robots.ox.ac.uk">Michal Staniaszek</maintainer>
 
   <license>BSD</license>
 

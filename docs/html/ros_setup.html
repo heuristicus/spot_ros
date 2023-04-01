@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spot ROS Computer Setup &mdash; Spot ROS User Documentation 0.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <title>Computer Setup &mdash; Spot ROS User Documentation 0.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
@@ -16,8 +16,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Spot Platform Configuration" href="robot_setup.html" />
-    <link rel="prev" title="Spot ROS User Documentation" href="index.html" /> 
+    <link rel="next" title="Driver configuration" href="driver_configuration.html" />
+    <link rel="prev" title="Robot Configuration" href="robot_setup.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -40,16 +40,16 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption"><span class="caption-text">Contents</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Spot ROS Computer Setup</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#setup-spot-core">Setup Spot Core</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#installing-dependencies">Installing Dependencies</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#setup-networking">Setup Networking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Robot Configuration</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Computer Setup</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#building-the-driver-from-source">Building the Driver from Source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#adding-to-the-urdf">Adding to the URDF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-for-melodic">Building for Melodic</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Spot Platform Configuration</a></li>
-<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Configuring the ROS Driver</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Spot ROS Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Driver configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arm_usage.html">Arm control</a></li>
 </ul>
 
         </div>
@@ -66,7 +66,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Spot ROS Computer Setup</li>
+      <li>Computer Setup</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/ros_setup.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -76,90 +76,141 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="spot-ros-computer-setup">
-<h1>Spot ROS Computer Setup<a class="headerlink" href="#spot-ros-computer-setup" title="Permalink to this headline">¶</a></h1>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">This driver has been tested using the steps below with Spot SDK version 2.3.5.  Any version after this may have unexpected behviour.</p>
-</div>
-<p>The ROS driver was created and tested on Kinetic and Melodic</p>
-<div class="section" id="setup-spot-core">
-<h2>Setup Spot Core<a class="headerlink" href="#setup-spot-core" title="Permalink to this headline">¶</a></h2>
-<p>If you have a Spot Core, download the latest <a class="reference external" href="https://packages.clearpathrobotics.com/stable/images/latest/melodic-bionic/amd64/">Melodic ISO</a>, set it up with <a class="reference external" href="https://www.balena.io/etcher/">BalenaEtcher</a>, and install it onto the Core</p>
-<p>If you are using a Jetson, follow the <a class="reference external" href="https://docs.nvidia.com/sdk-manager/install-with-sdkm-jetson/index.html">Jetson Setup Instructions</a></p>
-<p>Once your backpack PC is setup, all steps below are to be followed on that PC</p>
-</div>
-<div class="section" id="installing-dependencies">
-<h2>Installing Dependencies<a class="headerlink" href="#installing-dependencies" title="Permalink to this headline">¶</a></h2>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">key</span> <span class="n">adv</span> <span class="o">--</span><span class="n">keyserver</span> <span class="s1">&#39;hkp://keyserver.ubuntu.com:80&#39;</span> <span class="o">--</span><span class="n">recv</span><span class="o">-</span><span class="n">key</span> <span class="n">C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654</span>
-<span class="n">sudo</span> <span class="n">apt</span> <span class="n">update</span>
-<span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="n">ros</span><span class="o">-</span><span class="n">melodic</span><span class="o">-</span><span class="n">ros</span><span class="o">-</span><span class="n">base</span>
-</pre></div>
-</div>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span> <span class="n">update</span>
-<span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="o">-</span><span class="n">y</span> <span class="n">python3</span><span class="o">-</span><span class="n">pip</span>
-<span class="n">pip3</span> <span class="n">install</span> <span class="n">cython</span>
-<span class="n">pip3</span> <span class="n">install</span> <span class="n">bosdyn</span><span class="o">-</span><span class="n">client</span> <span class="n">bosdyn</span><span class="o">-</span><span class="n">mission</span> <span class="n">bosdyn</span><span class="o">-</span><span class="n">api</span> <span class="n">bosdyn</span><span class="o">-</span><span class="n">core</span>
-<span class="n">pip3</span> <span class="n">install</span> <span class="n">empy</span>
-</pre></div>
-</div>
-</div>
-<div class="section" id="setup-networking">
-<h2>Setup Networking<a class="headerlink" href="#setup-networking" title="Permalink to this headline">¶</a></h2>
-<p>Replace the <cite>/etc/network/interfaces</cite> file with the one below</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">auto</span> <span class="n">lo</span> <span class="n">br0</span> <span class="n">br0</span><span class="p">:</span><span class="mi">0</span> <span class="n">br0</span><span class="p">:</span><span class="mi">1</span>
-<span class="n">iface</span> <span class="n">lo</span> <span class="n">inet</span> <span class="n">loopback</span>
-
-<span class="c1"># Bridge together physical ports on machine, assign standard Clearpath Robot IP.</span>
-<span class="n">iface</span> <span class="n">br0</span> <span class="n">inet</span> <span class="n">static</span>
-  <span class="n">bridge_ports</span> <span class="n">regex</span> <span class="p">(</span><span class="n">eth</span><span class="o">.*</span><span class="p">)</span><span class="o">|</span><span class="p">(</span><span class="n">en</span><span class="o">.*</span><span class="p">)</span>
-  <span class="n">address</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">131.1</span>
-  <span class="n">netmask</span> <span class="mf">255.255</span><span class="o">.</span><span class="mf">255.0</span>
-  <span class="n">bridge_maxwait</span> <span class="mi">0</span>
-
-<span class="c1"># Dedicated port for spot</span>
-<span class="n">iface</span> <span class="n">br0</span><span class="p">:</span><span class="mi">0</span> <span class="n">inet</span> <span class="n">static</span>
-  <span class="n">address</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">50.1</span>
-  <span class="n">netmask</span> <span class="mf">255.255</span><span class="o">.</span><span class="mf">255.0</span>
-
-<span class="c1"># Also seek out DHCP IP on those ports, for the sake of easily getting online,</span>
-<span class="c1"># maintenance, ethernet radio support, etc.</span>
-<span class="n">iface</span> <span class="n">br0</span><span class="p">:</span><span class="mi">1</span> <span class="n">inet</span> <span class="n">dhcp</span>
-</pre></div>
-</div>
-</div>
+  <div class="section" id="computer-setup">
+<h1>Computer Setup<a class="headerlink" href="#computer-setup" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="building-the-driver-from-source">
 <h2>Building the Driver from Source<a class="headerlink" href="#building-the-driver-from-source" title="Permalink to this headline">¶</a></h2>
-<p>As the driver hasn’t been released yet, it must be built from source.  This requires a source workspace on the ROS PC.</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/</span><span class="n">catkin_ws</span><span class="o">/</span><span class="n">src</span>
+<p>The driver is not released to the ROS package servers, so it must be built from source. This requires a source workspace on the ROS PC. You can add it to an existing workspace or follow the instructions below to create a new one.</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/</span><span class="n">spot_ws</span><span class="o">/</span><span class="n">src</span>
 </pre></div>
 </div>
 <p>Setup the workspace so it knows about your ROS installation</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span><span class="n">catkin_ws</span><span class="o">/</span><span class="n">src</span>
-<span class="n">source</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">ros</span><span class="o">/</span><span class="n">melodic</span><span class="o">/</span><span class="n">setup</span><span class="o">.</span><span class="n">bash</span>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span><span class="n">spot_ws</span><span class="o">/</span><span class="n">src</span>
+<span class="n">source</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">ros</span><span class="o">/</span><span class="n">noetic</span><span class="o">/</span><span class="n">setup</span><span class="o">.</span><span class="n">bash</span>
 <span class="n">catkin_init_workspace</span>
 </pre></div>
 </div>
 <p>Clone the spot_ros repository into the workspace</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span><span class="n">catkin_ws</span><span class="o">/</span><span class="n">src</span>
-<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">clearpathrobotics</span><span class="o">/</span><span class="n">spot_ros</span><span class="o">.</span><span class="n">git</span>
-<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">ros</span><span class="o">/</span><span class="n">geometry2</span> <span class="o">--</span><span class="n">branch</span> <span class="mf">0.6</span><span class="o">.</span><span class="mi">5</span>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span><span class="n">spot_ws</span><span class="o">/</span><span class="n">src</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">heuristicus</span><span class="o">/</span><span class="n">spot_ros</span><span class="o">.</span><span class="n">git</span>
 </pre></div>
 </div>
 <p>Use rosdep to install of the necessary dependencies</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span><span class="n">catkin_ws</span><span class="o">/</span>
-<span class="n">rosdep</span> <span class="n">install</span> <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">paths</span> <span class="n">src</span> <span class="o">--</span><span class="n">ignore</span><span class="o">-</span><span class="n">src</span> <span class="o">-</span><span class="n">y</span>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span><span class="n">spot_ws</span><span class="o">/</span>
+<span class="n">rosdep</span> <span class="n">install</span> <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">paths</span> <span class="n">spot_driver</span> <span class="n">spot_msgs</span> <span class="n">spot_viz</span> <span class="n">spot_description</span> <span class="o">--</span><span class="n">ignore</span><span class="o">-</span><span class="n">src</span> <span class="o">-</span><span class="n">y</span>
 </pre></div>
 </div>
 <p>Once all the necessary packages are installed, build the packages in the workspace</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span><span class="n">catkin_ws</span><span class="o">/</span>
-<span class="n">catkin_make</span> <span class="o">--</span><span class="n">cmake</span><span class="o">-</span><span class="n">args</span> <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span> <span class="o">-</span><span class="n">DPYTHON_EXECUTABLE</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python3</span> <span class="o">-</span><span class="n">DPYTHON_INCLUDE_DIR</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">include</span><span class="o">/</span><span class="n">python3</span><span class="o">.</span><span class="mi">6</span><span class="n">m</span> <span class="o">-</span><span class="n">DPYTHON_LIBRARY</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">x86_64</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">gnu</span><span class="o">/</span><span class="n">libpython3</span><span class="o">.</span><span class="mi">6</span><span class="n">m</span><span class="o">.</span><span class="n">so</span>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~/</span><span class="n">spot_ws</span><span class="o">/</span>
+<span class="n">catkin</span> <span class="n">build</span>
 </pre></div>
 </div>
 <p>Source your newly built workspace and the packages inside</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">source</span> <span class="o">~/</span><span class="n">catkin_ws</span><span class="o">/</span><span class="n">devel</span><span class="o">/</span><span class="n">setup</span><span class="o">.</span><span class="n">bash</span>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">source</span> <span class="o">~/</span><span class="n">spot_ws</span><span class="o">/</span><span class="n">devel</span><span class="o">/</span><span class="n">setup</span><span class="o">.</span><span class="n">bash</span>
 </pre></div>
 </div>
+</div>
+<div class="section" id="adding-to-the-urdf">
+<h2>Adding to the URDF<a class="headerlink" href="#adding-to-the-urdf" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">When adding payloads, you should always add them to the robot’s configuration through the <a class="reference external" href="https://support.bostondynamics.com/s/article/Payload-configuration-requirements">admin panel</a>. Adding only the URDF does not add the payload to spot’s built in collision avoidance.</p>
+</div>
+<p>The driver supports some configuration of the URDF via environment variables. These can either be manually set in
+the terminal before starting the driver, or added to $HOME/.bashrc as desired. The table below lists the available
+variables and their default values:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="15%" />
+<col width="11%" />
+<col width="74%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Variable</th>
+<th class="head">Default Value</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>SPOT_PACK</td>
+<td>0</td>
+<td>If 1, enables the Clearpath ROS backpack accessory and adds it to the URDF</td>
+</tr>
+<tr class="row-odd"><td>SPOT_LIDAR_MOUNT</td>
+<td>0</td>
+<td>If 1, adds the Lidar mount to the backpack. Requires SPOT_PACK to be 1</td>
+</tr>
+<tr class="row-even"><td>SPOT_VELODYNE</td>
+<td>0</td>
+<td>If 1, adds the a VLP-16 sensor to the lidar mount. Requires SPOT_LIDAR_MOUNT to be 1</td>
+</tr>
+<tr class="row-odd"><td>SPOT_ARM</td>
+<td>0</td>
+<td>If 1, adds the Spot arm to the URDF</td>
+</tr>
+<tr class="row-even"><td>SPOT_VELODYNE_XYZ</td>
+<td>0 0 0</td>
+<td>XYZ offset for the VLP-16 from the backpack lidar mount</td>
+</tr>
+<tr class="row-odd"><td>SPOT_VELODYNE_RPY</td>
+<td>0 0 0</td>
+<td>RPY offset for the VLP-16 from the backpack lidar mount</td>
+</tr>
+<tr class="row-even"><td>SPOT_URDF_EXTRAS</td>
+<td>empty.urdf</td>
+<td>Optional URDF file to add additional joints and links to the robot</td>
+</tr>
+</tbody>
+</table>
+<p>You can add a custom URDF to the robot using the <code class="docutils literal notranslate"><span class="pre">SPOT_URDF_EXTRAS</span></code> environment variable, which must be set in the
+terminal from which the driver is run. This should point to a URDF/xacro file which has an object where the parent is one
+of the frames on the robot.</p>
+<p>It might look something like below.</p>
+<div class="code xml highlight-default notranslate"><div class="highlight"><pre><span></span>&lt;?xml version=&quot;1.0&quot;?&gt;
+&lt;robot name=&quot;spot_frontier&quot; xmlns:xacro=&quot;http://www.ros.org/wiki/xacro&quot;&gt;
+  &lt;xacro:include filename=&quot;$(find my_payload_package)/urdf/my_payload.xacro&quot;/&gt;
+  &lt;xacro:my_payload parent=&quot;real_rear_rail&quot;/&gt;
+&lt;/robot&gt;
+</pre></div>
+</div>
+</div>
+<div class="section" id="building-for-melodic">
+<h2>Building for Melodic<a class="headerlink" href="#building-for-melodic" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If you can, consider using ROS noetic instead, which does not have these build issues.</p>
+</div>
+<p>Please note that the Spot SDK uses Python3, which is not officially supported by ROS Melodic.  If you encounter an error
+of this form:</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/administrator/catkin_ws/src/spot_ros/spot_driver/scripts/spot_ros&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">3</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+    <span class="kn">from</span> <span class="nn">spot_driver.spot_ros</span> <span class="kn">import</span> <span class="n">SpotROS</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/administrator/catkin_ws/src/spot_ros/spot_driver/src/spot_driver/spot_ros.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">19</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+    <span class="kn">import</span> <span class="nn">tf2_ros</span>
+  <span class="n">File</span> <span class="s2">&quot;/opt/ros/melodic/lib/python2.7/dist-packages/tf2_ros/__init__.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">38</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+    <span class="kn">from</span> <span class="nn">tf2_py</span> <span class="kn">import</span> <span class="o">*</span>
+  <span class="n">File</span> <span class="s2">&quot;/opt/ros/melodic/lib/python2.7/dist-packages/tf2_py/__init__.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">38</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+    <span class="kn">from</span> <span class="nn">._tf2</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="ne">ImportError</span><span class="p">:</span> <span class="n">dynamic</span> <span class="n">module</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">define</span> <span class="n">module</span> <span class="n">export</span> <span class="n">function</span> <span class="p">(</span><span class="n">PyInit__tf2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When launching the driver, please follow these steps:</p>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">rm</span> <span class="pre">-rf</span> <span class="pre">devel/</span> <span class="pre">build/</span> <span class="pre">install/</span></code> – this will remove any old build artifacts from your workspace</li>
+<li><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/ros/geometry2</span> <span class="pre">--branch</span> <span class="pre">0.6.5</span></code> into your <code class="docutils literal notranslate"><span class="pre">src</span></code> folder</li>
+<li>rebuild your workspace with</li>
+</ol>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">catkin_make</span> <span class="o">--</span><span class="n">cmake</span><span class="o">-</span><span class="n">args</span> <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span> <span class="o">-</span><span class="n">DPYTHON_EXECUTABLE</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python3</span> <span class="o">-</span><span class="n">DPYTHON_INCLUDE_DIR</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">include</span><span class="o">/</span><span class="n">python3</span><span class="mf">.6</span><span class="n">m</span> <span class="o">-</span><span class="n">DPYTHON_LIBRARY</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">x86_64</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">gnu</span><span class="o">/</span><span class="n">libpython3</span><span class="mf">.6</span><span class="n">m</span><span class="o">.</span><span class="n">so</span>
+</pre></div>
+</div>
+<p>Or if you are using an Nvidia Jetson:</p>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">catkin_make</span> <span class="o">--</span><span class="n">cmake</span><span class="o">-</span><span class="n">args</span> <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span> <span class="o">-</span><span class="n">DPYTHON_EXECUTABLE</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python3</span> <span class="o">-</span><span class="n">DPYTHON_INCLUDE_DIR</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">include</span><span class="o">/</span><span class="n">python3</span><span class="mf">.6</span><span class="n">m</span> <span class="o">-</span><span class="n">DPYTHON_LIBRARY</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">aarch64</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">gnu</span><span class="o">/</span><span class="n">libpython3</span><span class="mf">.6</span><span class="n">m</span><span class="o">.</span><span class="n">so</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li>re-run <code class="docutils literal notranslate"><span class="pre">source</span> <span class="pre">devel/setup.bash</span></code></li>
+<li>start the driver with <code class="docutils literal notranslate"><span class="pre">roslaunch</span> <span class="pre">spot_driver</span> <span class="pre">driver.launch</span></code></li>
+</ol>
 </div>
 </div>
 
@@ -167,14 +218,14 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="index.html" class="btn btn-neutral float-left" title="Spot ROS User Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="robot_setup.html" class="btn btn-neutral float-right" title="Spot Platform Configuration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="robot_setup.html" class="btn btn-neutral float-left" title="Robot Configuration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="driver_configuration.html" class="btn btn-neutral float-right" title="Driver configuration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2020, Clearpath Robotics.</p>
+    <p>&#169; Copyright 2020, Clearpath Robotics, 2023 Oxford Robotics Institute.</p>
   </div>
 
    
