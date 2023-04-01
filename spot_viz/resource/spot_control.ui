@@ -251,7 +251,7 @@
         <string/>
        </property>
        <property name="currentIndex">
-        <number>5</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="motionTab">
         <attribute name="title">
@@ -815,6 +815,9 @@
             <layout class="QGridLayout" name="setPTZLayout">
              <item row="1" column="2">
               <widget class="QDoubleSpinBox" name="panSpinBox">
+               <property name="toolTip">
+                <string>Pan value for this PTZ</string>
+               </property>
                <property name="decimals">
                 <number>1</number>
                </property>
@@ -828,6 +831,9 @@
              </item>
              <item row="1" column="4">
               <widget class="QDoubleSpinBox" name="tiltSpinBox">
+               <property name="toolTip">
+                <string>Tilt value for this PTZ</string>
+               </property>
                <property name="decimals">
                 <number>1</number>
                </property>
@@ -844,6 +850,9 @@
              </item>
              <item row="1" column="6">
               <widget class="QDoubleSpinBox" name="zoomSpinBox">
+               <property name="toolTip">
+                <string>Zoom for this PTZ</string>
+               </property>
                <property name="buttonSymbols">
                 <enum>QAbstractSpinBox::UpDownArrows</enum>
                </property>
@@ -884,13 +893,20 @@
              </item>
              <item row="0" column="5" colspan="2">
               <widget class="QPushButton" name="setPTZButton">
+               <property name="toolTip">
+                <string>Move the PTZ as specified below</string>
+               </property>
                <property name="text">
                 <string>Set PTZ</string>
                </property>
               </widget>
              </item>
              <item row="0" column="1" colspan="4">
-              <widget class="QComboBox" name="choosePTZComboBox"/>
+              <widget class="QComboBox" name="choosePTZComboBox">
+               <property name="toolTip">
+                <string>PTZ to move</string>
+               </property>
+              </widget>
              </item>
             </layout>
            </item>
@@ -920,6 +936,9 @@
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="LEDSpinBox">
+               <property name="toolTip">
+                <string>Contro LED brightness</string>
+               </property>
                <property name="maximum">
                 <double>1.000000000000000</double>
                </property>
@@ -943,10 +962,16 @@
                  <verstretch>0</verstretch>
                 </sizepolicy>
                </property>
+               <property name="toolTip">
+                <string>Select the screen to display in the spot cam image</string>
+               </property>
               </widget>
              </item>
              <item>
               <widget class="QPushButton" name="setScreenButton">
+               <property name="toolTip">
+                <string>Set the screen that is displayed in the spot cam image</string>
+               </property>
                <property name="text">
                 <string>Set screen</string>
                </property>
