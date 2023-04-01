@@ -109,8 +109,9 @@ class SpotTaskWrapper:
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
     def grasp(self, pose, reference_frame:str, **kwargs):
-        self._string_feedback = ''
-        # try:
+        def _end_grasp():
+            self.spot.arm_stow()
+            self.spot.gripper_close()
         self._log.info(f'Grasping pose {pose} in frame {reference_frame}')
         
         if isinstance(pose, np.ndarray):
@@ -132,7 +133,9 @@ class SpotTaskWrapper:
                                           reference_frame=TARGET_FRAME, 
                                           duration=2.0)
         self._log.info(f'Pre-grasp status: {msg}')
-        if status is False: raise(Exception('Failed to reach pre-grasp.'))
+        if status is False: 
+            _end_grasp()
+            raise(Exception('Failed to reach pre-grasp.'))
 
         self.spot.gripper_open()
 
@@ -142,13 +145,15 @@ class SpotTaskWrapper:
                                           reference_frame=TARGET_FRAME, 
                                           duration=1.0)
         self._log.info(f'Approach status: {msg}')
-        if status is False: raise(Exception('Failed to reach pre-grasp.'))
-        time.sleep(5)
+        if status is False: 
+            _end_grasp()
+            raise(Exception('Failed to reach pre-grasp.'))
+    
+        self.spot.gripper_close()
 
         self._log.info('Succeeded')
         # except Exception as e:
         #     self._string_feedback = f'Failed to grasp object: {e}'
         #     status = False
             
-        self.spot.arm_stow()
-        self.spot.gripper_close()
+

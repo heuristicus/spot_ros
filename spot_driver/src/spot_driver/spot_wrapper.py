@@ -696,7 +696,7 @@ class SpotWrapper:
         """Get a lease for the robot, a handle on the estop endpoint, and the ID of the robot."""
         try:
             self._robot_id = self._robot.get_id()
-            self.getLease()
+            self.getLease(hijack=True)
             self.resetEStop()
             return True, "Success"
         except (ResponseError, RpcError) as err:

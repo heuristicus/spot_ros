@@ -11,9 +11,9 @@ from spot_msgs.msg import GripperAction, GripperGoal
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Duration
 
-def processFeedback(feedback):
-    # print(feedback.pose)
-    pass
+from scipy.spatial.transform import Rotation as R
+import numpy as np
+
 
 def make_box(scale=0.001, color=[1.0, 0.0, 1.0, 1.0], mesh=None):
     if not isinstance(scale, list) and not isinstance(scale, tuple): 
@@ -127,6 +127,13 @@ class GrabMarkerCallback(object):
         ros_pose = _get_ros_stamped_pose(feedback.pose.position, feedback.pose.orientation)
         ros_pose.header.frame_id = feedback.header.frame_id
         goal = GripperGoal(pose=ros_pose.pose, header=ros_pose.header)
+
+        quat = goal.pose.orientation
+        rot = R.from_quat([quat.x, quat.y, quat.z, quat.w])
+        transform = R.from_rotvec([0, 0, np.pi/2])
+        quat.x, quat.y, quat.z, quat.w = (rot * transform).as_quat()
+        goal.pose.orientation = quat
+
         self._client.send_goal(goal)
         self._client.wait_for_result()
         result = self._client.get_result()
@@ -145,7 +152,8 @@ def create_interactive_marker(
         name, scale=0.3, 
         reference_frame='odom',
         position=[1, 1, 1], 
-        orientation=[0,0,0,1], ):
+        orientation=[0,0,0,1],
+        ):
     m = InteractiveMarker()
     m.header.frame_id = reference_frame
     p = m.pose.position
@@ -169,9 +177,7 @@ def main():
     # insert a box
     make_box_control(int_marker, mesh="package://spot_viz/meshes/chair_arm.stl")
     append_3d_controls(int_marker)
-
-    # tell the server to call processFeedback() when feedback arrives for it
-    server.insert(int_marker, processFeedback)
+    server.insert(int_marker, lambda feedback: feedback)
     server.applyChanges()
 
     # Add a menu

@@ -1212,9 +1212,11 @@ class SpotROS:
 
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
+        self.spot_wrapper.arm_stow()
+        rospy.Rate(0.25).sleep()
         self.spot_wrapper.sit()
         rospy.Rate(0.25).sleep()
-        self.spot_wrapper.disconnect()
+        self.spot_wrapper.safe_power_off()
 
     def publish_mobility_params(self):
         mobility_params_msg = MobilityParams()
@@ -1403,97 +1405,103 @@ class SpotROS:
         self.hand_points_pub = rospy.Publisher("hand/pointcloud", PointCloud2, queue_size=2)
 
         # Images #
-        self.back_image_pub = rospy.Publisher("camera/back/image", Image, queue_size=10)
+        im_q_size = rospy.get_param("~image_topics_queue_size", 2)
+        self.back_image_pub = rospy.Publisher(
+            "camera/back/image", Image, queue_size=im_q_size)
         self.frontleft_image_pub = rospy.Publisher(
-            "camera/frontleft/image", Image, queue_size=10
+            "camera/frontleft/image", Image, queue_size=im_q_size
         )
         self.frontright_image_pub = rospy.Publisher(
-            "camera/frontright/image", Image, queue_size=10
+            "camera/frontright/image", Image, queue_size=im_q_size
         )
-        self.left_image_pub = rospy.Publisher("camera/left/image", Image, queue_size=10)
+        self.left_image_pub = rospy.Publisher(
+            "camera/left/image", Image, queue_size=im_q_size)
         self.right_image_pub = rospy.Publisher(
-            "camera/right/image", Image, queue_size=10
+            "camera/right/image", Image, queue_size=im_q_size
         )
         self.hand_image_mono_pub = rospy.Publisher(
-            "camera/hand_mono/image", Image, queue_size=10
+            "camera/hand_mono/image", Image, queue_size=im_q_size
         )
         self.hand_image_color_pub = rospy.Publisher(
-            "camera/hand_color/image", Image, queue_size=10
+            "camera/hand_color/image", Image, queue_size=im_q_size
         )
 
         # Depth #
-        self.back_depth_pub = rospy.Publisher("depth/back/image", Image, queue_size=10)
+        self.back_depth_pub = rospy.Publisher(
+            "depth/back/image", Image, queue_size=im_q_size)
         self.frontleft_depth_pub = rospy.Publisher(
-            "depth/frontleft/image", Image, queue_size=10
+            "depth/frontleft/image", Image, queue_size=im_q_size
         )
         self.frontright_depth_pub = rospy.Publisher(
-            "depth/frontright/image", Image, queue_size=10
+            "depth/frontright/image", Image, queue_size=im_q_size
         )
-        self.left_depth_pub = rospy.Publisher("depth/left/image", Image, queue_size=10)
+        self.left_depth_pub = rospy.Publisher(
+            "depth/left/image", Image, queue_size=im_q_size)
         self.right_depth_pub = rospy.Publisher(
-            "depth/right/image", Image, queue_size=10
+            "depth/right/image", Image, queue_size=im_q_size
         )
-        self.hand_depth_pub = rospy.Publisher("depth/hand/image", Image, queue_size=10)
+        self.hand_depth_pub = rospy.Publisher(
+            "depth/hand/image", Image, queue_size=im_q_size)
         self.hand_depth_in_hand_color_pub = rospy.Publisher(
-            "depth/hand/depth_in_color", Image, queue_size=10
+            "depth/hand/depth_in_color", Image, queue_size=im_q_size
         )
         self.frontleft_depth_in_visual_pub = rospy.Publisher(
-            "depth/frontleft/depth_in_visual", Image, queue_size=10
+            "depth/frontleft/depth_in_visual", Image, queue_size=im_q_size
         )
         self.frontright_depth_in_visual_pub = rospy.Publisher(
-            "depth/frontright/depth_in_visual", Image, queue_size=10
+            "depth/frontright/depth_in_visual", Image, queue_size=im_q_size
         )
 
         # Image Camera Info #
         self.back_image_info_pub = rospy.Publisher(
-            "camera/back/camera_info", CameraInfo, queue_size=10
+            "camera/back/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontleft_image_info_pub = rospy.Publisher(
-            "camera/frontleft/camera_info", CameraInfo, queue_size=10
+            "camera/frontleft/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontright_image_info_pub = rospy.Publisher(
-            "camera/frontright/camera_info", CameraInfo, queue_size=10
+            "camera/frontright/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.left_image_info_pub = rospy.Publisher(
-            "camera/left/camera_info", CameraInfo, queue_size=10
+            "camera/left/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.right_image_info_pub = rospy.Publisher(
-            "camera/right/camera_info", CameraInfo, queue_size=10
+            "camera/right/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.hand_image_mono_info_pub = rospy.Publisher(
-            "camera/hand_mono/camera_info", CameraInfo, queue_size=10
+            "camera/hand_mono/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.hand_image_color_info_pub = rospy.Publisher(
-            "camera/hand_color/camera_info", CameraInfo, queue_size=10
+            "camera/hand_color/camera_info", CameraInfo, queue_size=im_q_size
         )
 
         # Depth Camera Info #
         self.back_depth_info_pub = rospy.Publisher(
-            "depth/back/camera_info", CameraInfo, queue_size=10
+            "depth/back/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontleft_depth_info_pub = rospy.Publisher(
-            "depth/frontleft/camera_info", CameraInfo, queue_size=10
+            "depth/frontleft/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontright_depth_info_pub = rospy.Publisher(
-            "depth/frontright/camera_info", CameraInfo, queue_size=10
+            "depth/frontright/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.left_depth_info_pub = rospy.Publisher(
-            "depth/left/camera_info", CameraInfo, queue_size=10
+            "depth/left/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.right_depth_info_pub = rospy.Publisher(
-            "depth/right/camera_info", CameraInfo, queue_size=10
+            "depth/right/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.hand_depth_info_pub = rospy.Publisher(
-            "depth/hand/camera_info", CameraInfo, queue_size=10
+            "depth/hand/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.hand_depth_in_color_info_pub = rospy.Publisher(
-            "camera/hand/depth_in_color/camera_info", CameraInfo, queue_size=10
+            "camera/hand/depth_in_color/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontleft_depth_in_visual_info_pub = rospy.Publisher(
-            "depth/frontleft/depth_in_visual/camera_info", CameraInfo, queue_size=10
+            "depth/frontleft/depth_in_visual/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontright_depth_in_visual_info_pub = rospy.Publisher(
-            "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=10
+            "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=im_q_size
         )
 
         # Status Publishers #
@@ -1627,7 +1635,7 @@ class SpotROS:
 
         ########################################################
         # High level actions # 
-        self.task_wrapper = SpotTaskWrapper(self.spot_wrapper)
+        self.task_wrapper = SpotTaskWrapper(self.spot_wrapper, self.logger)
         self._gripper_action_server = GripperActionServer(self, 'grasp')
 
         #########################################################

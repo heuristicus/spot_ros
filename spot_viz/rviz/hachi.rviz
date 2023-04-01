@@ -220,8 +220,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 2.715893268585205
-            Min Value: -0.0842706561088562
+            Max Value: 1.353796362876892
+            Min Value: -0.025232255458831787
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -256,8 +256,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.7008883953094482
-            Min Value: -0.02497190237045288
+            Max Value: 2.7978293895721436
+            Min Value: -0.06459850072860718
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -292,8 +292,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.2020854949951172
-            Min Value: -0.22344672679901123
+            Max Value: 3.0762014389038086
+            Min Value: -0.08951079845428467
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -328,8 +328,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.7706449031829834
-            Min Value: -0.03920555114746094
+            Max Value: 1.6348204612731934
+            Min Value: -0.018153727054595947
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -364,8 +364,8 @@ Visualization Manager:
             Value: true
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 2.586937427520752
-            Min Value: -0.14636445045471191
+            Max Value: 1.2488899230957031
+            Min Value: -0.1105378270149231
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -400,7 +400,7 @@ Visualization Manager:
       Enable Transparency: true
       Enabled: true
       Name: InteractiveMarkers
-      Show Axes: false
+      Show Axes: true
       Show Descriptions: true
       Show Visual Aids: false
       Update Topic: /chair_handle/update
@@ -469,17 +469,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.7854584455490112
-        Y: -1.0500918626785278
-        Z: 0.7950044870376587
+        X: 0.1777646392583847
+        Y: -0.4278574585914612
+        Z: 1.169119119644165
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.755204439163208
+      Pitch: 0.5002050995826721
       Target Frame: <Fixed Frame>
-      Yaw: 4.532211780548096
+      Yaw: 0.4990266263484955
     Saved: ~
 Window Geometry:
   Displays:

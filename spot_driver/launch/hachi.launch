@@ -5,9 +5,9 @@
   <arg name="estop_timeout" default="9.0"/>
   <arg name="autonomy_enabled" default="true"/>
   <!-- In m/s. 0 applies spot's internal limits -->
-  <arg name="max_linear_velocity_x" default="0"/>
-  <arg name="max_linear_velocity_y" default="0"/>
-  <arg name="max_angular_velocity_z" default="0"/>
+  <arg name="max_linear_velocity_x" default="0.3"/>
+  <arg name="max_linear_velocity_y" default="0.3"/>
+  <arg name="max_angular_velocity_z" default="0.3"/>
   <arg name="allow_motion" default="true"/>
   <arg name="driver_config" default="$(find spot_driver)/config/hachi_ros.yaml"/>
 

@@ -44,7 +44,6 @@ class GripperActionServer:
         # Check requirements
         goal = self.ros_wrapper._transform_pose_to_body_frame(goal)
         rospy.loginfo("transformed goal to: " + str(goal))
-
         
         # Start feedback thread
         self._feedback_thread = threading.Thread(target=self._handle_feedback, args=())
@@ -53,18 +52,19 @@ class GripperActionServer:
 
         # Run action
         pose = self._ros_pose_to_mat(goal.pose)
-        if self.task_wrapper.grasp(pose, goal.header.frame_id):
+        try:
+            self.task_wrapper.grasp(pose, goal.header.frame_id)
             self._server.set_succeeded(
                 GripperResult(
                     success=True,
                     message=self.task_wrapper.feedback
                 )
             )
-        else:
+        except Exception as e:
             self._server.set_aborted(
                 GripperResult(
                     success=False,
-                    message = self.task_wrapper.feedback
+                    message = self.task_wrapper.feedback + '\n' + str(e)
                 )
             )
 
