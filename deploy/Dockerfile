@@ -8,9 +8,9 @@ RUN mkdir -p /ros/catkin_ws/src
 WORKDIR /ros/catkin_ws/src
 # Get the secrets from Github Actions
 RUN --mount=type=secret,id=SPOTROS_GIT_BRANCH \
-   export SPOTROS_GIT_BRANCH=$(cat /run/secrets/SPOTROS_GIT_BRANCH) && \
-   echo $SPOTROS_GIT_BRANCH && \
-   git clone -b $SPOTROS_GIT_BRANCH https://github.com/jeremysee2/spot_ros.git /ros/catkin_ws/src/spot_ros
+    export SPOTROS_GIT_BRANCH=$(cat /run/secrets/SPOTROS_GIT_BRANCH) && \
+    echo $SPOTROS_GIT_BRANCH && \
+    git clone -b $SPOTROS_GIT_BRANCH https://github.com/jeremysee2/spot_ros.git /ros/catkin_ws/src/spot_ros
 
 RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-pip git qttools5-dev ros-noetic-tf2-bullet ros-noetic-roslint ros-noetic-pcl-ros ros-noetic-catkin python3-catkin-pkg nano vim
 RUN python3 -m pip install cython bosdyn-client bosdyn-mission bosdyn-api bosdyn-core empy numpy
@@ -24,6 +24,8 @@ RUN rosdep install --from-paths /ros/catkin_ws/src --ignore-src -y
 
 # Build ROS packages, remember to source the setup.bash file in the same command
 WORKDIR /ros/catkin_ws/
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
+    catkin_make --only-pkg-with-deps spot_driver"
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
     catkin_make"
 
