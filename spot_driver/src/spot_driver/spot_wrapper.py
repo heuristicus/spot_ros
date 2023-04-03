@@ -1045,7 +1045,7 @@ class SpotWrapper:
         v_x: float,
         v_y: float,
         v_rot: float,
-        cmd_duration: float = 0.125,  # TODO: Investigate what this should be for SDK 3.2.0, ref github issue #96
+        cmd_duration: float = 0.7,
     ) -> typing.Tuple[bool, str]:
         """Send a velocity motion command to the robot.
 
