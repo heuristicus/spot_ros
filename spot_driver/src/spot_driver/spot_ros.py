@@ -65,6 +65,8 @@ from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
+from .spot_task_wrapper import SpotTaskWrapper
+from .utils.ros_wrappers.gripper_action import GripperActionServer
 from .utils.ros_pointcloud import images_to_pointcloud2
 import actionlib
 import logging
@@ -110,6 +112,10 @@ class SpotROS:
         self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
         self.callbacks["hand_pointcloud"] = self.HandPointcloudCB
+        self.callbacks["front_pointcloud"] = self.FrontPointcloudCB
+        self.callbacks["rear_pointcloud"] = self.RearPointcloudCB
+        self.callbacks["side_pointcloud"] = self.SidePointcloudCB
+
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -324,18 +330,36 @@ class SpotROS:
             self.populate_camera_static_transforms(data[1])
             self.populate_camera_static_transforms(data[2])
             self.populate_camera_static_transforms(data[3])
-
-    def HandPointcloudCB(self, results):
+    
+    ################## Colored Pointcloud Callbacks ##################
+    def _colored_points_pub_helper(self, rgb_idx, d_idx, results, pub):
         try:
             if results.done():
                 data = results.result()
-                rgb_msg, info = getImageMsg(data[2], self.spot_wrapper)
-                d_msg, _ = getImageMsg(data[3], self.spot_wrapper)
+                rgb_msg, info = getImageMsg(data[rgb_idx], self.spot_wrapper)
+                d_msg, _ = getImageMsg(data[d_idx], self.spot_wrapper)
+
                 pc_msg = images_to_pointcloud2(rgb_msg, d_msg, info.K)
-                self.hand_points_pub.publish(pc_msg)
+                pub.publish(pc_msg)
         except Exception as e:
             rospy.logerr(e)
 
+    def HandPointcloudCB(self, results):
+        self._colored_points_pub_helper(2, 3, results, self.hand_points_pub)
+
+    def FrontPointcloudCB(self, results):
+        self._colored_points_pub_helper(0, 4, results, self.front_right_points_pub)
+        self._colored_points_pub_helper(1, 5, results, self.front_left_points_pub)
+
+    def SidePointcloudCB(self, results):
+        self._colored_points_pub_helper(0, 4, results, self.left_points_pub)
+        self._colored_points_pub_helper(1, 5, results, self.right_points_pub)
+
+    def RearPointcloudCB(self, results):
+        self._colored_points_pub_helper(0, 2, results, self.rear_points_pub)
+
+    #######################################################################
+    
     def handle_claim(self, req):
         """ROS service handler for the claim service"""
         resp = self.spot_wrapper.claim()
@@ -1210,70 +1234,39 @@ class SpotROS:
 
     def shutdown(self):
         rospy.loginfo("Shutting down ROS driver for Spot")
-        self.spot_wrapper.sit()
-        rospy.Rate(0.25).sleep()
-        self.spot_wrapper.disconnect()
+        self.spot_wrapper.safe_power_off()
 
     def publish_mobility_params(self):
         mobility_params_msg = MobilityParams()
         try:
+            bc = Pose()
             mobility_params = self.spot_wrapper.get_mobility_params()
-            mobility_params_msg.body_control.position.x = (
-                mobility_params.body_control.base_offset_rt_footprint.points[
-                    0
-                ].pose.position.x
-            )
-            mobility_params_msg.body_control.position.y = (
-                mobility_params.body_control.base_offset_rt_footprint.points[
-                    0
-                ].pose.position.y
-            )
-            mobility_params_msg.body_control.position.z = (
-                mobility_params.body_control.base_offset_rt_footprint.points[
-                    0
-                ].pose.position.z
-            )
-            mobility_params_msg.body_control.orientation.x = (
-                mobility_params.body_control.base_offset_rt_footprint.points[
-                    0
-                ].pose.rotation.x
-            )
-            mobility_params_msg.body_control.orientation.y = (
-                mobility_params.body_control.base_offset_rt_footprint.points[
-                    0
-                ].pose.rotation.y
-            )
-            mobility_params_msg.body_control.orientation.z = (
-                mobility_params.body_control.base_offset_rt_footprint.points[
-                    0
-                ].pose.rotation.z
-            )
-            mobility_params_msg.body_control.orientation.w = (
-                mobility_params.body_control.base_offset_rt_footprint.points[
-                    0
-                ].pose.rotation.w
-            )
+            bc_pose = mobility_params.body_control.\
+                                      base_offset_rt_footprint.\
+                                      points[0].pose
+            bc.position.x = (bc_pose.position.x)
+            bc.position.y = (bc_pose.position.y)
+            bc.position.z = (bc_pose.position.z)
+            bc.orientation.x = (bc_pose.rotation.x)
+            bc.orientation.y = (bc_pose.rotation.y)
+            bc.orientation.z = (bc_pose.rotation.z)
+            bc.orientation.w = (bc_pose.rotation.w)
+            mobility_params_msg.body_control = bc
+            
             mobility_params_msg.locomotion_hint = mobility_params.locomotion_hint
             mobility_params_msg.stair_hint = mobility_params.stair_hint
             mobility_params_msg.swing_height = mobility_params.swing_height
-            mobility_params_msg.obstacle_params.obstacle_avoidance_padding = (
-                mobility_params.obstacle_params.obstacle_avoidance_padding
-            )
-            mobility_params_msg.obstacle_params.disable_vision_foot_obstacle_avoidance = (
-                mobility_params.obstacle_params.disable_vision_foot_obstacle_avoidance
-            )
-            mobility_params_msg.obstacle_params.disable_vision_foot_constraint_avoidance = (
-                mobility_params.obstacle_params.disable_vision_foot_constraint_avoidance
-            )
-            mobility_params_msg.obstacle_params.disable_vision_body_obstacle_avoidance = (
-                mobility_params.obstacle_params.disable_vision_body_obstacle_avoidance
-            )
-            mobility_params_msg.obstacle_params.disable_vision_foot_obstacle_body_assist = (
-                mobility_params.obstacle_params.disable_vision_foot_obstacle_body_assist
-            )
-            mobility_params_msg.obstacle_params.disable_vision_negative_obstacles = (
-                mobility_params.obstacle_params.disable_vision_negative_obstacles
-            )
+
+            op = mobility_params.obstacle_params
+            op_msg = mobility_params_msg.obstacle_params
+            op_msg.obstacle_avoidance_padding = (op.obstacle_avoidance_padding)
+            op_msg.disable_vision_foot_obstacle_avoidance   = (op.disable_vision_foot_obstacle_avoidance)
+            op_msg.disable_vision_foot_constraint_avoidance = (op.disable_vision_foot_constraint_avoidance)
+            op_msg.disable_vision_body_obstacle_avoidance   = (op.disable_vision_body_obstacle_avoidance)
+            op_msg.disable_vision_foot_obstacle_body_assist = (op.disable_vision_foot_obstacle_body_assist)
+            op_msg.disable_vision_negative_obstacles        = (op.disable_vision_negative_obstacles)
+            mobility_params_msg.obstacle_params = op_msg
+
             if mobility_params.HasField("terrain_params"):
                 if mobility_params.terrain_params.HasField("ground_mu_hint"):
                     mobility_params_msg.terrain_params.ground_mu_hint = (
@@ -1316,7 +1309,8 @@ class SpotROS:
             feedback_msg.version = id_.version
             feedback_msg.nickname = id_.nickname
             feedback_msg.computer_serial_number = id_.computer_serial_number
-        except:
+        except Exception as e:
+            # rospy.logerr("Error:{}".format(e))
             pass
         self.feedback_pub.publish(feedback_msg)
 
@@ -1397,101 +1391,115 @@ class SpotROS:
         if not self.spot_wrapper.is_valid:
             return
 
-        # Point Cloud #
-        self.hand_points_pub = rospy.Publisher("hand/pointcloud", PointCloud2, queue_size=2)
+        # Colored Point Clouds #
+        cpc_params = {'data_class': PointCloud2, 
+                      'queue_size': rospy.get_param("~pointcloud_topics_queue_size", 2)}
+        self.hand_points_pub =          rospy.Publisher("colored_points/hand",        **cpc_params)
+        self.front_right_points_pub =   rospy.Publisher('colored_points/front_right', **cpc_params) 
+        self.front_left_points_pub =    rospy.Publisher('colored_points/front_left',  **cpc_params) 
+        self.left_points_pub =          rospy.Publisher('colored_points/left',        **cpc_params) 
+        self.right_points_pub =         rospy.Publisher('colored_points/right',       **cpc_params) 
+        self.rear_points_pub =          rospy.Publisher('colored_points/rear',        **cpc_params)
+
 
         # Images #
-        self.back_image_pub = rospy.Publisher("camera/back/image", Image, queue_size=10)
+        im_q_size = rospy.get_param("~image_topics_queue_size", 2)
+        self.back_image_pub = rospy.Publisher(
+            "camera/back/image", Image, queue_size=im_q_size)
         self.frontleft_image_pub = rospy.Publisher(
-            "camera/frontleft/image", Image, queue_size=10
+            "camera/frontleft/image", Image, queue_size=im_q_size
         )
         self.frontright_image_pub = rospy.Publisher(
-            "camera/frontright/image", Image, queue_size=10
+            "camera/frontright/image", Image, queue_size=im_q_size
         )
-        self.left_image_pub = rospy.Publisher("camera/left/image", Image, queue_size=10)
+        self.left_image_pub = rospy.Publisher(
+            "camera/left/image", Image, queue_size=im_q_size)
         self.right_image_pub = rospy.Publisher(
-            "camera/right/image", Image, queue_size=10
+            "camera/right/image", Image, queue_size=im_q_size
         )
         self.hand_image_mono_pub = rospy.Publisher(
-            "camera/hand_mono/image", Image, queue_size=10
+            "camera/hand_mono/image", Image, queue_size=im_q_size
         )
         self.hand_image_color_pub = rospy.Publisher(
-            "camera/hand_color/image", Image, queue_size=10
+            "camera/hand_color/image", Image, queue_size=im_q_size
         )
 
         # Depth #
-        self.back_depth_pub = rospy.Publisher("depth/back/image", Image, queue_size=10)
+        self.back_depth_pub = rospy.Publisher(
+            "depth/back/image", Image, queue_size=im_q_size)
         self.frontleft_depth_pub = rospy.Publisher(
-            "depth/frontleft/image", Image, queue_size=10
+            "depth/frontleft/image", Image, queue_size=im_q_size
         )
         self.frontright_depth_pub = rospy.Publisher(
-            "depth/frontright/image", Image, queue_size=10
+            "depth/frontright/image", Image, queue_size=im_q_size
         )
-        self.left_depth_pub = rospy.Publisher("depth/left/image", Image, queue_size=10)
+        self.left_depth_pub = rospy.Publisher(
+            "depth/left/image", Image, queue_size=im_q_size)
         self.right_depth_pub = rospy.Publisher(
-            "depth/right/image", Image, queue_size=10
+            "depth/right/image", Image, queue_size=im_q_size
         )
-        self.hand_depth_pub = rospy.Publisher("depth/hand/image", Image, queue_size=10)
+        self.hand_depth_pub = rospy.Publisher(
+            "depth/hand/image", Image, queue_size=im_q_size)
         self.hand_depth_in_hand_color_pub = rospy.Publisher(
-            "depth/hand/depth_in_color", Image, queue_size=10
+            "depth/hand/depth_in_color", Image, queue_size=im_q_size
         )
         self.frontleft_depth_in_visual_pub = rospy.Publisher(
-            "depth/frontleft/depth_in_visual", Image, queue_size=10
+            "depth/frontleft/depth_in_visual", Image, queue_size=im_q_size
         )
         self.frontright_depth_in_visual_pub = rospy.Publisher(
-            "depth/frontright/depth_in_visual", Image, queue_size=10
+            "depth/frontright/depth_in_visual", Image, queue_size=im_q_size
         )
 
         # Image Camera Info #
         self.back_image_info_pub = rospy.Publisher(
-            "camera/back/camera_info", CameraInfo, queue_size=10
+            "camera/back/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontleft_image_info_pub = rospy.Publisher(
-            "camera/frontleft/camera_info", CameraInfo, queue_size=10
+            "camera/frontleft/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontright_image_info_pub = rospy.Publisher(
-            "camera/frontright/camera_info", CameraInfo, queue_size=10
+            "camera/frontright/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.left_image_info_pub = rospy.Publisher(
-            "camera/left/camera_info", CameraInfo, queue_size=10
+            "camera/left/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.right_image_info_pub = rospy.Publisher(
-            "camera/right/camera_info", CameraInfo, queue_size=10
+            "camera/right/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.hand_image_mono_info_pub = rospy.Publisher(
-            "camera/hand_mono/camera_info", CameraInfo, queue_size=10
+            "camera/hand_mono/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.hand_image_color_info_pub = rospy.Publisher(
-            "camera/hand_color/camera_info", CameraInfo, queue_size=10
+            "camera/hand_color/camera_info", CameraInfo, queue_size=im_q_size
         )
 
         # Depth Camera Info #
         self.back_depth_info_pub = rospy.Publisher(
-            "depth/back/camera_info", CameraInfo, queue_size=10
+            "depth/back/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontleft_depth_info_pub = rospy.Publisher(
-            "depth/frontleft/camera_info", CameraInfo, queue_size=10
+            "depth/frontleft/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontright_depth_info_pub = rospy.Publisher(
-            "depth/frontright/camera_info", CameraInfo, queue_size=10
+            "depth/frontright/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.left_depth_info_pub = rospy.Publisher(
-            "depth/left/camera_info", CameraInfo, queue_size=10
+            "depth/left/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.right_depth_info_pub = rospy.Publisher(
-            "depth/right/camera_info", CameraInfo, queue_size=10
+            "depth/right/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.hand_depth_info_pub = rospy.Publisher(
-            "depth/hand/camera_info", CameraInfo, queue_size=10
+            "depth/hand/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.hand_depth_in_color_info_pub = rospy.Publisher(
-            "camera/hand/depth_in_color/camera_info", CameraInfo, queue_size=10
+            "camera/hand/depth_in_color/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontleft_depth_in_visual_info_pub = rospy.Publisher(
-            "depth/frontleft/depth_in_visual/camera_info", CameraInfo, queue_size=10
+            "depth/frontleft/depth_in_visual/camera_info", CameraInfo, queue_size=im_q_size
         )
         self.frontright_depth_in_visual_info_pub = rospy.Publisher(
-            "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=10
+            "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=im_q_size
         )
 
         # Status Publishers #
@@ -1622,6 +1630,13 @@ class SpotROS:
         )
         self.body_pose_as.start()
 
+
+        ########################################################
+        # High level actions # 
+        self.task_wrapper = SpotTaskWrapper(self.spot_wrapper, self.logger)
+        self._gripper_action_server = GripperActionServer(self, 'grasp')
+
+        #########################################################
         # Stop service calls other services so initialise it after them to prevent crashes which can happen if
         # the service is immediately called
         rospy.Service("stop", Trigger, self.handle_stop)

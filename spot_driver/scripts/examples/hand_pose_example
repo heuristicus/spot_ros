@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+
+import logging
+import time 
+
+from spot_driver.spot_wrapper import SpotWrapper
+from bosdyn.client.math_helpers import SE3Pose
+from quaternion import from_euler_angles, quaternion
+import numpy as np
+
+if __name__=='__main__':
+    '''
+    NOTE: This script test the WorldObjectHandler class without requiring 
+    any ros specific code. The wrapper could be used with other pure python 
+    code.
+    ''' 
+    FORMAT = '%(message)s'
+    logging.basicConfig(format=FORMAT)
+    logger = logging.getLogger("rosout")
+    logger.debug('Starting code.')
+
+    spot_wrapper = SpotWrapper('admin', 
+                               'pvwmr4j08osj', 
+                               '192.168.80.3',  # WIFI
+                            #    '10.0.0.3',    # Ethernet
+                                logger=logger,
+                                estop_timeout=9.0,)
+
+    logger.setLevel('DEBUG')
+    
+    logger.debug('Powering on...')
+    spot_wrapper.getLease(hijack=True)
+    spot_wrapper.power_on()
+
+    logger.debug('Standing...')
+    spot_wrapper.ensure_arm_power_and_stand()
+
+    logger.debug('Moving hand to a pose...')
+    
+    quat = from_euler_angles(0, 0, 0)
+    position = [1.0, 0.0, 0.0]
+    
+    results = spot_wrapper.hand_pose(position, 
+                                     [quat.w, quat.x, quat.y, quat.z],
+                                     duration=3.0, gripper_opening=1.0)
+    logger.debug(f'Results: {results}')
+   
+    # time.sleep(5)
+    spot_wrapper.safe_power_off()
+    spot_wrapper.releaseLease()
+
+
+    logger.debug(f'Success!!!')

@@ -5,6 +5,8 @@ find_package(catkin REQUIRED COMPONENTS rviz spot_msgs)
 
 catkin_package()
 
+catkin_python_setup()
+
 set(CMAKE_AUTOMOC ON)
 
 if(rviz_QT_VERSION VERSION_LESS "5")
@@ -23,6 +25,11 @@ include_directories(
 
 set(SRC_FILES
   src/spot_panel.cpp
+)
+
+catkin_install_python(PROGRAMS
+    scripts/chair_marker
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 add_library(${PROJECT_NAME} ${SRC_FILES})
