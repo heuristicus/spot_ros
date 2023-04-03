@@ -6,14 +6,14 @@ rates:
   robot_state: 20.0
   metrics: 0.04
   lease: 1.0
-  front_image: 2.0
-  side_image:  2.0
-  rear_image:  2.0
-  hand_image:  2.0
-  hand_pointcloud: 2.0
-  front_pointcloud: 2.0
-  side_pointcloud: 2.0
-  rear_pointcloud: 2.0
+  front_image: 10.0
+  side_image:  10.0
+  rear_image:  10.0
+  hand_image:  10.0
+  hand_pointcloud:  0.0
+  front_pointcloud: 0.0
+  side_pointcloud:  0.0
+  rear_pointcloud:  0.0
   feedback: 10.0
   mobility_params: 10.0
 auto_claim: False

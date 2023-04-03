@@ -280,46 +280,55 @@ class SpotWrapper:
                 max(0.0, self._rates.get("lease", 0.0)),
                 self._callbacks.get("lease", lambda: None),
             )
+            self._async_tasks = AsyncTasks([
+                self._robot_state_task,
+                self._robot_metrics_task,
+                self._lease_task,
+            ])
 
-            self._hand_image_task  = self._make_image_service("hand_image",  self._hand_image_requests)
-            self._front_image_task = self._make_image_service("front_image", self._front_image_requests)
-            self._side_image_task  = self._make_image_service("side_image",  self._side_image_requests)
-            self._rear_image_task  = self._make_image_service("rear_image",  self._rear_image_requests)
+            if self._rates.get('hand_image', 0.0) > 0.0:
+                self._hand_image_task  = self._make_image_service("hand_image",  self._hand_image_requests)
+                self._async_tasks.add_task(self._hand_image_task)
+            
+            if self._rates.get('front_image', 0.0) > 0.0:
+                self._front_image_task = self._make_image_service("front_image", self._front_image_requests)
+                self._async_tasks.add_task(self._front_image_task)
+            
+            if self._rates.get('side_image', 0.0) > 0.0:
+                self._side_image_task  = self._make_image_service("side_image",  self._side_image_requests)
+                self._async_tasks.add_task(self._side_image_task)
+            
+            if self._rates.get('rear_image', 0.0) > 0.0:
+                self._rear_image_task  = self._make_image_service("rear_image",  self._rear_image_requests)
+                self._async_tasks.add_task(self._rear_image_task)
 
-            self._hand_pointcloud_task  = self._make_image_service("hand_pointcloud",  self._hand_image_requests)
-            self._front_pointcloud_task = self._make_image_service("front_pointcloud", self._front_image_requests)
-            self._rear_pointcloud_task  = self._make_image_service("rear_pointcloud",  self._rear_image_requests)
-            self._side_pointcloud_task  = self._make_image_service("side_pointcloud",  self._side_image_requests)
+            if self._rates.get('front_pointcloud', 0.0) > 0.0:
+                self._front_pointcloud_task = self._make_image_service("front_pointcloud", self._front_image_requests)
+                self._async_tasks.add_task(self._front_pointcloud_task)
 
-            self._idle_task = AsyncIdle(
-                self._robot_command_client, self._logger, 10.0, self
-            )
-            self._estop_monitor = AsyncEStopMonitor(
-                self._estop_client, self._logger, 20.0, self
-            )
+            if self._rates.get('rear_pointcloud', 0.0) > 0.0:
+                self._rear_pointcloud_task  = self._make_image_service("rear_pointcloud",  self._rear_image_requests)
+                self._async_tasks.add_task(self._rear_pointcloud_task)
+
+            if self._rates.get('side_pointcloud', 0.0) > 0.0:
+                self._side_pointcloud_task  = self._make_image_service("side_pointcloud",  self._side_image_requests)
+                self._async_tasks.add_task(self._side_pointcloud_task)
+
+            self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
+            self._async_tasks.add_task(self._idle_task)
+
+
+            self._estop_monitor = AsyncEStopMonitor(self._estop_client, self._logger, 20.0, self)
+            self._async_tasks.add_task(self._estop_monitor)
+
 
             self._estop_endpoint = None
             self._estop_keepalive = None
-
-            self._async_tasks = AsyncTasks(
-                [
-                    self._robot_state_task,
-                    self._robot_metrics_task,
-                    self._lease_task,
-                    self._front_image_task,
-                    self._side_image_task,
-                    self._rear_image_task,
-                    self._idle_task,
-                    self._estop_monitor,
-                ]
-            )
-
+           
             if self._robot.has_arm():
+                self._hand_pointcloud_task  = self._make_image_service("hand_pointcloud",  self._hand_image_requests)
                 self._async_tasks.add_task(self._hand_image_task)
                 self._async_tasks.add_task(self._hand_pointcloud_task)
-                self._async_tasks.add_task(self._front_pointcloud_task)
-                self._async_tasks.add_task(self._rear_pointcloud_task)
-                self._async_tasks.add_task(self._side_pointcloud_task)
 
             self._robot_id = None
             self._lease = None
@@ -604,7 +613,7 @@ class SpotWrapper:
         """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
         try:
             self._robot.safe_power_off()
-            self.spot.releaseLease()
+            self.disconnect()
             return True, "Success"
         except Exception as e:
             return False, str(e)
