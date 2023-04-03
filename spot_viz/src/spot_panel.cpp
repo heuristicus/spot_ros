@@ -706,12 +706,20 @@ namespace spot_viz
     }
 
     void ControlPanel::ptzCallback(const spot_cam::PTZDescriptionArray &ptz_descriptions) {
+        // Combobox items should only be populated a single time. The ptzs do not change unless the camera changes
+        if (choosePTZComboBox->count() != 0) {
+            return;
+        }
         for (auto p: ptz_descriptions.ptzs) {
             choosePTZComboBox->addItem(p.name.c_str());
         }
     }
 
     void ControlPanel::screensCallback(const spot_cam::StringMultiArray& screens) {
+        // Combobox items should only be populated a single time. The screens do not change unless the camera changes
+        if (chooseScreenComboBox->count() != 0) {
+            return;
+        }
         for (auto s: screens.data) {
             chooseScreenComboBox->addItem(s.c_str());
         }
