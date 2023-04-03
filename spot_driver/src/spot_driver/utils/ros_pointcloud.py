@@ -9,11 +9,14 @@ def ros_image_to_rgb_ndarray(image: Image) -> np.ndarray:
     if image.encoding == 'rgb8':
         rgb = np.frombuffer(image.data, dtype=np.byte)
         rgb = rgb.reshape(H, W, 3).astype(np.uint8)
+    elif image.encoding == 'rgba8':
+        rgb = np.frombuffer(image.data, dtype=np.byte)
+        rgb = rgb.reshape(H, W, 4).astype(np.uint8)
     elif image.encoding == 'bgra8':
         rgb = np.frombuffer(image.data, dtype=np.byte)
         rgb = rgb.reshape(H, W, 4)[:, :, (2,0,1)].astype(np.uint8)
     else: 
-        raise RuntimeError('Not setup to handle incoming ros image as rgb ndarray.')
+        raise RuntimeError(f'Not setup to handle {image.encoding} ros image as rgb ndarray.')
     return rgb
 
 
