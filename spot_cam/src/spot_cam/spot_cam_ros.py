@@ -3,15 +3,17 @@ import threading
 import typing
 import wave
 
-import tf2_ros
-from geometry_msgs.msg import TransformStamped
+import numpy as np
 import rospy
+import tf
+import tf2_ros
 from bosdyn.client.exceptions import (
     InvalidRequestError,
     InternalServerError,
     RetryableUnavailableError,
 )
 from cv_bridge import CvBridge
+from geometry_msgs.msg import TransformStamped, PointStamped
 from sensor_msgs.msg import Image
 from spot_cam.msg import (
     BITStatus,
@@ -39,10 +41,10 @@ from spot_cam.srv import (
     SetStreamParams,
     SetString,
 )
-from std_msgs.msg import Float32MultiArray, Float32, String
+from spot_wrapper.cam_wrapper import SpotCamWrapper
+from std_msgs.msg import Float32MultiArray, Float32
 from std_srvs.srv import Trigger
 
-from spot_wrapper.cam_wrapper import SpotCamWrapper
 from spot_driver.ros_helpers import getSystemFaults
 
 
@@ -653,6 +655,7 @@ class TransformHandlerROS(ROSHandler):
 
         # Generate static transforms for the fixed cameras
         self.static_transforms.extend(self._get_camera_transforms(self.STATIC_CAMERAS))
+        self.static_transforms.append(self._get_ptz_zero_transform())
 
         # Publish all the static transforms in a block. Doing each one individually can cause issues.
         self.tf_static_broadcaster.sendTransform(self.static_transforms)
@@ -695,6 +698,33 @@ class TransformHandlerROS(ROSHandler):
 
             rate.sleep()
 
+    def _get_ptz_zero_transform(self) -> TransformStamped:
+        """
+         To correctly point the PTZ, it is useful to have a ptz zero frame which can be used to compute required pan
+         and tilt to point it at a point. This only applies to the Spot CAM or CAM+IR. This is taken by using the
+         set_position service to set the ptz to zero, then using rostopic echo tf tf_echo spot_cam_payload_frame ptz
+
+        rosrun tf tf_echo spot_cam_payload_frame ptz
+        At time 1680528877.844
+        - Translation: [0.000, -0.154, 0.000]
+        - Rotation: in Quaternion [-0.000, 0.000, -0.000, 1.000]
+                    in RPY (radian) [-0.000, 0.000, -0.000]
+                    in RPY (degree) [-0.000, 0.022, -0.000]
+
+
+         Returns:
+             TransformStamped containing the zero position for the ptz
+        """
+        ptz_zero_in_body = TransformStamped()
+        ptz_zero_in_body.header.stamp = rospy.Time.now()
+        ptz_zero_in_body.header.frame_id = "spot_cam_payload_frame"
+        ptz_zero_in_body.child_frame_id = "ptz_zero"
+        # Only translation in the y axis from the spot cam payload frame. Everything else is zeroed
+        ptz_zero_in_body.transform.translation.y = -0.154
+        ptz_zero_in_body.transform.rotation.w = 1
+
+        return ptz_zero_in_body
+
     def _get_camera_transforms(
         self, camera_names: typing.Optional[typing.List[str]], exclude=False
     ) -> typing.List[TransformStamped]:
@@ -726,6 +756,10 @@ class PTZHandlerROS(ROSHandler):
     """
     Handles interaction with a ptz
     """
+
+    # See Boston Dyanmics specifications https://support.bostondynamics.com/s/article/Spot-CAM-Spot-CAM-Spot-CAM-IR#Specifications
+    SHORTEST_FOCAL_LENGTH = 4.3e-3  # focal lengths between 4.3mm to 129.0mm
+    DIAGONAL_SENSOR_SIZE = 6.46e-3  # 1/2.8" sensor with 6.46mm diagonal
 
     def __init__(self, wrapper: SpotCamWrapper):
         super().__init__()
@@ -832,6 +866,7 @@ class PTZHandlerROS(ROSHandler):
         """
         List available ptzs on the device
         """
+        print(self.client.list_ptz())
         return self.client.list_ptz()
 
     def handle_set_ptz_velocity(self, req):
@@ -938,7 +973,107 @@ class PTZHandlerROS(ROSHandler):
         """
         Handle a request to look at a point in space
         """
-        return self.look_at_point(req.target, req.image_width, req.zoom_level)
+        return self.look_at_point(
+            req.target, zoom_level=req.zoom_level, image_diagonal=req.image_width
+        )
+
+    def look_at_point(
+        self,
+        target: PointStamped,
+        *,
+        zoom_level: float = 1,
+        image_diagonal: float = 0,
+    ) -> typing.Tuple[bool, str]:
+        """
+        Point the ptz camera at a point in an arbitrary frame.
+        The zoom is either given explicitly or calculated from a certain area to inspect around the target that
+        should be captured given by its image diagonal in meters.
+
+        Args:
+            target: The target point and frame id that the Spot cam should be aimed at
+            zoom_level: The zoom level that the Spot cam should be set to
+            image_diagonal: The diagonal of the image frame in meters, overrides the zoom_level
+        """
+
+        # Look-up transform from ptz to given frame_id
+        tf_buffer = tf2_ros.Buffer()
+        tf_listener = tf2_ros.TransformListener(tf_buffer)
+        frame_id = target.header.frame_id
+        timeout = rospy.Duration(1)
+        try:
+            ptz_to_target_frame = tf_buffer.lookup_transform(
+                "ptz_zero", frame_id, rospy.Time(), timeout
+            )
+        except tf2_ros.LookupException:
+            return (
+                False,
+                "Can't lookup transform between 'ptz_zero' and '" + frame_id + "'!",
+            )
+
+        # Apply transform from frame to point
+        rot = ptz_to_target_frame.transform.rotation
+        trans = ptz_to_target_frame.transform.translation
+        ptz_to_target = np.dot(
+            np.dot(
+                tf.transformations.translation_matrix([trans.x, trans.y, trans.z]),
+                tf.transformations.quaternion_matrix([rot.x, rot.y, rot.z, rot.w]),
+            ),
+            tf.transformations.translation_matrix(
+                [target.point.x, target.point.y, target.point.z]
+            ),
+        )
+
+        point_in_ptz_frame = np.dot(ptz_to_target, np.array([0.0, 0.0, 0.0, 1.0]))[0:3]
+        # To point the ptz at the point, must point the z axis at the point
+        # Angle between the +z axis and the point projected onto the x-z plane. Applying this pan angle will have the
+        # z axis in the correct orientation on the x-z plane
+        pan_angle = np.rad2deg(np.arctan2(point_in_ptz_frame[0], point_in_ptz_frame[2]))
+        # For the tilt, working in the y-z plane. How much rotation is needed to orient the z axis to the point?
+        # Assuming we are in the rotated frame, the z coordinate of the target point is the hypotenuse of the right
+        # triangle made from the x and z coordinates
+        dxz = np.hypot(point_in_ptz_frame[0], point_in_ptz_frame[2])
+        # The angle required to point the z axis at the coordinate is then the angle between the z axis and the
+        # target point in the y-z plane
+        tilt_angle = -np.rad2deg(np.arctan2(point_in_ptz_frame[1], dxz))
+        if tilt_angle > 90:
+            self.logger.warning(
+                "Required tilt angle is greater than 90 degrees. This probably shouldn't happen."
+            )
+        if tilt_angle < -30:
+            self.logger.warning(
+                f"Required tilt angle {tilt_angle} is too low for the ptz. Will be clamped to -30"
+            )
+
+        distance_from_camera = np.hypot(point_in_ptz_frame[1], dxz)
+
+        if image_diagonal > 0:
+            # Optical zoom calculated with pinhole camera model
+            # See https://en.wikipedia.org/wiki/Pinhole_camera_model#Formulation
+            focal_length = (
+                self.DIAGONAL_SENSOR_SIZE / image_diagonal * distance_from_camera
+            )
+            zoom_factor = focal_length / self.SHORTEST_FOCAL_LENGTH
+            if zoom_factor < 1.0:
+                self.logger.warning(
+                    f"Desired zoom {zoom_factor} too small: Clamping at 1."
+                )
+                zoom_factor = 1.0
+            elif zoom_factor > 30.0:
+                self.logger.warning(
+                    f"Desired zoom {zoom_factor} too large: Clamping at 30."
+                )
+                zoom_factor = 30.0
+        else:
+            zoom_factor = zoom_level
+
+        self.logger.info(
+            f"Setting ptz to pan: {pan_angle}, tilt: {tilt_angle}, zoom: {zoom_factor}"
+        )
+        try:
+            self.set_ptz_position("mech", pan_angle, tilt_angle, zoom_factor)
+            return True, "Set ptz to look at point"
+        except Exception as e:
+            return False, f"Failed to look at point: {e}"
 
 
 class ImageStreamHandlerROS(ROSHandler):
