@@ -12,7 +12,9 @@ RUN --mount=type=secret,id=SPOTROS_GIT_BRANCH \
     echo $SPOTROS_GIT_BRANCH && \
     git clone -b $SPOTROS_GIT_BRANCH https://github.com/jeremysee2/spot_ros.git /ros/catkin_ws/src/spot_ros
 
-RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-pip git qttools5-dev ros-noetic-tf2-bullet ros-noetic-roslint ros-noetic-pcl-ros ros-noetic-catkin python3-catkin-pkg nano vim
+RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-pip git qttools5-dev \
+    ros-noetic-tf2-bullet ros-noetic-roslint ros-noetic-pcl-ros ros-noetic-catkin \
+    python3-catkin-pkg nano vim ufw net-tools
 RUN python3 -m pip install cython bosdyn-client bosdyn-mission bosdyn-api bosdyn-core empy numpy
 RUN chmod +x /opt/ros/noetic/setup.sh
 RUN /opt/ros/noetic/setup.sh
@@ -40,5 +42,6 @@ ARG SPOT_VELODYNE=1
 ARG SPOT_USERNAME=admin
 ARG SPOT_PASSWORD=dummypassword
 
-ENTRYPOINT /bin/bash -c "source /ros/catkin_ws/devel/setup.sh && \
-    roslaunch spot_driver driver.launch username:=admin password:=$SPOT_PASSWORD"
+ARG ROS_MASTER_URI=http://localhost:21311
+
+ENTRYPOINT /bin/bash -c "/ros/catkin_ws/src/spot_ros/deploy/entrypoint.sh"
