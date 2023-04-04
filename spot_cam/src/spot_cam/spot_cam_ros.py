@@ -697,6 +697,9 @@ class TransformHandlerROS(ROSHandler):
                 )
             except RetryableUnavailableError as e:
                 self.logger.warning(f"Failed to list cameras: {e}")
+            except rospy.ROSException as e:
+                self.logger.error(f"ROS Error when trying to publish cam transforms: {e}. Will try to reset broadcaster.")
+                self.tf_broadcaster = tf2_ros.TransformBroadcaster()
 
             rate.sleep()
 
@@ -999,9 +1002,11 @@ class PTZHandlerROS(ROSHandler):
                 """
                 Helper function for the timer callback
                 """
-                self._look_at_point(
+                res = self._look_at_point(
                     target_, zoom_level=zoom_level_, image_diagonal=image_diagonal_
                 )
+                if not res:
+                    self.logger.error(res[1])
 
             # This timer will run every realign_interval and recompute the setting of the ptz to track the point
             self._hold_timer = rospy.Timer(
@@ -1047,6 +1052,8 @@ class PTZHandlerROS(ROSHandler):
                 False,
                 "Can't lookup transform between 'ptz_zero' and '" + frame_id + "'!",
             )
+        except Exception as e:
+            return False, f"Failure while looking up transform: {e}"
 
         # Apply transform from frame to point
         rot = ptz_to_target_frame.transform.rotation
