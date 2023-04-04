@@ -2,6 +2,7 @@ import logging
 import threading
 import typing
 import wave
+import functools
 
 import numpy as np
 import rospy
@@ -675,7 +676,8 @@ class TransformHandlerROS(ROSHandler):
             TransformStamped
         """
         tfm = TransformStamped()
-        tfm.header.stamp = rospy.Time.now()
+        if set_stamp:
+            tfm.header.stamp = rospy.Time.now()
         tfm.transform.translation.x = se3.position.x
         tfm.transform.translation.y = se3.position.y
         tfm.transform.translation.z = se3.position.z
@@ -767,6 +769,8 @@ class PTZHandlerROS(ROSHandler):
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        # Timer used when the cam is holding a point in its view
+        self._hold_timer = None
 
         self.ptz_list_publisher = rospy.Publisher(
             "/spot/cam/ptz/list", PTZDescriptionArray, queue_size=1, latch=True
@@ -866,7 +870,6 @@ class PTZHandlerROS(ROSHandler):
         """
         List available ptzs on the device
         """
-        print(self.client.list_ptz())
         return self.client.list_ptz()
 
     def handle_set_ptz_velocity(self, req):
@@ -973,11 +976,46 @@ class PTZHandlerROS(ROSHandler):
         """
         Handle a request to look at a point in space
         """
+
         return self.look_at_point(
-            req.target, zoom_level=req.zoom_level, image_diagonal=req.image_width
+            req.target,
+            zoom_level=req.zoom_level,
+            image_diagonal=req.image_width,
+            hold=req.hold,
         )
 
     def look_at_point(
+        self, target: PointStamped, zoom_level: float, image_diagonal: float, hold: bool
+    ):
+        if self._hold_timer:
+            self._hold_timer.shutdown()
+
+        if hold:
+            # If requesting to hold the point in view, we have to realign the camera every so often to make sure it
+            # tracks
+            realign_interval = rospy.Duration(0.1)
+
+            def look_at_point_timer_cb(target_, zoom_level_, image_diagonal_, timer):
+                """
+                Helper function for the timer callback
+                """
+                self._look_at_point(
+                    target_, zoom_level=zoom_level_, image_diagonal=image_diagonal_
+                )
+
+            # This timer will run every realign_interval and recompute the setting of the ptz to track the point
+            self._hold_timer = rospy.Timer(
+                realign_interval,
+                callback=functools.partial(
+                    look_at_point_timer_cb, target, zoom_level, image_diagonal
+                ),
+            )
+        else:
+            self._look_at_point(
+                target, zoom_level=zoom_level, image_diagonal=image_diagonal
+            )
+
+    def _look_at_point(
         self,
         target: PointStamped,
         *,
