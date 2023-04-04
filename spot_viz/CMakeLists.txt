@@ -23,6 +23,7 @@ include_directories(
 
 set(SRC_FILES
   src/spot_panel.cpp
+  src/look_at_point_tool.cpp
 )
 
 add_library(${PROJECT_NAME} ${SRC_FILES})
