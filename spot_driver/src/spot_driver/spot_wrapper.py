@@ -932,14 +932,14 @@ class SpotWrapper:
         """Get mobility params"""
         return self._mobility_params
 
-    def velocity_cmd(self, v_x, v_y, v_rot, cmd_duration=0.125):
+    def velocity_cmd(self, v_x, v_y, v_rot, cmd_duration=0.6):
         """Send a velocity motion command to the robot.
 
         Args:
             v_x: Velocity in the X direction in meters
             v_y: Velocity in the Y direction in meters
             v_rot: Angular velocity around the Z axis in radians
-            cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 125ms (assuming 10Hz command rate).
+            cmd_duration: (optional) Time-to-live for the command in seconds.  Default is 600ms (assuming 10Hz command rate).
         """
         end_time = time.time() + cmd_duration
         response = self._robot_command(
