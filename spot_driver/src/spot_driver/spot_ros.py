@@ -55,6 +55,11 @@ from spot_msgs.srv import (
     ArmJointMovementRequest,
 )
 from spot_msgs.srv import (
+    ArmJointTrajectory,
+    ArmJointTrajectoryResponse,
+    ArmJointTrajectoryRequest,
+)
+from spot_msgs.srv import (
     GripperAngleMove,
     GripperAngleMoveResponse,
     GripperAngleMoveRequest,
@@ -1267,6 +1272,11 @@ class SpotROS:
         """ROS service handler to send joint movement to the arm to execute"""
         resp = self.spot_wrapper.arm_joint_move(joint_targets=srv_data.joint_target)
         return ArmJointMovementResponse(resp[0], resp[1])
+    
+    def handle_joint_trajectory(self, srv_data: ArmJointTrajectoryRequest):
+        """ROS service handler to send joint trajectory to the arm to execute"""
+        resp = self.spot_wrapper.joint_trajectory(joint_targets=srv_data.joint_targets)
+        return ArmJointTrajectoryResponse(resp[0], resp[1])
 
     def handle_force_trajectory(self, srv_data: ArmForceTrajectoryRequest):
         """ROS service handler to send a force trajectory up or down a vertical force"""
@@ -1707,6 +1717,7 @@ class SpotROS:
             "gripper_angle_open", GripperAngleMove, self.handle_gripper_angle_open
         )
         rospy.Service("arm_joint_move", ArmJointMovement, self.handle_arm_joint_move)
+        rospy.Service("joint_trajectory", ArmJointTrajectory, self.handle_joint_trajectory)
         rospy.Service(
             "force_trajectory", ArmForceTrajectory, self.handle_force_trajectory
         )
