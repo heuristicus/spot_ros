@@ -21,6 +21,7 @@
   <exec_depend>interactive_marker_twist_server</exec_depend>
   <exec_depend>teleop_twist_joy</exec_depend>
   <exec_depend>velodyne_pointcloud</exec_depend>
+  <exec_depend>python-transforms3d-pip</exec_depend>
 
   <export>
     <rosdoc config="rosdoc.yaml" />
