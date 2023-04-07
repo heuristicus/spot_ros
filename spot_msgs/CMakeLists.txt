@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   FILES
+  JointTarget.msg
   BatteryStateArray.msg
   BehaviorFault.msg
   EStopStateArray.msg
@@ -40,6 +41,7 @@ add_message_files(
 
 add_service_files(
   FILES
+  ArmJointTrajectory.srv
   ListGraph.srv
   SetLocomotion.srv
   SetSwingHeight.srv

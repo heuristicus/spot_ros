@@ -1191,8 +1191,8 @@ class SpotWrapper:
             synchronized_command=sync_arm
         )
         return RobotCommandBuilder.build_synchro_command(arm_sync_robot_cmd)
-
-    def arm_joint_move(self, joint_targets):
+    
+    def validate_joint_target(self, joint_target):
         # All perspectives are given when looking at the robot from behind after the unstow service is called
         # Joint1: 0.0 arm points to the front. positive: turn left, negative: turn right)
         # RANGE: -3.14 -> 3.14
@@ -1207,28 +1207,28 @@ class SpotWrapper:
         # Joint6: 0.0 Gripper is not rolled, positive is ccw
         # RANGE: -2.87 -> 2.87
         # Values after unstow are: [0.0, -0.9, 1.8, 0.0, -0.9, 0.0]
-        if abs(joint_targets[0]) > 3.14:
+        if abs(joint_target[0]) > 3.14:
             msg = "Joint 1 has to be between -3.14 and 3.14"
-            self._logger.warn(msg)
             return False, msg
-        elif joint_targets[1] > 0.4 or joint_targets[1] < -3.13:
+        elif joint_target[1] > 0.4 or joint_target[1] < -3.13:
             msg = "Joint 2 has to be between -3.13 and 0.4"
-            self._logger.warn(msg)
             return False, msg
-        elif joint_targets[2] > 3.14 or joint_targets[2] < 0.0:
+        elif joint_target[2] > 3.14 or joint_target[2] < 0.0:
             msg = "Joint 3 has to be between 0.0 and 3.14"
-            self._logger.warn(msg)
             return False, msg
-        elif abs(joint_targets[3]) > 2.79253:
+        elif abs(joint_target[3]) > 2.79253:
             msg = "Joint 4 has to be between -2.79253 and 2.79253"
-            self._logger.warn(msg)
             return False, msg
-        elif abs(joint_targets[4]) > 1.8326:
+        elif abs(joint_target[4]) > 1.8326:
             msg = "Joint 5 has to be between -1.8326 and 1.8326"
-            self._logger.warn(msg)
             return False, msg
-        elif abs(joint_targets[5]) > 2.87:
+        elif abs(joint_target[5]) > 2.87:
             msg = "Joint 6 has to be between -2.87 and 2.87"
+            return False, msg
+
+    def arm_joint_move(self, joint_target):
+        success, msg = self.validate_joint_target(joint_target)
+        if not success:
             self._logger.warn(msg)
             return False, msg
         try:
@@ -1239,16 +1239,66 @@ class SpotWrapper:
             else:
                 trajectory_point = (
                     RobotCommandBuilder.create_arm_joint_trajectory_point(
-                        joint_targets[0],
-                        joint_targets[1],
-                        joint_targets[2],
-                        joint_targets[3],
-                        joint_targets[4],
-                        joint_targets[5],
+                        joint_target[0],
+                        joint_target[1],
+                        joint_target[2],
+                        joint_target[3],
+                        joint_target[4],
+                        joint_target[5],
                     )
                 )
                 arm_joint_trajectory = arm_command_pb2.ArmJointTrajectory(
                     points=[trajectory_point]
+                )
+                arm_command = self.make_arm_trajectory_command(arm_joint_trajectory)
+
+                # Send the request
+                cmd_id = self._robot_command_client.robot_command(arm_command)
+
+                # Query for feedback to determine how long it will take
+                feedback_resp = self._robot_command_client.robot_command_feedback(
+                    cmd_id
+                )
+                joint_move_feedback = (
+                    feedback_resp.feedback.synchronized_feedback.arm_command_feedback.arm_joint_move_feedback
+                )
+                time_to_goal: Duration = joint_move_feedback.time_to_goal
+                time_to_goal_in_seconds: float = time_to_goal.seconds + (
+                    float(time_to_goal.nanos) / float(10**9)
+                )
+                time.sleep(time_to_goal_in_seconds)
+                return True, "Spot Arm moved successfully"
+
+        except Exception as e:
+            return False, "Exception occured during arm movement: " + str(e)
+        
+    def joint_trajectory(self, joint_targets):
+        for joint_target in joint_targets:
+            success, msg = self.validate_joint_target(joint_target.positions)
+            if not success:
+                self._logger.warn(msg)
+                return False, msg
+        try:
+            success, msg = self.ensure_arm_power_and_stand()
+            if not success:
+                self._logger.info(msg)
+                return False, msg
+            else:
+                points = []
+                for joint_target in joint_targets:
+                    trajectory_point = (
+                        RobotCommandBuilder.create_arm_joint_trajectory_point(
+                            joint_target.positions[0],
+                            joint_target.positions[1],
+                            joint_target.positions[2],
+                            joint_target.positions[3],
+                            joint_target.positions[4],
+                            joint_target.positions[5],
+                        )
+                    )
+                    points.append(trajectory_point)
+                arm_joint_trajectory = arm_command_pb2.ArmJointTrajectory(
+                    points=points
                 )
                 arm_command = self.make_arm_trajectory_command(arm_joint_trajectory)
 
