@@ -19,3 +19,4 @@ auto_claim: False
 auto_power_on: False
 auto_stand: False
 depth_in_visual: True
+mode_parent_odom_tf: vision
