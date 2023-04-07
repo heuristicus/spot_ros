@@ -1,5 +1,8 @@
+import copy
+
 import rospy
 import tf2_ros
+import transforms3d
 
 from std_msgs.msg import Empty
 from tf2_msgs.msg import TFMessage
@@ -369,12 +372,78 @@ def GetOdomTwistFromState(state, spot_wrapper):
     return twist_odom_msg
 
 
+def get_corrected_odom(base_odometry: Odometry):
+    """
+    Get odometry from state but correct the twist portion of the message to be in the child frame id rather than the
+    odom/vision frame. https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#kinematicstate indicates the
+    twist in the state is in the odom frame and not the body frame, as is expected by many ROS components.
+
+    Conversion of https://github.com/tpet/nav_utils/blob/master/src/nav_utils/odom_twist_to_child_frame.cpp
+
+    Args:
+        base_odometry: Uncorrected odometry message
+
+
+    Returns:
+        Odometry with twist in the body frame
+    """
+    # Note: transforms3d has quaternions in wxyz, not xyzw like ros.
+    # Get the transform from body to odom/vision so we have the inverse transform, which we will use to correct the
+    # twist. We don't actually care about the translation at any point since we're just rotating the twist vectors
+    inverse_rotation = transforms3d.quaternions.quat2mat(
+        transforms3d.quaternions.qinverse(
+            [
+                base_odometry.pose.pose.orientation.w,
+                base_odometry.pose.pose.orientation.x,
+                base_odometry.pose.pose.orientation.y,
+                base_odometry.pose.pose.orientation.z,
+            ]
+        )
+    )
+
+    # transform the linear twist by rotating the vector according to the rotation from body to odom
+    linear_twist = np.array(
+        [
+            [base_odometry.twist.twist.linear.x],
+            [base_odometry.twist.twist.linear.y],
+            [base_odometry.twist.twist.linear.z],
+        ]
+    )
+
+    corrected_linear = inverse_rotation.dot(linear_twist)
+
+    # Do the same for the angular twist
+    angular_twist = np.array(
+        [
+            [base_odometry.twist.twist.angular.x],
+            [base_odometry.twist.twist.angular.y],
+            [base_odometry.twist.twist.angular.z],
+        ]
+    )
+
+    corrected_angular = inverse_rotation.dot(angular_twist)
+
+    corrected_odometry = copy.deepcopy(base_odometry)
+    corrected_odometry.twist.twist.linear.x = corrected_linear[0][0]
+    corrected_odometry.twist.twist.linear.y = corrected_linear[1][0]
+    corrected_odometry.twist.twist.linear.z = corrected_linear[2][0]
+    corrected_odometry.twist.twist.angular.x = corrected_angular[0][0]
+    corrected_odometry.twist.twist.angular.y = corrected_angular[1][0]
+    corrected_odometry.twist.twist.angular.z = corrected_angular[2][0]
+
+    return corrected_odometry
+
+
 def GetOdomFromState(state, spot_wrapper, use_vision=True):
     """Maps odometry data from robot state proto to ROS Odometry message
 
+    WARNING: The odometry twist from this message is in the odom frame and not in the body frame. This will likely
+    cause issues. You should use the odometry_corrected topic instead
+
     Args:
-        data: Robot State proto
+        state: Robot State proto
         spot_wrapper: A SpotWrapper object
+        use_vision: If true, the odometry frame will be vision rather than odom
     Returns:
         Odometry message
     """

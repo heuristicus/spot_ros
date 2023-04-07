@@ -1,3 +1,5 @@
+import copy
+
 import rospy
 import math
 import time
@@ -101,6 +103,7 @@ class SpotROS:
 
     def __init__(self):
         self.spot_wrapper = None
+        self.last_tf_msg = TFMessage()
 
         self.callbacks = {}
         """Dictionary listing what callback to use for what data task"""
@@ -129,19 +132,41 @@ class SpotROS:
 
             ## TF ##
             tf_msg = GetTFFromState(state, self.spot_wrapper, self.mode_parent_odom_tf)
+            to_remove = []
             if len(tf_msg.transforms) > 0:
-                self.tf_pub.publish(tf_msg)
+                for transform in tf_msg.transforms:
+                    for last_tf in self.last_tf_msg.transforms:
+                        if transform == last_tf:
+                            to_remove.append(transform)
+
+                if to_remove:
+                    # Do it this way to preserve the original tf message received. If we store the message we have
+                    # destroyed then if there are two duplicates in a row we will not remove the second set.
+                    deduplicated_tf = copy.deepcopy(tf_msg)
+                    for repeat_tf in to_remove:
+                        deduplicated_tf.transforms.remove(repeat_tf)
+                    publish_tf = deduplicated_tf
+                else:
+                    publish_tf = tf_msg
+
+                self.tf_pub.publish(publish_tf)
+            self.last_tf_msg = tf_msg
 
             # Odom Twist #
             twist_odom_msg = GetOdomTwistFromState(state, self.spot_wrapper)
             self.odom_twist_pub.publish(twist_odom_msg)
 
             # Odom #
-            if self.mode_parent_odom_tf == "vision":
-                odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=True)
-            else:
-                odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=False)
+            use_vision = self.mode_parent_odom_tf == "vision"
+            odom_msg = GetOdomFromState(
+                state,
+                self.spot_wrapper,
+                use_vision=use_vision,
+            )
             self.odom_pub.publish(odom_msg)
+
+            odom_corrected_msg = get_corrected_odom(odom_msg)
+            self.odom_corrected_pub.publish(odom_corrected_msg)
 
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
@@ -1545,14 +1570,6 @@ class SpotROS:
         self.point_cloud_pub = rospy.Publisher(
             "lidar/points", PointCloud2, queue_size=10
         )
-        self.camera_pub_to_async_task_mapping = {
-            self.frontleft_image_pub: "front_image",
-            self.frontright_image_pub: "front_image",
-            self.back_image_pub: "rear_image",
-            self.right_image_pub: "side_image",
-            self.left_image_pub: "side_image",
-            self.hand_image_color_pub: "hand_image",
-        }
 
         # Image Camera Info #
         self.back_image_info_pub = rospy.Publisher(
@@ -1606,6 +1623,29 @@ class SpotROS:
             "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=10
         )
 
+        self.camera_pub_to_async_task_mapping = {
+            self.frontleft_image_pub: "front_image",
+            self.frontleft_depth_pub: "front_image",
+            self.frontleft_image_info_pub: "front_image",
+            self.frontright_image_pub: "front_image",
+            self.frontright_depth_pub: "front_image",
+            self.frontright_image_info_pub: "front_image",
+            self.back_image_pub: "rear_image",
+            self.back_depth_pub: "rear_image",
+            self.back_image_info_pub: "rear_image",
+            self.right_image_pub: "side_image",
+            self.right_depth_pub: "side_image",
+            self.right_image_info_pub: "side_image",
+            self.left_image_pub: "side_image",
+            self.left_depth_pub: "side_image",
+            self.left_image_info_pub: "side_image",
+            self.hand_image_color_pub: "hand_image",
+            self.hand_image_mono_pub: "hand_image",
+            self.hand_image_mono_info_pub: "hand_image",
+            self.hand_depth_pub: "hand_image",
+            self.hand_depth_in_hand_color_pub: "hand_image",
+        }
+
         # Status Publishers #
         self.joint_state_pub = rospy.Publisher(
             "joint_states", JointState, queue_size=10
@@ -1618,6 +1658,9 @@ class SpotROS:
             "odometry/twist", TwistWithCovarianceStamped, queue_size=10
         )
         self.odom_pub = rospy.Publisher("odometry", Odometry, queue_size=10)
+        self.odom_corrected_pub = rospy.Publisher(
+            "odometry_corrected", Odometry, queue_size=10
+        )
         self.feet_pub = rospy.Publisher("status/feet", FootStateArray, queue_size=10)
         self.estop_pub = rospy.Publisher("status/estop", EStopStateArray, queue_size=10)
         self.wifi_pub = rospy.Publisher("status/wifi", WiFiState, queue_size=10)
