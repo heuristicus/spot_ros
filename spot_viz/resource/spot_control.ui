@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>428</width>
+    <width>437</width>
     <height>855</height>
    </rect>
   </property>
@@ -251,7 +251,7 @@
         <string/>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>5</number>
        </property>
        <widget class="QWidget" name="motionTab">
         <attribute name="title">
@@ -815,6 +815,12 @@
             <layout class="QGridLayout" name="setPTZLayout">
              <item row="1" column="2">
               <widget class="QDoubleSpinBox" name="panSpinBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="toolTip">
                 <string>Pan value for this PTZ</string>
                </property>
@@ -831,6 +837,12 @@
              </item>
              <item row="1" column="4">
               <widget class="QDoubleSpinBox" name="tiltSpinBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="toolTip">
                 <string>Tilt value for this PTZ</string>
                </property>
@@ -850,6 +862,12 @@
              </item>
              <item row="1" column="6">
               <widget class="QDoubleSpinBox" name="zoomSpinBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="toolTip">
                 <string>Zoom for this PTZ</string>
                </property>
@@ -980,6 +998,201 @@
             </layout>
            </item>
            <item>
+            <widget class="QGroupBox" name="groupBox">
+             <property name="title">
+              <string>Look at point</string>
+             </property>
+             <property name="flat">
+              <bool>false</bool>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_8">
+              <item>
+               <layout class="QGridLayout" name="gridLayout_4">
+                <property name="horizontalSpacing">
+                 <number>6</number>
+                </property>
+                <item row="0" column="1">
+                 <layout class="QHBoxLayout" name="horizontalLayout_7">
+                  <item>
+                   <widget class="QLabel" name="lookXLabel">
+                    <property name="text">
+                     <string>X</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="lookXSpinBox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="toolTip">
+                     <string/>
+                    </property>
+                    <property name="buttonSymbols">
+                     <enum>QAbstractSpinBox::NoButtons</enum>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="lookYLabel">
+                    <property name="text">
+                     <string>Y</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="lookYSpinBox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="toolTip">
+                     <string/>
+                    </property>
+                    <property name="buttonSymbols">
+                     <enum>QAbstractSpinBox::NoButtons</enum>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="lookZLabel">
+                    <property name="text">
+                     <string>Z</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="lookZSpinBox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="toolTip">
+                     <string/>
+                    </property>
+                    <property name="buttonSymbols">
+                     <enum>QAbstractSpinBox::NoButtons</enum>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item row="0" column="5" colspan="3">
+                 <widget class="QPushButton" name="trackPointButton">
+                  <property name="toolTip">
+                   <string>Track this point while the robot moves</string>
+                  </property>
+                  <property name="text">
+                   <string>Track point</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <layout class="QHBoxLayout" name="horizontalLayout_8">
+                  <item>
+                   <widget class="QLabel" name="lookZoomLabel">
+                    <property name="text">
+                     <string>Zoom</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="lookZoomSpinBox">
+                    <property name="toolTip">
+                     <string>Zoom level to set. Overridden if image width is specified</string>
+                    </property>
+                    <property name="decimals">
+                     <number>1</number>
+                    </property>
+                    <property name="minimum">
+                     <double>1.000000000000000</double>
+                    </property>
+                    <property name="maximum">
+                     <double>30.000000000000000</double>
+                    </property>
+                    <property name="singleStep">
+                     <double>0.100000000000000</double>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="imageWidthLabel">
+                    <property name="text">
+                     <string>Image width</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="imageWidthSpinBox">
+                    <property name="toolTip">
+                     <string>Length of the diagonal of the image at the distance to the point</string>
+                    </property>
+                    <property name="buttonSymbols">
+                     <enum>QAbstractSpinBox::NoButtons</enum>
+                    </property>
+                    <property name="minimum">
+                     <double>0.010000000000000</double>
+                    </property>
+                    <property name="maximum">
+                     <double>100.000000000000000</double>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item row="1" column="5" colspan="3">
+                 <widget class="QPushButton" name="lookAtPointButton">
+                  <property name="toolTip">
+                   <string>Look at this point without tracking it</string>
+                  </property>
+                  <property name="text">
+                   <string>Look at point</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1">
+                 <layout class="QHBoxLayout" name="horizontalLayout_9">
+                  <item>
+                   <widget class="QLabel" name="lookFrameLabel">
+                    <property name="text">
+                     <string>Frame</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLineEdit" name="lookAtFrameLineEdit">
+                    <property name="toolTip">
+                     <string>Frame in which the point is specified</string>
+                    </property>
+                    <property name="text">
+                     <string>body</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
             <spacer name="verticalSpacer_2">
              <property name="orientation">
               <enum>Qt::Vertical</enum>
@@ -1013,7 +1226,6 @@
   </layout>
  </widget>
  <tabstops>
-  <tabstop>releaseStopButton</tabstop>
   <tabstop>stopButton</tabstop>
   <tabstop>allowMotionButton</tabstop>
   <tabstop>claimLeaseButton</tabstop>
@@ -1029,6 +1241,18 @@
   <tabstop>linearYSpin</tabstop>
   <tabstop>angularZSpin</tabstop>
   <tabstop>setMaxVelButton</tabstop>
+  <tabstop>undockButton</tabstop>
+  <tabstop>dockFiducialSpin</tabstop>
+  <tabstop>dockButton</tabstop>
+  <tabstop>bodyHeightSpin</tabstop>
+  <tabstop>rollSpin</tabstop>
+  <tabstop>pitchSpin</tabstop>
+  <tabstop>yawSpin</tabstop>
+  <tabstop>setBodyPoseButton</tabstop>
+  <tabstop>setBodyNeutralButton</tabstop>
+  <tabstop>selfRightButton</tabstop>
+  <tabstop>rollOverLeftButton</tabstop>
+  <tabstop>rollOverRightButton</tabstop>
   <tabstop>gaitComboBox</tabstop>
   <tabstop>setGaitButton</tabstop>
   <tabstop>swingHeightComboBox</tabstop>
@@ -1037,11 +1261,16 @@
   <tabstop>setGratedSurfacesButton</tabstop>
   <tabstop>frictionSpin</tabstop>
   <tabstop>setFrictionButton</tabstop>
-  <tabstop>bodyHeightSpin</tabstop>
-  <tabstop>rollSpin</tabstop>
-  <tabstop>pitchSpin</tabstop>
-  <tabstop>yawSpin</tabstop>
-  <tabstop>setBodyPoseButton</tabstop>
+  <tabstop>choosePTZComboBox</tabstop>
+  <tabstop>setPTZButton</tabstop>
+  <tabstop>panSpinBox</tabstop>
+  <tabstop>tiltSpinBox</tabstop>
+  <tabstop>zoomSpinBox</tabstop>
+  <tabstop>LEDSpinBox</tabstop>
+  <tabstop>chooseScreenComboBox</tabstop>
+  <tabstop>setScreenButton</tabstop>
+  <tabstop>trackPointButton</tabstop>
+  <tabstop>releaseStopButton</tabstop>
   <tabstop>gentleStopButton</tabstop>
   <tabstop>hardStopButton</tabstop>
  </tabstops>

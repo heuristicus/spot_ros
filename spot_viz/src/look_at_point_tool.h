@@ -27,7 +27,7 @@ public:
   virtual int processMouseEvent(rviz::ViewportMouseEvent &event) override;
 
 private:
-  rviz::BoolProperty* hold_property_;
+  rviz::BoolProperty* track_property_;
   rviz::FloatProperty* zoom_property_;
   rviz::FloatProperty* image_width_property_;
   ros::ServiceClient lookAtPointSrv_;

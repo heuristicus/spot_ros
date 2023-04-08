@@ -6,8 +6,8 @@ geometry_msgs/PointStamped target
 float32 image_width
 # Optical zoom level between 1 and 30 to use
 float32 zoom_level
-# If true, the camera will hold this point in its view as the robot moves
-bool hold
+# If true, the camera will track this point as the robot moves
+bool track
 ------
 bool success
 string message

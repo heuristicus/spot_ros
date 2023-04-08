@@ -63,7 +63,7 @@ class LightingHandlerROS(ROSHandler):
         super().__init__()
         self.lighting_client = wrapper.lighting
         self.led_publisher = rospy.Publisher(
-            "spot/cam/leds", Float32MultiArray, latch=True, queue_size=1
+            "spot/cam/status/leds", Float32MultiArray, latch=True, queue_size=1
         )
         self.led_subscriber = rospy.Subscriber(
             "spot/cam/set_leds", Float32, callback=self.leds_callback
@@ -110,7 +110,7 @@ class PowerHandlerROS(ROSHandler):
         super().__init__()
         self.power_client = wrapper.power
         self.power_publisher = rospy.Publisher(
-            "spot/cam/power", PowerStatus, queue_size=1, latch=True
+            "spot/cam/status/power", PowerStatus, queue_size=1, latch=True
         )
         self.power_subscriber = rospy.Subscriber(
             "spot/cam/set_power", PowerStatus, self.power_callback
@@ -302,10 +302,10 @@ class HealthHandlerROS(ROSHandler):
         self.client = wrapper.health
         self.robot = wrapper.robot
         self.temp_publisher = rospy.Publisher(
-            "/spot/cam/temperatures", TemperatureArray, queue_size=1
+            "/spot/cam/status/temperatures", TemperatureArray, queue_size=1
         )
         self.status_publisher = rospy.Publisher(
-            "/spot/cam/status", BITStatus, queue_size=1
+            "/spot/cam/status/built_in_test", BITStatus, queue_size=1
         )
 
         self.temp_thread = threading.Thread(target=self._publish_temperatures_loop)
@@ -772,8 +772,8 @@ class PTZHandlerROS(ROSHandler):
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
-        # Timer used when the cam is holding a point in its view
-        self._hold_timer = None
+        # Timer used when the cam is tracking a point
+        self._track_timer = None
 
         self.ptz_list_publisher = rospy.Publisher(
             "/spot/cam/ptz/list", PTZDescriptionArray, queue_size=1, latch=True
@@ -984,16 +984,16 @@ class PTZHandlerROS(ROSHandler):
             req.target,
             zoom_level=req.zoom_level,
             image_diagonal=req.image_width,
-            hold=req.hold,
+            track=req.track,
         )
 
     def look_at_point(
-        self, target: PointStamped, zoom_level: float, image_diagonal: float, hold: bool
+        self, target: PointStamped, zoom_level: float, image_diagonal: float, track: bool
     ):
-        if self._hold_timer:
-            self._hold_timer.shutdown()
+        if self._track_timer:
+            self._track_timer.shutdown()
 
-        if hold:
+        if track:
             # If requesting to hold the point in view, we have to realign the camera every so often to make sure it
             # tracks
             realign_interval = rospy.Duration(0.1)
@@ -1009,14 +1009,15 @@ class PTZHandlerROS(ROSHandler):
                     self.logger.error(res[1])
 
             # This timer will run every realign_interval and recompute the setting of the ptz to track the point
-            self._hold_timer = rospy.Timer(
+            self._track_timer = rospy.Timer(
                 realign_interval,
                 callback=functools.partial(
                     look_at_point_timer_cb, target, zoom_level, image_diagonal
                 ),
             )
+            return True, "Tracking point"
         else:
-            self._look_at_point(
+            return self._look_at_point(
                 target, zoom_level=zoom_level, image_diagonal=image_diagonal
             )
 

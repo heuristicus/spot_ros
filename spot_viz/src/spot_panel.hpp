@@ -12,6 +12,7 @@
 #include <QLabel>
 #include <QDoubleSpinBox>
 #include <QComboBox>
+#include <QLineEdit>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <spot_msgs/EStopStateArray.h>
@@ -65,6 +66,8 @@ class ControlPanel : public rviz::Panel
     void setCamPTZ();
     void setCamScreen();
     void setCamLED(double);
+    void camLookAtPoint();
+    void camTrackPoint();
 
     private:
 
@@ -115,6 +118,7 @@ class ControlPanel : public rviz::Panel
     void motionAllowedCallback(const std_msgs::Bool &motion_allowed);
     void ptzCallback(const spot_cam::PTZDescriptionArray &ptz_descriptions);
     void screensCallback(const spot_cam::StringMultiArray &screens);
+    void lookAtPoint(const bool track);
 
     ros::NodeHandle nh_;
     ros::ServiceClient sitService_;
@@ -208,6 +212,7 @@ class ControlPanel : public rviz::Panel
     ros::Publisher camLEDPub_;
     ros::ServiceClient camSetPTZService_;
     ros::ServiceClient camSetScreenService_;
+    ros::ServiceClient camLookAtPointService_;
 
     QPushButton* setPTZButton;
     QPushButton* setScreenButton;
@@ -217,6 +222,15 @@ class ControlPanel : public rviz::Panel
     QDoubleSpinBox* panSpinBox;
     QDoubleSpinBox* tiltSpinBox;
     QDoubleSpinBox* zoomSpinBox;
+
+    QLineEdit* lookAtFrameLineEdit;
+    QDoubleSpinBox* lookXSpinBox;
+    QDoubleSpinBox* lookYSpinBox;
+    QDoubleSpinBox* lookZSpinBox;
+    QDoubleSpinBox* imageWidthSpinBox;
+    QDoubleSpinBox* lookZoomSpinBox;
+    QPushButton* lookAtPointButton;
+    QPushButton* trackPointButton;
 
     spot_msgs::MobilityParams _lastMobilityParams;
 

@@ -17,8 +17,8 @@ namespace spot_viz {
 
 LookAtPointTool::LookAtPointTool() {
   shortcut_key_ = 'l';
-  hold_property_ = new rviz::BoolProperty(
-      "Hold", false,
+  track_property_ = new rviz::BoolProperty(
+      "Track", false,
       "If true, the camera will track the point as the robot moves",
       getPropertyContainer());
   zoom_property_ = new rviz::FloatProperty(
@@ -65,7 +65,7 @@ int LookAtPointTool::processMouseEvent(rviz::ViewportMouseEvent &event) {
     srv.request.target.header.frame_id = context_->getFixedFrame().toStdString();
     srv.request.image_width = image_width_property_->getFloat();
     srv.request.zoom_level = zoom_property_->getFloat();
-    srv.request.hold = hold_property_->getBool();
+    srv.request.track = track_property_->getBool();
     if (lookAtPointSrv_.call(srv)) {
       if (srv.response.success) {
         std::ostringstream s;
@@ -78,7 +78,7 @@ int LookAtPointTool::processMouseEvent(rviz::ViewportMouseEvent &event) {
       }
     }
     else {
-      std::string warnStr("Failed to call go to node service. See error "
+      std::string warnStr("Failed to call look at point service. See error "
                           "messages in rviz output.");
       setStatus(warnStr.c_str());
       ROS_WARN("%s", warnStr.c_str());

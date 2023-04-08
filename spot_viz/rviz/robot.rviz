@@ -15,6 +15,7 @@ Panels:
       - /2D Pose Estimate1
       - /2D Nav Goal1
       - /Publish Point1
+      - /Cam Look At Point Tool1
     Name: Tool Properties
     Splitter Ratio: 0.5886790156364441
   - Class: rviz/Views
@@ -25,7 +26,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: Spot CAM image
+    SyncSource: ""
   - Class: spot_viz/SpotControlPanel
     Name: SpotControlPanel
 Preferences:
@@ -100,6 +101,8 @@ Visualization Manager:
           Value: true
         ptz-ir-overlay:
           Value: true
+        ptz_zero:
+          Value: true
         spot_cam_payload_frame:
           Value: true
         stream:
@@ -138,6 +141,8 @@ Visualization Manager:
             ptz-ir-color:
               {}
             ptz-ir-overlay:
+              {}
+            ptz_zero:
               {}
             stream:
               {}
@@ -365,6 +370,10 @@ Visualization Manager:
     - Class: rviz/PublishPoint
       Single click: true
       Topic: /clicked_point
+    - Class: spot_viz/CamLookAtPointTool
+      Hold: false
+      Image width: 0
+      Zoom level: 1
   Value: true
   Views:
     Current:
