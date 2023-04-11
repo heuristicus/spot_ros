@@ -3,6 +3,7 @@ import threading
 import typing
 import wave
 import functools
+import actionlib
 
 import numpy as np
 import rospy
@@ -29,6 +30,9 @@ from spot_cam.msg import (
     StringMultiArray,
     Temperature,
     TemperatureArray,
+    LookAtPointAction,
+    LookAtPointGoal,
+    LookAtPointResult,
 )
 from spot_cam.srv import (
     LoadSound,
@@ -698,7 +702,9 @@ class TransformHandlerROS(ROSHandler):
             except RetryableUnavailableError as e:
                 self.logger.warning(f"Failed to list cameras: {e}")
             except rospy.ROSException as e:
-                self.logger.error(f"ROS Error when trying to publish cam transforms: {e}. Will try to reset broadcaster.")
+                self.logger.error(
+                    f"ROS Error when trying to publish cam transforms: {e}. Will try to reset broadcaster."
+                )
                 self.tf_broadcaster = tf2_ros.TransformBroadcaster()
 
             rate.sleep()
@@ -796,6 +802,15 @@ class PTZHandlerROS(ROSHandler):
         self.look_at_point_service = rospy.Service(
             "/spot/cam/ptz/look_at_point", LookAtPoint, self.handle_look_at_point
         )
+
+        self.look_at_point_as = actionlib.SimpleActionServer(
+            "/spot/cam/ptz/look_at_point",
+            LookAtPointAction,
+            execute_cb=self.handle_look_at_point_action,
+            auto_start=False,
+        )
+        self.look_at_point_as.start()
+
         self.publish_ptz_list()
 
         self.position_thread = threading.Thread(target=self._publish_ptz_positions)
@@ -975,6 +990,23 @@ class PTZHandlerROS(ROSHandler):
         """
         self.client.initialise_lens()
 
+    def handle_look_at_point_action(self, action: LookAtPointGoal):
+        """
+        Handle a call to the look at point actionserver
+        """
+        success, message = self.look_at_point(
+            action.target,
+            zoom_level=action.zoom_level,
+            image_diagonal=action.image_width,
+            track=action.track,
+        )
+        result = LookAtPointResult(success, message)
+
+        if success:
+            self.look_at_point_as.set_succeeded(result)
+        else:
+            self.look_at_point_as.set_aborted(result)
+
     def handle_look_at_point(self, req):
         """
         Handle a request to look at a point in space
@@ -988,7 +1020,11 @@ class PTZHandlerROS(ROSHandler):
         )
 
     def look_at_point(
-        self, target: PointStamped, zoom_level: float, image_diagonal: float, track: bool
+        self,
+        target: PointStamped,
+        zoom_level: float,
+        image_diagonal: float,
+        track: bool,
     ):
         if self._track_timer:
             self._track_timer.shutdown()

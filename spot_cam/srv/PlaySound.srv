@@ -2,3 +2,6 @@
 string name
 # Multiplier on the sound volume
 float32 gain
+---
+bool success
+string message

@@ -46,11 +46,10 @@ add_service_files(
   SetString.srv
 )
 
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+add_action_files(
+  FILES
+  LookAtPoint.action
+)
 
 generate_messages(
   DEPENDENCIES
