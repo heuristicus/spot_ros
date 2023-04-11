@@ -124,7 +124,7 @@ namespace spot_viz
         lookYSpinBox = this->findChild<QDoubleSpinBox*>("lookYSpinBox");
         lookZSpinBox = this->findChild<QDoubleSpinBox*>("lookZSpinBox");
         imageWidthSpinBox = this->findChild<QDoubleSpinBox*>("imageWidthSpinBox");
-        zoomSpinBox = this->findChild<QDoubleSpinBox*>("lookZoomSpinBox");
+        lookZoomSpinBox = this->findChild<QDoubleSpinBox*>("lookZoomSpinBox");
         lookAtPointButton = this->findChild<QPushButton*>("lookAtPointButton");
         trackPointButton = this->findChild<QPushButton*>("trackPointButton");
 
