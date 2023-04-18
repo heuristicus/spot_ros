@@ -22,19 +22,25 @@ jobs:
         run: |
           mkdir -p $GITHUB_WORKSPACE/catkin_ws/src
 
-      # Check out the code
-      - uses: actions/checkout@v3
+      # Check out the Spot ROS code
+      - name: Checkout SpotROS
+        uses: actions/checkout@v3
         with:
           path: catkin_ws/src/spot_ros
           submodules: "true"
 
+      - name: Checkout Spot Wrapper
+        uses: actions/checkout@v3
+        with:
+          repository: https://github.com/jeremysee2/spot_wrapper.git
+          path: catkin_ws/src/spot_ros/spot_wrapper
+
       # Install SpotWrapper
       - name: Install SpotWrapper
         run: |
-          git submodule init
-          git submodule update
+          cd $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
+          pip install -r spot_wrapper/requirements.txt
           pip install -e spot_wrapper
-        working-directory: spot_ros
 
       - name: Check that code has been downloaded correctly
         run: |
