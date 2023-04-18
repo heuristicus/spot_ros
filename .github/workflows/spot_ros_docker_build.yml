@@ -20,13 +20,13 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - name: Print branch name
         run: |
-          echo ${{ GITHUB_REF_NAME }}
+          echo ${{ github.ref_name }}
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./deploy/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/spot_ros:${${{ GITHUB_REF_NAME }}/\//-}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/spot_ros:${${{ github.ref_name }}/\//-}
           secrets: |
-            "SPOTROS_GIT_BRANCH=${${{ GITHUB_REF_NAME }}/\//-}"
+            "SPOTROS_GIT_BRANCH=${${{ github.ref_name }}/\//-}"
