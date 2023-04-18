@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           path: catkin_ws/src/spot_ros
+          submodules: "true"
 
       # Install SpotWrapper
       - name: Install SpotWrapper
@@ -33,7 +34,7 @@ jobs:
           git submodule init
           git submodule update
           pip install -e spot_wrapper
-        working-directory: $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
+        working-directory: spot_ros
 
       - name: Check that code has been downloaded correctly
         run: |
