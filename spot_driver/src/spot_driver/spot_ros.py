@@ -99,8 +99,8 @@ from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
 from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
 from spot_driver.ros_helpers import *
-from spot_driver.spot_config import *
-from spot_driverspot_wrapper.wrapper import SpotWrapper
+from spot_wrapper.spot_config import *
+from spot_wrapper.wrapper import SpotWrapper
 
 
 class RateLimitedCall:
@@ -147,7 +147,6 @@ class SpotROS:
         self.callbacks["world_objects"] = self.WorldObjectsCB
         self.active_camera_tasks = []
         self.camera_pub_to_async_task_mapping = {}
-        self.node_name = "spot_ros"
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -1067,7 +1066,7 @@ class SpotROS:
             precise_position=precise,
         )
 
-    def cmdVelCallback(self, data):
+    def cmd_vel_callback(self, data):
         """Callback for cmd_vel command"""
         if not self.robot_allowed_to_move():
             rospy.logerr("cmd_vel received a message but motion is not allowed.")
@@ -1509,11 +1508,6 @@ class SpotROS:
         )
         return Grasp3dResponse(resp[0], resp[1])
 
-    def handle_arm_gaze(self, srv_data) -> TriggerResponse:
-        """ROS service handler to do a gaze with the arm"""
-        resp = self.spot_wrapper.spot_arm.arm_gaze()
-        return TriggerResponse(resp[0], resp[1])
-
     ##################################################################
 
     def shutdown(self):
@@ -1640,47 +1634,9 @@ class SpotROS:
             ):
                 self.spot_wrapper.update_image_tasks(task_name)
                 self.active_camera_tasks.append(task_name)
-                print(
+                rospy.loginfo(
                     f"Detected subscriber for {task_name} task, adding task to publish"
                 )
-
-    def initialize_spot_wrapper(self):
-        if self.depth_in_visual:
-            # Replace the depth name with the depth_in_visual_frame name
-            front_image_sources[2] = "frontleft_depth_in_visual_frame"
-            front_image_sources[3] = "frontright_depth_in_visual_frame"
-            side_image_sources[2] = "left_depth_in_visual_frame"
-            side_image_sources[3] = "right_depth_in_visual_frame"
-            rear_image_sources[1] = "back_depth_in_visual_frame"
-    def main(self):
-        """Main function for the SpotROS class. Gets config from ROS and initializes the wrapper. Holds lease from
-        wrapper and updates all async tasks at the ROS rate"""
-        rospy.init_node("spot_ros", anonymous=True)
-
-        if not self.spot_wrapper:
-            self.spot_wrapper = SpotWrapper(
-                self.username,
-                self.password,
-                self.hostname,
-                self.logger,
-                self.estop_timeout,
-                self.rates,
-                self.callbacks,
-            )
-
-        rate = rospy.Rate(loop_rate)
-        self.robot_name = rospy.get_param("~robot_name", "spot")
-        self.username = rospy.get_param("~username", "default_value")
-        self.password = rospy.get_param("~password", "default_value")
-        self.hostname = rospy.get_param("~hostname", "default_value")
-        self.motion_deadzone = rospy.get_param("~deadzone", 0.05)
-        self.start_estop = rospy.get_param("~start_estop", True)
-        self.estop_timeout = rospy.get_param("~estop_timeout", 9.0)
-        self.autonomy_enabled = rospy.get_param("~autonomy_enabled", True)
-        self.allow_motion = rospy.get_param("~allow_motion", True)
-        self.use_take_lease = rospy.get_param("~use_take_lease", False)
-        self.get_lease_on_action = rospy.get_param("~get_lease_on_action", False)
-        self.is_charging = False
 
     def initialize_tf2(self):
         self.tf_buffer = tf2_ros.Buffer()
@@ -1710,26 +1666,6 @@ class SpotROS:
             rospy.logerr(
                 "rosparam '~mode_parent_odom_tf' should be 'odom' or 'vision'."
             )
-            return
-
-        self.logger = logging.getLogger("rosout")
-
-        rospy.loginfo("Starting ROS driver for Spot")
-        self.spot_wrapper = SpotWrapper(
-            username=self.username,
-            password=self.password,
-            hostname=self.hostname,
-            robot_name=self.robot_name,
-            logger=self.logger,
-            start_estop=self.start_estop,
-            estop_timeout=self.estop_timeout,
-            rates=self.rates,
-            callbacks=self.callbacks,
-            use_take_lease=self.use_take_lease,
-            get_lease_on_action=self.get_lease_on_action,
-        )
-
-        if not self.spot_wrapper.is_valid:
             return
 
     def initialize_publishers(self):
@@ -1901,7 +1837,7 @@ class SpotROS:
         )
 
     def initialize_subscribers(self):
-        rospy.Subscriber("cmd_vel", Twist, self.cmdVelCallback, queue_size=1)
+        rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
         rospy.Subscriber(
             "go_to_pose", PoseStamped, self.trajectory_callback, queue_size=1
         )
@@ -1946,6 +1882,7 @@ class SpotROS:
         rospy.Service(
             "optimize_graph_anchoring", Trigger, self.handle_graph_optimize_anchoring
         )
+        # TODO: Move navigate_init to a service here
 
         rospy.Service("roll_over_right", Trigger, self.handle_roll_over_right)
         rospy.Service("roll_over_left", Trigger, self.handle_roll_over_left)
@@ -1970,7 +1907,6 @@ class SpotROS:
         )
         rospy.Service("gripper_pose", HandPose, self.handle_gripper_pose)
         rospy.Service("grasp_3d", Grasp3d, self.handle_grasp_3d)
-        rospy.Service("arm_gaze", Trigger, self.handle_arm_gaze)
 
         # Stop service calls other services so initialise it after them to prevent crashes which can happen if
         # the service is immediately called
@@ -2035,8 +1971,9 @@ class SpotROS:
         self.dock_as.start()
 
     def main(self):
-        """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
-        rospy.init_node(self.node_name, anonymous=True)
+        """Main function for the SpotROS class. Gets config from ROS and initializes the wrapper. Holds lease from
+        wrapper and updates all async tasks at the ROS rate"""
+        rospy.init_node("spot_ros", anonymous=True)
 
         self.rates = rospy.get_param("~rates", {})
         if "loop_frequency" in self.rates:
@@ -2054,24 +1991,40 @@ class SpotROS:
                 )
 
         rate = rospy.Rate(loop_rate)
+        self.robot_name = rospy.get_param("~robot_name", "spot")
         self.username = rospy.get_param("~username", "default_value")
         self.password = rospy.get_param("~password", "default_value")
         self.hostname = rospy.get_param("~hostname", "default_value")
         self.motion_deadzone = rospy.get_param("~deadzone", 0.05)
+        self.start_estop = rospy.get_param("~start_estop", True)
         self.estop_timeout = rospy.get_param("~estop_timeout", 9.0)
         self.autonomy_enabled = rospy.get_param("~autonomy_enabled", True)
         self.allow_motion = rospy.get_param("~allow_motion", True)
-        self.is_charging = False
+        self.use_take_lease = rospy.get_param("~use_take_lease", False)
+        self.get_lease_on_action = rospy.get_param("~get_lease_on_action", False)
         self.depth_in_visual = rospy.get_param("~depth_in_visual", False)
+        self.is_charging = False
 
         self.initialize_tf2()
-
         self.logger = logging.getLogger("rosout")
 
         rospy.loginfo("Starting ROS driver for Spot")
-        self.initialize_spot_wrapper()
-        if not self.spot_wrapper.is_valid or not self.spot_wrapper:
-            rospy.logerr("Spot wrapper failed to initialize")
+        self.spot_wrapper = SpotWrapper(
+            username=self.username,
+            password=self.password,
+            hostname=self.hostname,
+            robot_name=self.robot_name,
+            logger=self.logger,
+            start_estop=self.start_estop,
+            estop_timeout=self.estop_timeout,
+            rates=self.rates,
+            callbacks=self.callbacks,
+            use_take_lease=self.use_take_lease,
+            get_lease_on_action=self.get_lease_on_action,
+        )
+
+        if not self.spot_wrapper.is_valid:
+            rospy.logerr("SpotWrapper failed to initialize. Shutting down")
             return
 
         self.initialize_publishers()

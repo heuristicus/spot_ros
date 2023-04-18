@@ -42,7 +42,7 @@ from bosdyn.client.frame_helpers import get_odom_tform_body, get_vision_tform_bo
 
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from .spot_wrapper import SpotWrapper
+from spot_wrapper.wrapper import SpotWrapper
 
 
 friendly_joint_names = {}
