@@ -46,7 +46,7 @@ from bosdyn.client.frame_helpers import (
 )
 
 from spot_driver.spot_ros import SpotROS
-from spot_driver.spot_wrapper import SpotWrapper
+from spot_wrapper.wrapper import SpotWrapper
 
 
 # Stubbed SpotWrapper class for testing
@@ -383,7 +383,6 @@ class TestSpotROS(SpotROS):
 class MockSpotROS:
     def __init__(self):
         self.spot_ros = TestSpotROS()
-        self.spot_ros.node_name = "mock_spot_ros"
         self.spot_ros.spot_wrapper = TestSpotWrapper()
 
     def set_joint_states(self, state: robot_state_pb2.RobotState):
@@ -964,7 +963,7 @@ class MockSpotROS:
         self.spot_ros.world_objects = data
 
     def main(self):
-        rospy.init_node(self.spot_ros.node_name, anonymous=True)
+        rospy.init_node("mock_spot_ros", anonymous=True)
         # Initialize variables for transforms
         self.spot_ros.mode_parent_odom_tf = "vision"
         self.spot_ros.tf_name_kinematic_odom = "odom"
