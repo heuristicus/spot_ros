@@ -489,18 +489,20 @@ class TestGetTFFromState(unittest.TestCase):
             state, spot_wrapper, inverse_target_frame
         )
 
-        self.assertEqual(len(tf_message.transforms), 2)
-        self.assertEqual(tf_message.transforms[0].header.frame_id, "body")
-        self.assertEqual(tf_message.transforms[0].child_frame_id, "odom")
-        self.assertEqual(tf_message.transforms[0].transform.translation.x, -2.0)
-        self.assertEqual(tf_message.transforms[0].transform.translation.y, -3.0)
-        self.assertEqual(tf_message.transforms[0].transform.translation.z, -2.0)
+        transforms = sorted(tf_message.transforms, key=lambda x: x.child_frame_id)
 
-        self.assertEqual(tf_message.transforms[1].header.frame_id, "body")
-        self.assertEqual(tf_message.transforms[1].child_frame_id, "vision")
-        self.assertEqual(tf_message.transforms[1].transform.translation.x, 2.0)
-        self.assertEqual(tf_message.transforms[1].transform.translation.y, 3.0)
-        self.assertEqual(tf_message.transforms[1].transform.translation.z, 2.0)
+        self.assertEqual(len(transforms), 2)
+        self.assertEqual(transforms[0].header.frame_id, "body")
+        self.assertEqual(transforms[0].child_frame_id, "odom")
+        self.assertEqual(transforms[0].transform.translation.x, -2.0)
+        self.assertEqual(transforms[0].transform.translation.y, -3.0)
+        self.assertEqual(transforms[0].transform.translation.z, -2.0)
+
+        self.assertEqual(transforms[1].header.frame_id, "body")
+        self.assertEqual(transforms[1].child_frame_id, "vision")
+        self.assertEqual(transforms[1].transform.translation.x, 2.0)
+        self.assertEqual(transforms[1].transform.translation.y, 3.0)
+        self.assertEqual(transforms[1].transform.translation.z, 2.0)
 
     def test_get_tf_from_state_vision(self):
         state = robot_state_pb2.RobotState()
@@ -537,25 +539,27 @@ class TestGetTFFromState(unittest.TestCase):
         tf_message = ros_helpers.GetTFFromState(
             state, spot_wrapper, inverse_target_frame
         )
-        self.assertEqual(len(tf_message.transforms), 3)
 
-        self.assertEqual(tf_message.transforms[0].header.frame_id, "body")
-        self.assertEqual(tf_message.transforms[0].child_frame_id, "odom")
-        self.assertEqual(tf_message.transforms[0].transform.translation.x, -2.0)
-        self.assertEqual(tf_message.transforms[0].transform.translation.y, -3.0)
-        self.assertEqual(tf_message.transforms[0].transform.translation.z, -4.0)
+        transforms = sorted(tf_message.transforms, key=lambda x: x.child_frame_id)
 
-        self.assertEqual(tf_message.transforms[1].header.frame_id, "vision")
-        self.assertEqual(tf_message.transforms[1].child_frame_id, "body")
-        self.assertEqual(tf_message.transforms[1].transform.translation.x, -4.0)
-        self.assertEqual(tf_message.transforms[1].transform.translation.y, -5.0)
-        self.assertEqual(tf_message.transforms[1].transform.translation.z, -6.0)
+        self.assertEqual(len(transforms), 3)
+        self.assertEqual(transforms[0].header.frame_id, "vision")
+        self.assertEqual(transforms[0].child_frame_id, "body")
+        self.assertEqual(transforms[0].transform.translation.x, -4.0)
+        self.assertEqual(transforms[0].transform.translation.y, -5.0)
+        self.assertEqual(transforms[0].transform.translation.z, -6.0)
 
-        self.assertEqual(tf_message.transforms[2].header.frame_id, "special_frame")
-        self.assertEqual(tf_message.transforms[2].child_frame_id, "body")
-        self.assertEqual(tf_message.transforms[2].transform.translation.x, 7.0)
-        self.assertEqual(tf_message.transforms[2].transform.translation.y, 8.0)
-        self.assertEqual(tf_message.transforms[2].transform.translation.z, 9.0)
+        self.assertEqual(transforms[1].header.frame_id, "special_frame")
+        self.assertEqual(transforms[1].child_frame_id, "body")
+        self.assertEqual(transforms[1].transform.translation.x, 7.0)
+        self.assertEqual(transforms[1].transform.translation.y, 8.0)
+        self.assertEqual(transforms[1].transform.translation.z, 9.0)
+
+        self.assertEqual(transforms[2].header.frame_id, "body")
+        self.assertEqual(transforms[2].child_frame_id, "odom")
+        self.assertEqual(transforms[2].transform.translation.x, -2.0)
+        self.assertEqual(transforms[2].transform.translation.y, -3.0)
+        self.assertEqual(transforms[2].transform.translation.z, -4.0)
 
 
 class TestGetBatteryStatesFromState(unittest.TestCase):
@@ -1353,8 +1357,6 @@ class TestGetWorldObjectsMsg(unittest.TestCase):
         spot_wrapper = TestSpotWrapper()
 
         # Create world_object_pb2.ListWorldObjectResponse test data, similar to real data
-        data = world_object_pb2.ListWorldObjectResponse()
-
         world_object = world_object_pb2.WorldObject(
             id=1,
             name="world_obj_apriltag_350",
@@ -1493,7 +1495,7 @@ class TestGetWorldObjectsMsg(unittest.TestCase):
                 size_ewrt_frame=geometry_pb2.Vec3(x=1.0, y=2.0, z=3.0),
             ),
         )
-        data.world_objects.append(world_object)
+        data = world_object_pb2.ListWorldObjectResponse(world_objects=[world_object])
 
         # Create a WorldObjects message
         world_objects_msg: WorldObjectArray = ros_helpers.GetWorldObjectsMsg(
