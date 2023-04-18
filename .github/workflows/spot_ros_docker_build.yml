@@ -20,7 +20,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - name: Extract branch name
         run: |
-          echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+          echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT && \
           echo "CORRECTED_BRANCH_NAME=$(echo ${new_name_for_docker/\//-}" >> $GITHUB_OUTPUT
         id: extract_branch
       - name: Print branch name
