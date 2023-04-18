@@ -134,9 +134,6 @@ class SpotROS:
         self.callbacks["robot_state"] = self.RobotStateCB
         self.callbacks["metrics"] = self.MetricsCB
         self.callbacks["lease"] = self.LeaseCB
-        self.callbacks["front_image"] = self.FrontImageCB
-        self.callbacks["side_image"] = self.SideImageCB
-        self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
         self.callbacks["lidar_points"] = self.PointCloudCB
         self.callbacks["world_objects"] = self.WorldObjectsCB
@@ -325,76 +322,6 @@ class SpotROS:
         self.populate_camera_static_transforms(image_bundle.left)
         self.populate_camera_static_transforms(image_bundle.right)
         self.populate_camera_static_transforms(image_bundle.back)
-
-    def FrontImageCB(self, results):
-        """Callback for when the Spot Wrapper gets new front image data.
-
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        data = self.spot_wrapper.front_images
-        if data:
-            image_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
-            self.frontleft_image_pub.publish(image_msg0)
-            self.frontleft_image_info_pub.publish(camera_info_msg0)
-            image_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
-            self.frontright_image_pub.publish(image_msg1)
-            self.frontright_image_info_pub.publish(camera_info_msg1)
-            image_msg2, camera_info_msg2 = GetImageMsg(data[2], self.spot_wrapper)
-            self.frontleft_depth_pub.publish(image_msg2)
-            self.frontleft_depth_info_pub.publish(camera_info_msg2)
-            image_msg3, camera_info_msg3 = GetImageMsg(data[3], self.spot_wrapper)
-            self.frontright_depth_pub.publish(image_msg3)
-            self.frontright_depth_info_pub.publish(camera_info_msg3)
-
-            self.populate_camera_static_transforms(data[0])
-            self.populate_camera_static_transforms(data[1])
-            self.populate_camera_static_transforms(data[2])
-            self.populate_camera_static_transforms(data[3])
-
-    def SideImageCB(self, results):
-        """Callback for when the Spot Wrapper gets new side image data.
-
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        data = self.spot_wrapper.side_images
-        if data:
-            image_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
-            self.left_image_pub.publish(image_msg0)
-            self.left_image_info_pub.publish(camera_info_msg0)
-            image_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
-            self.right_image_pub.publish(image_msg1)
-            self.right_image_info_pub.publish(camera_info_msg1)
-            image_msg2, camera_info_msg2 = GetImageMsg(data[2], self.spot_wrapper)
-            self.left_depth_pub.publish(image_msg2)
-            self.left_depth_info_pub.publish(camera_info_msg2)
-            image_msg3, camera_info_msg3 = GetImageMsg(data[3], self.spot_wrapper)
-            self.right_depth_pub.publish(image_msg3)
-            self.right_depth_info_pub.publish(camera_info_msg3)
-
-            self.populate_camera_static_transforms(data[0])
-            self.populate_camera_static_transforms(data[1])
-            self.populate_camera_static_transforms(data[2])
-            self.populate_camera_static_transforms(data[3])
-
-    def RearImageCB(self, results):
-        """Callback for when the Spot Wrapper gets new rear image data.
-
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        data = self.spot_wrapper.rear_images
-        if data:
-            mage_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
-            self.back_image_pub.publish(mage_msg0)
-            self.back_image_info_pub.publish(camera_info_msg0)
-            mage_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
-            self.back_depth_pub.publish(mage_msg1)
-            self.back_depth_info_pub.publish(camera_info_msg1)
-
-            self.populate_camera_static_transforms(data[0])
-            self.populate_camera_static_transforms(data[1])
 
     def HandImageCB(self, results):
         """Callback for when the Spot Wrapper gets new hand image data.
@@ -2071,7 +1998,8 @@ class SpotROS:
         )
         rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
         rate_publish_images = RateLimitedCall(
-            self.publish_camera_images_callback, self.rates.get("camera_images", 10)
+            self.publish_camera_images_callback,
+            max(0.0, self.rates.get("camera_images", 10)),
         )
         rospy.loginfo("Driver started")
         while not rospy.is_shutdown():
@@ -2080,4 +2008,5 @@ class SpotROS:
             rate_limited_mobility_params()
             rate_limited_motion_allowed()
             rate_check_for_subscriber()
+            rate_publish_images()
             rate.sleep()
