@@ -21,8 +21,13 @@ jobs:
       - name: Extract branch name
         run: echo "branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
         id: extract_branch
-      - name: Print branch name
-        run: echo ${{ steps.extract_branch.outputs.branch }}
+      - name: Print branch name and prepare to upload to Docker Hub
+        run: |
+          echo ${{ steps.extract_branch.outputs.branch }}
+          new_name_for_docker=${{ steps.extract_branch.outputs.branch }}
+          new_name_for_docker=${new_name_for_docker/\//-}
+          echo "$new_name_for_docker"
+          export CORRECTED_BRANCH_NAME=$new_name_for_docker
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
