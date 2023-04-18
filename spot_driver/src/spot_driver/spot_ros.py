@@ -284,6 +284,48 @@ class SpotROS:
 
             self.lease_pub.publish(lease_array_msg)
 
+    def publish_camera_images_callback(self):
+        image_bundle = self.spot_wrapper.spot_images.get_camera_images()
+        (
+            frontleft_image_msg,
+            frontleft_camera_info,
+        ) = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.frontleft, self.spot_wrapper
+        )
+        (
+            frontright_image_msg,
+            frontright_camera_info,
+        ) = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.frontright, self.spot_wrapper
+        )
+        left_image_msg, left_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.left, self.spot_wrapper
+        )
+        right_image_msg, right_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.right, self.spot_wrapper
+        )
+        back_image_msg, back_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.back, self.spot_wrapper
+        )
+
+        self.frontleft_image_pub.publish(frontleft_image_msg)
+        self.frontright_image_pub.publish(frontright_image_msg)
+        self.left_image_pub.publish(left_image_msg)
+        self.right_image_pub.publish(right_image_msg)
+        self.back_image_pub.publish(back_image_msg)
+
+        self.frontleft_image_info_pub.publish(frontleft_camera_info)
+        self.frontright_image_info_pub.publish(frontright_camera_info)
+        self.left_image_info_pub.publish(left_camera_info)
+        self.right_image_info_pub.publish(right_camera_info)
+        self.back_image_info_pub.publish(back_camera_info)
+
+        self.populate_camera_static_transforms(image_bundle.frontleft)
+        self.populate_camera_static_transforms(image_bundle.frontright)
+        self.populate_camera_static_transforms(image_bundle.left)
+        self.populate_camera_static_transforms(image_bundle.right)
+        self.populate_camera_static_transforms(image_bundle.back)
+
     def FrontImageCB(self, results):
         """Callback for when the Spot Wrapper gets new front image data.
 
@@ -2028,6 +2070,9 @@ class SpotROS:
             self.check_for_subscriber, self.rates["check_subscribers"]
         )
         rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
+        rate_publish_images = RateLimitedCall(
+            self.publish_camera_images_callback, self.rates.get("camera_images", 10)
+        )
         rospy.loginfo("Driver started")
         while not rospy.is_shutdown():
             self.spot_wrapper.updateTasks()
