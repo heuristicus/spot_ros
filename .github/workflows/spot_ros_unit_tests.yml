@@ -34,18 +34,6 @@ jobs:
           repository: jeremysee2/spot_wrapper
           path: catkin_ws/src/spot_ros/spot_wrapper
 
-      # Install SpotWrapper
-      - name: Install SpotWrapper
-        run: |
-          cd $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
-          pip install -r spot_wrapper/requirements.txt
-          pip install -e spot_wrapper
-
-      - name: Check that code has been downloaded correctly
-        run: |
-          ls $GITHUB_WORKSPACE/catkin_ws/src
-          ls $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
-
       # Install the required packages
       - name: Install dependencies (minus qttools)
         run: |
@@ -60,6 +48,18 @@ jobs:
             bosdyn-core \
             empy
         working-directory: catkin_ws/
+
+      # Install SpotWrapper
+      - name: Install SpotWrapper
+        run: |
+          cd $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
+          pip install -r spot_wrapper/requirements.txt
+          pip install -e spot_wrapper
+
+      - name: Check that code has been downloaded correctly
+        run: |
+          ls $GITHUB_WORKSPACE/catkin_ws/src
+          ls $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
 
       # Build our workspace
       - name: Build workspace for spot_driver
