@@ -375,7 +375,7 @@ class SpotROS:
 
         # Publish transforms into TF tree
         tf_msg = GetTFFromWorldObjects(
-            data, self.spot_wrapper, self.mode_parent_odom_tf
+            data.world_objects, self.spot_wrapper, self.mode_parent_odom_tf
         )
         if len(tf_msg.transforms) > 0:
             self.tf_dynamic_broadcaster.sendTransform(tf_msg)
