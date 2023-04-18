@@ -21,9 +21,9 @@ jobs:
       - name: Extract branch name
         run: echo "CORRECTED_BRANCH_NAME=$(echo ${new_name_for_docker/\//-}" >> $GITHUB_OUTPUT
         id: extract_branch
-      - name: Print branch name
+      - name: Print branch name for Docker Hub
         run: |
-          echo ${{ steps.extract_branch.outputs.BRANCH_NAME }}
+          echo ${{ steps.extract_branch.outputs.CORRECTED_BRANCH_NAME }}
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
