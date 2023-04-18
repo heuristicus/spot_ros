@@ -1,3 +1,6 @@
+import copy
+
+import rospy
 import math
 import time
 import functools
@@ -97,7 +100,7 @@ from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
 from spot_driver.ros_helpers import *
 from spot_driver.spot_config import *
-from spot_driver.spot_wrapper import SpotWrapper
+from spot_driverspot_wrapper.wrapper import SpotWrapper
 
 
 class RateLimitedCall:
@@ -127,6 +130,9 @@ class SpotROS:
     """Parent class for using the wrapper.  Defines all callbacks and keeps the wrapper alive"""
 
     def __init__(self):
+        self.spot_wrapper = None
+        self.last_tf_msg = TFMessage()
+
         self.callbacks = {}
         self.spot_wrapper = None
         """Dictionary listing what callback to use for what data task"""
@@ -157,19 +163,41 @@ class SpotROS:
 
             ## TF ##
             tf_msg = GetTFFromState(state, self.spot_wrapper, self.mode_parent_odom_tf)
+            to_remove = []
             if len(tf_msg.transforms) > 0:
-                self.tf_pub.publish(tf_msg)
+                for transform in tf_msg.transforms:
+                    for last_tf in self.last_tf_msg.transforms:
+                        if transform == last_tf:
+                            to_remove.append(transform)
+
+                if to_remove:
+                    # Do it this way to preserve the original tf message received. If we store the message we have
+                    # destroyed then if there are two duplicates in a row we will not remove the second set.
+                    deduplicated_tf = copy.deepcopy(tf_msg)
+                    for repeat_tf in to_remove:
+                        deduplicated_tf.transforms.remove(repeat_tf)
+                    publish_tf = deduplicated_tf
+                else:
+                    publish_tf = tf_msg
+
+                self.tf_pub.publish(publish_tf)
+            self.last_tf_msg = tf_msg
 
             # Odom Twist #
             twist_odom_msg = GetOdomTwistFromState(state, self.spot_wrapper)
             self.odom_twist_pub.publish(twist_odom_msg)
 
             # Odom #
-            if self.mode_parent_odom_tf == "vision":
-                odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=True)
-            else:
-                odom_msg = GetOdomFromState(state, self.spot_wrapper, use_vision=False)
+            use_vision = self.mode_parent_odom_tf == "vision"
+            odom_msg = GetOdomFromState(
+                state,
+                self.spot_wrapper,
+                use_vision=use_vision,
+            )
             self.odom_pub.publish(odom_msg)
+
+            odom_corrected_msg = get_corrected_odom(odom_msg)
+            self.odom_corrected_pub.publish(odom_corrected_msg)
 
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
@@ -1624,6 +1652,10 @@ class SpotROS:
             side_image_sources[2] = "left_depth_in_visual_frame"
             side_image_sources[3] = "right_depth_in_visual_frame"
             rear_image_sources[1] = "back_depth_in_visual_frame"
+    def main(self):
+        """Main function for the SpotROS class. Gets config from ROS and initializes the wrapper. Holds lease from
+        wrapper and updates all async tasks at the ROS rate"""
+        rospy.init_node("spot_ros", anonymous=True)
 
         if not self.spot_wrapper:
             self.spot_wrapper = SpotWrapper(
@@ -1635,6 +1667,20 @@ class SpotROS:
                 self.rates,
                 self.callbacks,
             )
+
+        rate = rospy.Rate(loop_rate)
+        self.robot_name = rospy.get_param("~robot_name", "spot")
+        self.username = rospy.get_param("~username", "default_value")
+        self.password = rospy.get_param("~password", "default_value")
+        self.hostname = rospy.get_param("~hostname", "default_value")
+        self.motion_deadzone = rospy.get_param("~deadzone", 0.05)
+        self.start_estop = rospy.get_param("~start_estop", True)
+        self.estop_timeout = rospy.get_param("~estop_timeout", 9.0)
+        self.autonomy_enabled = rospy.get_param("~autonomy_enabled", True)
+        self.allow_motion = rospy.get_param("~allow_motion", True)
+        self.use_take_lease = rospy.get_param("~use_take_lease", False)
+        self.get_lease_on_action = rospy.get_param("~get_lease_on_action", False)
+        self.is_charging = False
 
     def initialize_tf2(self):
         self.tf_buffer = tf2_ros.Buffer()
@@ -1664,6 +1710,26 @@ class SpotROS:
             rospy.logerr(
                 "rosparam '~mode_parent_odom_tf' should be 'odom' or 'vision'."
             )
+            return
+
+        self.logger = logging.getLogger("rosout")
+
+        rospy.loginfo("Starting ROS driver for Spot")
+        self.spot_wrapper = SpotWrapper(
+            username=self.username,
+            password=self.password,
+            hostname=self.hostname,
+            robot_name=self.robot_name,
+            logger=self.logger,
+            start_estop=self.start_estop,
+            estop_timeout=self.estop_timeout,
+            rates=self.rates,
+            callbacks=self.callbacks,
+            use_take_lease=self.use_take_lease,
+            get_lease_on_action=self.get_lease_on_action,
+        )
+
+        if not self.spot_wrapper.is_valid:
             return
 
     def initialize_publishers(self):
@@ -1713,14 +1779,6 @@ class SpotROS:
         self.point_cloud_pub = rospy.Publisher(
             "lidar/points", PointCloud2, queue_size=10
         )
-        self.camera_pub_to_async_task_mapping = {
-            self.frontleft_image_pub: "front_image",
-            self.frontright_image_pub: "front_image",
-            self.back_image_pub: "rear_image",
-            self.right_image_pub: "side_image",
-            self.left_image_pub: "side_image",
-            self.hand_image_color_pub: "hand_image",
-        }
 
         # Image Camera Info #
         self.back_image_info_pub = rospy.Publisher(
@@ -1774,6 +1832,29 @@ class SpotROS:
             "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=10
         )
 
+        self.camera_pub_to_async_task_mapping = {
+            self.frontleft_image_pub: "front_image",
+            self.frontleft_depth_pub: "front_image",
+            self.frontleft_image_info_pub: "front_image",
+            self.frontright_image_pub: "front_image",
+            self.frontright_depth_pub: "front_image",
+            self.frontright_image_info_pub: "front_image",
+            self.back_image_pub: "rear_image",
+            self.back_depth_pub: "rear_image",
+            self.back_image_info_pub: "rear_image",
+            self.right_image_pub: "side_image",
+            self.right_depth_pub: "side_image",
+            self.right_image_info_pub: "side_image",
+            self.left_image_pub: "side_image",
+            self.left_depth_pub: "side_image",
+            self.left_image_info_pub: "side_image",
+            self.hand_image_color_pub: "hand_image",
+            self.hand_image_mono_pub: "hand_image",
+            self.hand_image_mono_info_pub: "hand_image",
+            self.hand_depth_pub: "hand_image",
+            self.hand_depth_in_hand_color_pub: "hand_image",
+        }
+
         # World Objects publishers #
         self.world_objects_pub = rospy.Publisher(
             "world_objects", WorldObjectArray, queue_size=10
@@ -1791,6 +1872,9 @@ class SpotROS:
             "odometry/twist", TwistWithCovarianceStamped, queue_size=10
         )
         self.odom_pub = rospy.Publisher("odometry", Odometry, queue_size=10)
+        self.odom_corrected_pub = rospy.Publisher(
+            "odometry_corrected", Odometry, queue_size=10
+        )
         self.feet_pub = rospy.Publisher("status/feet", FootStateArray, queue_size=10)
         self.estop_pub = rospy.Publisher("status/estop", EStopStateArray, queue_size=10)
         self.wifi_pub = rospy.Publisher("status/wifi", WiFiState, queue_size=10)
