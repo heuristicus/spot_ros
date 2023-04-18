@@ -31,7 +31,7 @@ jobs:
       - name: Checkout Spot Wrapper
         uses: actions/checkout@v3
         with:
-          repository: https://github.com/jeremysee2/spot_wrapper.git
+          repository: jeremysee2/spot_wrapper
           path: catkin_ws/src/spot_ros/spot_wrapper
 
       # Install SpotWrapper
