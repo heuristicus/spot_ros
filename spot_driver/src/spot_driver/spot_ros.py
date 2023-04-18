@@ -137,8 +137,6 @@ class SpotROS:
         self.callbacks["hand_image"] = self.HandImageCB
         self.callbacks["lidar_points"] = self.PointCloudCB
         self.callbacks["world_objects"] = self.WorldObjectsCB
-        self.active_camera_tasks = []
-        self.camera_pub_to_async_task_mapping = {}
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -1569,19 +1567,6 @@ class SpotROS:
     def publish_allow_motion(self):
         self.motion_allowed_pub.publish(self.allow_motion)
 
-    def check_for_subscriber(self):
-        for pub in list(self.camera_pub_to_async_task_mapping.keys()):
-            task_name = self.camera_pub_to_async_task_mapping[pub]
-            if (
-                task_name not in self.active_camera_tasks
-                and pub.get_num_connections() > 0
-            ):
-                self.spot_wrapper.update_image_tasks(task_name)
-                self.active_camera_tasks.append(task_name)
-                rospy.loginfo(
-                    f"Detected subscriber for {task_name} task, adding task to publish"
-                )
-
     def initialize_tf2(self):
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -1712,29 +1697,6 @@ class SpotROS:
         self.frontright_depth_in_visual_info_pub = rospy.Publisher(
             "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=10
         )
-
-        self.camera_pub_to_async_task_mapping = {
-            self.frontleft_image_pub: "front_image",
-            self.frontleft_depth_pub: "front_image",
-            self.frontleft_image_info_pub: "front_image",
-            self.frontright_image_pub: "front_image",
-            self.frontright_depth_pub: "front_image",
-            self.frontright_image_info_pub: "front_image",
-            self.back_image_pub: "rear_image",
-            self.back_depth_pub: "rear_image",
-            self.back_image_info_pub: "rear_image",
-            self.right_image_pub: "side_image",
-            self.right_depth_pub: "side_image",
-            self.right_image_info_pub: "side_image",
-            self.left_image_pub: "side_image",
-            self.left_depth_pub: "side_image",
-            self.left_image_info_pub: "side_image",
-            self.hand_image_color_pub: "hand_image",
-            self.hand_image_mono_pub: "hand_image",
-            self.hand_image_mono_info_pub: "hand_image",
-            self.hand_depth_pub: "hand_image",
-            self.hand_depth_in_hand_color_pub: "hand_image",
-        }
 
         # World Objects publishers #
         self.world_objects_pub = rospy.Publisher(
@@ -1993,9 +1955,6 @@ class SpotROS:
         rate_limited_mobility_params = RateLimitedCall(
             self.publish_mobility_params, self.rates["mobility_params"]
         )
-        rate_check_for_subscriber = RateLimitedCall(
-            self.check_for_subscriber, self.rates["check_subscribers"]
-        )
         rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
         rate_publish_images = RateLimitedCall(
             self.publish_camera_images_callback,
@@ -2007,6 +1966,5 @@ class SpotROS:
             rate_limited_feedback()
             rate_limited_mobility_params()
             rate_limited_motion_allowed()
-            rate_check_for_subscriber()
             rate_publish_images()
             rate.sleep()
