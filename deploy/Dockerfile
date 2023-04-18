@@ -19,6 +19,12 @@ RUN python3 -m pip install cython bosdyn-client bosdyn-mission bosdyn-api bosdyn
 RUN chmod +x /opt/ros/noetic/setup.sh
 RUN /opt/ros/noetic/setup.sh
 
+# Git clone Spot Wrapper
+WORKDIR /ros/catkin_ws/src/spot_ros
+RUN git clone https://github.com/jeremysee2/spot_wrapper.git /ros/catkin_ws/src/spot_ros/spot_wrapper
+RUN pip install -r /ros/catkin_ws/src/spot_ros/spot_wrapper/requirements.txt
+RUN pip install -e /ros/catkin_ws/src/spot_ros/spot_wrapper
+
 # Install ROS dependencies
 WORKDIR /ros/catkin_ws/
 
