@@ -72,12 +72,12 @@ add_service_files(
   GetDockState.srv
   SpotCheck.srv
   Grasp3d.srv
+  NavigateInit.srv
 )
 
 add_action_files(
   FILES
   Dock.action
-  NavigateInit.action
   NavigateTo.action
   NavigateRoute.action
   PoseBody.action

@@ -51,12 +51,6 @@ from spot_msgs.msg import (
     NavigateToGoal,
 )
 from spot_msgs.msg import (
-    NavigateInitAction,
-    NavigateInitResult,
-    NavigateInitFeedback,
-    NavigateInitGoal,
-)
-from spot_msgs.msg import (
     NavigateRouteAction,
     NavigateRouteResult,
     NavigateRouteFeedback,
@@ -83,6 +77,7 @@ from spot_msgs.srv import SetVelocity, SetVelocityResponse
 from spot_msgs.srv import Dock, DockResponse, GetDockState, GetDockStateResponse
 from spot_msgs.srv import PosedStand, PosedStandResponse, PosedStandRequest
 from spot_msgs.srv import SetSwingHeight, SetSwingHeightResponse
+from spot_msgs.srv import NavigateInit, NavigateInitRequest, NavigateInitResponse
 from spot_msgs.srv import (
     ArmJointMovement,
     ArmJointMovementResponse,
@@ -1192,34 +1187,13 @@ class SpotROS:
         resp = self.spot_wrapper.spot_graph_nav.optmize_anchoring()
         return TriggerResponse(resp[0], resp[1])
 
-    def handle_navigate_init_feedback(self):
-        """Thread function to send navigate_init feedback"""
-        while not rospy.is_shutdown() and self.run_navigate_init:
-            localization_state = (
-                self.spot_wrapper._graph_nav_client.get_localization_state()
-            )
-            if localization_state.localization.waypoint_id:
-                self.navigate_init_as.publish_feedback(
-                    NavigateInitFeedback(localization_state.localization.waypoint_id)
-                )
-            rospy.Rate(10).sleep()
-
-    def handle_navigate_init(self, req: NavigateInitGoal):
+    def handle_navigate_init(self, req: NavigateInitRequest):
+        """ROS service handler for initializing GraphNav localization"""
         if not self.robot_allowed_to_move():
             rospy.logerr(
                 "navigate_init was requested but robot is not allowed to move."
             )
-            self.navigate_init_as.set_aborted(
-                NavigateInitResult(False, "Autonomy is not enabled")
-            )
-            return
-
-        # create thread to periodically publish feedback
-        feedback_thread = threading.Thread(
-            target=self.handle_navigate_init_feedback, args=()
-        )
-        self.run_navigate_init = True
-        feedback_thread.start()
+            return NavigateInitResponse(False, "Autonomy is not enabled")
 
         # run navigate_init
         resp = self.spot_wrapper.spot_graph_nav.navigate_initial_localization(
@@ -1227,14 +1201,12 @@ class SpotROS:
             initial_localization_fiducial=req.initial_localization_fiducial,
             initial_localization_waypoint=req.initial_localization_waypoint,
         )
-        self.run_navigate_init = False
-        feedback_thread.join()
 
         # check status
         if resp[0]:
-            self.navigate_init_as.set_succeeded(NavigateInitResult(resp[0], resp[1]))
+            return NavigateInitResponse(resp[0], resp[1])
         else:
-            self.navigate_init_as.set_aborted(NavigateInitResult(resp[0], resp[1]))
+            return NavigateInitResponse(resp[0], resp[1])
 
     def handle_navigate_to_feedback(self):
         """Thread function to send navigate_to feedback"""
@@ -1882,7 +1854,7 @@ class SpotROS:
         rospy.Service(
             "optimize_graph_anchoring", Trigger, self.handle_graph_optimize_anchoring
         )
-        # TODO: Move navigate_init to a service here
+        rospy.Service("navigate_init", NavigateInit, self.handle_navigate_init)
 
         rospy.Service("roll_over_right", Trigger, self.handle_roll_over_right)
         rospy.Service("roll_over_left", Trigger, self.handle_roll_over_left)
@@ -1914,14 +1886,6 @@ class SpotROS:
         rospy.Service("locked_stop", Trigger, self.handle_locked_stop)
 
     def initialize_action_servers(self):
-        self.navigate_init_as = actionlib.SimpleActionServer(
-            "navigate_init",
-            NavigateInitAction,
-            execute_cb=self.handle_navigate_init,
-            auto_start=False,
-        )
-        self.navigate_init_as.start()
-
         self.navigate_as = actionlib.SimpleActionServer(
             "navigate_to",
             NavigateToAction,
