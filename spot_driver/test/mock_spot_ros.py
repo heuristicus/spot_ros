@@ -5,11 +5,11 @@ import rospy
 from std_srvs.srv import TriggerResponse, SetBool, SetBoolResponse
 from spot_msgs.msg import MobilityParams
 from spot_msgs.msg import NavigateToGoal, NavigateToResult
-from spot_msgs.msg import NavigateInitGoal, NavigateInitResult
 from spot_msgs.msg import NavigateRouteGoal, NavigateRouteResult
 from spot_msgs.msg import TrajectoryResult, TrajectoryGoal
 from spot_msgs.msg import PoseBodyGoal, PoseBodyResult
 from spot_msgs.msg import DockGoal, DockResult
+from spot_msgs.srv import NavigateInitRequest, NavigateInitResponse
 from spot_msgs.srv import PosedStandResponse, PosedStandRequest
 from spot_msgs.srv import ClearBehaviorFaultResponse
 from spot_msgs.srv import SetLocomotionResponse
@@ -318,11 +318,9 @@ class TestSpotROS(SpotROS):
     def handle_grasp_3d(self, srv_data: Grasp3dRequest) -> Grasp3dResponse:
         return Grasp3dResponse(success=True, message="Successfully called grasp_3d")
 
-    def handle_navigate_init(self, goal: NavigateInitGoal):
-        self.navigate_init_as.set_succeeded(
-            NavigateInitResult(
-                success=True, message="Successfully called navigate_init"
-            )
+    def handle_navigate_init(self, req: NavigateInitRequest) -> NavigateInitResponse:
+        return NavigateInitResponse(
+            success=True, message="Successfully called navigate_init"
         )
 
     def handle_navigate_to(self, goal: NavigateToGoal):

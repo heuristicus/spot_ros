@@ -404,14 +404,21 @@ class SpotROS:
             world_objects_msg = GetWorldObjectsMsg(data, self.spot_wrapper)
             self.world_objects_pub.publish(world_objects_msg)
 
-    def handle_claim(self, req):
+        # Publish transforms into TF tree
+        tf_msg = GetTFFromWorldObjects(
+            data, self.spot_wrapper, self.mode_parent_odom_tf
+        )
+        if len(tf_msg.transforms) > 0:
+            self.tf_dynamic_broadcaster.sendTransform(tf_msg)
+
+    def handle_claim(self, req) -> TriggerResponse:
         """ROS service handler for the claim service"""
-        resp = self.spot_wrapper.spot_estop_lease.claim()
+        resp = self.spot_wrapper.claim()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_release(self, req) -> TriggerResponse:
         """ROS service handler for the release service"""
-        resp = self.spot_wrapper.spot_estop_lease.release()
+        resp = self.spot_wrapper.release()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_locked_stop(self, req) -> TriggerResponse:
@@ -424,10 +431,6 @@ class SpotROS:
         """ROS service handler for the stop service. Interrupts the currently active motion"""
         resp = self.spot_wrapper.stop()
         message = "Spot stop service was called"
-        if self.navigate_init_as.is_active():
-            self.navigate_init_as.set_preempted(
-                NavigateInitResult(success=False, message=message)
-            )
         if self.navigate_as.is_active():
             self.navigate_as.set_preempted(
                 NavigateToResult(success=False, message=message)
@@ -546,18 +549,18 @@ class SpotROS:
 
     def handle_estop_hard(self, req) -> TriggerResponse:
         """ROS service handler to hard-eStop the robot.  The robot will immediately cut power to the motors"""
-        resp = self.spot_wrapper.spot_estop_lease.assertEStop(True)
+        resp = self.spot_wrapper.assertEStop(True)
         return TriggerResponse(resp[0], resp[1])
 
     def handle_estop_gentle(self, req) -> TriggerResponse:
         """ROS service handler to soft-eStop the robot.  The robot will try to settle on the ground before cutting
         power to the motors"""
-        resp = self.spot_wrapper.spot_estop_lease.assertEStop(False)
+        resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
 
     def handle_estop_release(self, req) -> TriggerResponse:
         """ROS service handler to disengage the eStop on the robot."""
-        resp = self.spot_wrapper.spot_estop_lease.disengageEStop()
+        resp = self.spot_wrapper.disengageEStop()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_clear_behavior_fault(self, req) -> ClearBehaviorFaultResponse:
@@ -1187,7 +1190,7 @@ class SpotROS:
         resp = self.spot_wrapper.spot_graph_nav.optmize_anchoring()
         return TriggerResponse(resp[0], resp[1])
 
-    def handle_navigate_init(self, req: NavigateInitRequest):
+    def handle_navigate_init(self, req: NavigateInitRequest) -> NavigateInitResponse:
         """ROS service handler for initializing GraphNav localization"""
         if not self.robot_allowed_to_move():
             rospy.logerr(
@@ -1614,6 +1617,7 @@ class SpotROS:
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
+        self.tf_dynamic_broadcaster = tf2_ros.TransformBroadcaster()
         self.sensors_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
         # Static transform broadcaster is super simple and just a latched publisher. Every time we add a new static
         # transform we must republish all static transforms from this source, otherwise the tree will be incomplete.
@@ -2008,7 +2012,7 @@ class SpotROS:
         self.auto_stand = rospy.get_param("~auto_stand", False)
 
         if self.auto_claim:
-            self.spot_wrapper.spot_estop_lease.claim()
+            self.spot_wrapper.claim()
             if self.auto_power_on:
                 self.spot_wrapper.power_on()
                 if self.auto_stand:

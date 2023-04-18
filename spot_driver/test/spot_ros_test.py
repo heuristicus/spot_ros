@@ -28,7 +28,6 @@ from spot_msgs.msg import PowerState
 from spot_msgs.msg import BehaviorFaultState
 from spot_msgs.msg import SystemFaultState
 from spot_msgs.msg import BatteryStateArray
-from spot_msgs.msg import NavigateInitAction, NavigateInitGoal
 from spot_msgs.msg import NavigateToAction, NavigateToGoal
 from spot_msgs.msg import NavigateRouteAction, NavigateRouteGoal
 from spot_msgs.msg import TrajectoryAction, TrajectoryGoal
@@ -36,6 +35,7 @@ from spot_msgs.msg import PoseBodyAction, PoseBodyGoal
 from spot_msgs.msg import DockAction, DockGoal
 
 from spot_msgs.srv import PosedStandRequest
+from spot_msgs.srv import NavigateInitRequest, NavigateInitResponse
 from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
 from spot_msgs.srv import ListGraphResponse
 from spot_msgs.srv import (
@@ -1110,27 +1110,14 @@ class TestServiceHandlers(unittest.TestCase):
         self.assertTrue(resp.success, "Arm gaze service failed")
         self.assertEqual(resp.message, "Successfully called arm_gaze")
 
+    def test_navigate_init(self):
+        resp: NavigateInitResponse = self.call_service("/spot/navigate_init")
+
+        self.assertTrue(resp.success, "Navigate init service failed")
+        self.assertEqual(resp.message, "Successfully called navigate_init")
+
 
 class TestActionHandlers(unittest.TestCase):
-    def test_navigate_init_action(self):
-        self.navigate_init_action_client = actionlib.SimpleActionClient(
-            "/spot/navigate_init", NavigateInitAction
-        )
-        self.navigate_init_action_client.wait_for_server()
-
-        goal = NavigateInitGoal()
-        goal.upload_path = "test_file/path"
-        goal.initial_localization_fiducial = False
-        goal.initial_localization_waypoint = "waypoint1"
-
-        self.navigate_init_action_client.send_goal(goal)
-        self.navigate_init_action_client.wait_for_result()
-
-        result = self.navigate_init_action_client.get_result()
-
-        self.assertEqual(result.message, "Successfully called navigate_init")
-        self.assertTrue(result.success, "Navigate_init action failed")
-
     def test_navigate_to_action(self):
         self.navigate_to_action_client = actionlib.SimpleActionClient(
             "/spot/navigate_to", NavigateToAction
