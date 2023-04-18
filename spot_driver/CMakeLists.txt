@@ -15,7 +15,6 @@ include_directories(
 
 catkin_install_python(PROGRAMS
     scripts/spot_ros
-    test/graph_nav_util_test.py
     test/ros_helpers_test.py
     test/spot_ros_test.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
