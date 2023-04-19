@@ -51,12 +51,6 @@ from spot_msgs.msg import (
     NavigateToGoal,
 )
 from spot_msgs.msg import (
-    NavigateInitAction,
-    NavigateInitResult,
-    NavigateInitFeedback,
-    NavigateInitGoal,
-)
-from spot_msgs.msg import (
     NavigateRouteAction,
     NavigateRouteResult,
     NavigateRouteFeedback,
@@ -83,6 +77,7 @@ from spot_msgs.srv import SetVelocity, SetVelocityResponse
 from spot_msgs.srv import Dock, DockResponse, GetDockState, GetDockStateResponse
 from spot_msgs.srv import PosedStand, PosedStandResponse, PosedStandRequest
 from spot_msgs.srv import SetSwingHeight, SetSwingHeightResponse
+from spot_msgs.srv import NavigateInit, NavigateInitRequest, NavigateInitResponse
 from spot_msgs.srv import (
     ArmJointMovement,
     ArmJointMovementResponse,
@@ -98,7 +93,8 @@ from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
 from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
 from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
-from .ros_helpers import *
+from spot_driver.ros_helpers import *
+from spot_wrapper.spot_config import *
 from spot_wrapper.wrapper import SpotWrapper
 
 
@@ -138,15 +134,9 @@ class SpotROS:
         self.callbacks["robot_state"] = self.RobotStateCB
         self.callbacks["metrics"] = self.MetricsCB
         self.callbacks["lease"] = self.LeaseCB
-        self.callbacks["front_image"] = self.FrontImageCB
-        self.callbacks["side_image"] = self.SideImageCB
-        self.callbacks["rear_image"] = self.RearImageCB
         self.callbacks["hand_image"] = self.HandImageCB
         self.callbacks["lidar_points"] = self.PointCloudCB
         self.callbacks["world_objects"] = self.WorldObjectsCB
-        self.active_camera_tasks = []
-        self.camera_pub_to_async_task_mapping = {}
-        self.node_name = "spot_ros"
 
     def RobotStateCB(self, results):
         """Callback for when the Spot Wrapper gets new robot state data.
@@ -289,75 +279,126 @@ class SpotROS:
 
             self.lease_pub.publish(lease_array_msg)
 
-    def FrontImageCB(self, results):
-        """Callback for when the Spot Wrapper gets new front image data.
+    def publish_depth_in_visual_images_callback(self):
+        image_bundle = self.spot_wrapper.spot_images.get_depth_registered_images()
+        (
+            frontleft_image_msg,
+            frontleft_camera_info,
+        ) = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.frontleft, self.spot_wrapper
+        )
+        (
+            frontright_image_msg,
+            frontright_camera_info,
+        ) = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.frontright, self.spot_wrapper
+        )
+        left_image_msg, left_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.left, self.spot_wrapper
+        )
+        right_image_msg, right_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.right, self.spot_wrapper
+        )
+        back_image_msg, back_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.back, self.spot_wrapper
+        )
 
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        data = self.spot_wrapper.front_images
-        if data:
-            image_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
-            self.frontleft_image_pub.publish(image_msg0)
-            self.frontleft_image_info_pub.publish(camera_info_msg0)
-            image_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
-            self.frontright_image_pub.publish(image_msg1)
-            self.frontright_image_info_pub.publish(camera_info_msg1)
-            image_msg2, camera_info_msg2 = GetImageMsg(data[2], self.spot_wrapper)
-            self.frontleft_depth_pub.publish(image_msg2)
-            self.frontleft_depth_info_pub.publish(camera_info_msg2)
-            image_msg3, camera_info_msg3 = GetImageMsg(data[3], self.spot_wrapper)
-            self.frontright_depth_pub.publish(image_msg3)
-            self.frontright_depth_info_pub.publish(camera_info_msg3)
+        self.frontleft_depth_in_visual_pub.publish(frontleft_image_msg)
+        self.frontright_depth_in_visual_pub.publish(frontright_image_msg)
+        self.left_depth_in_visual_pub.publish(left_image_msg)
+        self.right_depth_in_visual_pub.publish(right_image_msg)
+        self.back_depth_in_visual_pub.publish(back_image_msg)
 
-            self.populate_camera_static_transforms(data[0])
-            self.populate_camera_static_transforms(data[1])
-            self.populate_camera_static_transforms(data[2])
-            self.populate_camera_static_transforms(data[3])
+        self.frontleft_depth_in_visual_info_pub.publish(frontleft_camera_info)
+        self.frontright_depth_in_visual_info_pub.publish(frontright_camera_info)
+        self.left_depth_in_visual_info_pub.publish(left_camera_info)
+        self.right_depth_in_visual_info_pub.publish(right_camera_info)
+        self.back_depth_in_visual_info_pub.publish(back_camera_info)
 
-    def SideImageCB(self, results):
-        """Callback for when the Spot Wrapper gets new side image data.
+    def publish_depth_images_callback(self):
+        image_bundle = self.spot_wrapper.spot_images.get_depth_images()
+        (
+            frontleft_image_msg,
+            frontleft_camera_info,
+        ) = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.frontleft, self.spot_wrapper
+        )
+        (
+            frontright_image_msg,
+            frontright_camera_info,
+        ) = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.frontright, self.spot_wrapper
+        )
+        left_image_msg, left_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.left, self.spot_wrapper
+        )
+        right_image_msg, right_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.right, self.spot_wrapper
+        )
+        back_image_msg, back_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.back, self.spot_wrapper
+        )
 
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        data = self.spot_wrapper.side_images
-        if data:
-            image_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
-            self.left_image_pub.publish(image_msg0)
-            self.left_image_info_pub.publish(camera_info_msg0)
-            image_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
-            self.right_image_pub.publish(image_msg1)
-            self.right_image_info_pub.publish(camera_info_msg1)
-            image_msg2, camera_info_msg2 = GetImageMsg(data[2], self.spot_wrapper)
-            self.left_depth_pub.publish(image_msg2)
-            self.left_depth_info_pub.publish(camera_info_msg2)
-            image_msg3, camera_info_msg3 = GetImageMsg(data[3], self.spot_wrapper)
-            self.right_depth_pub.publish(image_msg3)
-            self.right_depth_info_pub.publish(camera_info_msg3)
+        self.frontleft_depth_pub.publish(frontleft_image_msg)
+        self.frontright_depth_pub.publish(frontright_image_msg)
+        self.left_depth_pub.publish(left_image_msg)
+        self.right_depth_pub.publish(right_image_msg)
+        self.back_depth_pub.publish(back_image_msg)
 
-            self.populate_camera_static_transforms(data[0])
-            self.populate_camera_static_transforms(data[1])
-            self.populate_camera_static_transforms(data[2])
-            self.populate_camera_static_transforms(data[3])
+        self.frontleft_depth_info_pub.publish(frontleft_camera_info)
+        self.frontright_depth_info_pub.publish(frontright_camera_info)
+        self.left_depth_info_pub.publish(left_camera_info)
+        self.right_depth_info_pub.publish(right_camera_info)
+        self.back_depth_info_pub.publish(back_camera_info)
 
-    def RearImageCB(self, results):
-        """Callback for when the Spot Wrapper gets new rear image data.
+    def publish_camera_images_callback(self):
+        image_bundle = self.spot_wrapper.spot_images.get_camera_images()
+        (
+            frontleft_image_msg,
+            frontleft_camera_info,
+        ) = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.frontleft, self.spot_wrapper
+        )
+        (
+            frontright_image_msg,
+            frontright_camera_info,
+        ) = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.frontright, self.spot_wrapper
+        )
+        left_image_msg, left_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.left, self.spot_wrapper
+        )
+        right_image_msg, right_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.right, self.spot_wrapper
+        )
+        back_image_msg, back_camera_info = bosdyn_data_to_image_and_camera_info_msgs(
+            image_bundle.back, self.spot_wrapper
+        )
 
-        Args:
-            results: FutureWrapper object of AsyncPeriodicQuery callback
-        """
-        data = self.spot_wrapper.rear_images
-        if data:
-            mage_msg0, camera_info_msg0 = GetImageMsg(data[0], self.spot_wrapper)
-            self.back_image_pub.publish(mage_msg0)
-            self.back_image_info_pub.publish(camera_info_msg0)
-            mage_msg1, camera_info_msg1 = GetImageMsg(data[1], self.spot_wrapper)
-            self.back_depth_pub.publish(mage_msg1)
-            self.back_depth_info_pub.publish(camera_info_msg1)
+        self.frontleft_image_pub.publish(frontleft_image_msg)
+        self.frontright_image_pub.publish(frontright_image_msg)
+        self.left_image_pub.publish(left_image_msg)
+        self.right_image_pub.publish(right_image_msg)
+        self.back_image_pub.publish(back_image_msg)
 
-            self.populate_camera_static_transforms(data[0])
-            self.populate_camera_static_transforms(data[1])
+        self.frontleft_image_info_pub.publish(frontleft_camera_info)
+        self.frontright_image_info_pub.publish(frontright_camera_info)
+        self.left_image_info_pub.publish(left_camera_info)
+        self.right_image_info_pub.publish(right_camera_info)
+        self.back_image_info_pub.publish(back_camera_info)
+
+        self.populate_camera_static_transforms(image_bundle.frontleft)
+        self.populate_camera_static_transforms(image_bundle.frontright)
+        self.populate_camera_static_transforms(image_bundle.left)
+        self.populate_camera_static_transforms(image_bundle.right)
+        self.populate_camera_static_transforms(image_bundle.back)
+
+    def publish_all_images_callback(self):
+        self.publish_camera_images_callback()
+        if self.depth_in_visual:
+            self.publish_depth_in_visual_images_callback()
+        else:
+            self.publish_depth_images_callback()
 
     def HandImageCB(self, results):
         """Callback for when the Spot Wrapper gets new hand image data.
@@ -409,14 +450,21 @@ class SpotROS:
             world_objects_msg = GetWorldObjectsMsg(data, self.spot_wrapper)
             self.world_objects_pub.publish(world_objects_msg)
 
-    def handle_claim(self, req):
+        # Publish transforms into TF tree
+        tf_msg = GetTFFromWorldObjects(
+            data.world_objects, self.spot_wrapper, self.mode_parent_odom_tf
+        )
+        if len(tf_msg.transforms) > 0:
+            self.tf_pub.publish(tf_msg)
+
+    def handle_claim(self, req) -> TriggerResponse:
         """ROS service handler for the claim service"""
-        resp = self.spot_wrapper.spot_estop_lease.claim()
+        resp = self.spot_wrapper.claim()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_release(self, req) -> TriggerResponse:
         """ROS service handler for the release service"""
-        resp = self.spot_wrapper.spot_estop_lease.release()
+        resp = self.spot_wrapper.release()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_locked_stop(self, req) -> TriggerResponse:
@@ -429,10 +477,6 @@ class SpotROS:
         """ROS service handler for the stop service. Interrupts the currently active motion"""
         resp = self.spot_wrapper.stop()
         message = "Spot stop service was called"
-        if self.navigate_init_as.is_active():
-            self.navigate_init_as.set_preempted(
-                NavigateInitResult(success=False, message=message)
-            )
         if self.navigate_as.is_active():
             self.navigate_as.set_preempted(
                 NavigateToResult(success=False, message=message)
@@ -551,18 +595,18 @@ class SpotROS:
 
     def handle_estop_hard(self, req) -> TriggerResponse:
         """ROS service handler to hard-eStop the robot.  The robot will immediately cut power to the motors"""
-        resp = self.spot_wrapper.spot_estop_lease.assertEStop(True)
+        resp = self.spot_wrapper.assertEStop(True)
         return TriggerResponse(resp[0], resp[1])
 
     def handle_estop_gentle(self, req) -> TriggerResponse:
         """ROS service handler to soft-eStop the robot.  The robot will try to settle on the ground before cutting
         power to the motors"""
-        resp = self.spot_wrapper.spot_estop_lease.assertEStop(False)
+        resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
 
     def handle_estop_release(self, req) -> TriggerResponse:
         """ROS service handler to disengage the eStop on the robot."""
-        resp = self.spot_wrapper.spot_estop_lease.disengageEStop()
+        resp = self.spot_wrapper.disengageEStop()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_clear_behavior_fault(self, req) -> ClearBehaviorFaultResponse:
@@ -1066,7 +1110,7 @@ class SpotROS:
             precise_position=precise,
         )
 
-    def cmdVelCallback(self, data):
+    def cmd_vel_callback(self, data):
         """Callback for cmd_vel command"""
         if not self.robot_allowed_to_move():
             rospy.logerr("cmd_vel received a message but motion is not allowed.")
@@ -1192,34 +1236,13 @@ class SpotROS:
         resp = self.spot_wrapper.spot_graph_nav.optmize_anchoring()
         return TriggerResponse(resp[0], resp[1])
 
-    def handle_navigate_init_feedback(self):
-        """Thread function to send navigate_init feedback"""
-        while not rospy.is_shutdown() and self.run_navigate_init:
-            localization_state = (
-                self.spot_wrapper._graph_nav_client.get_localization_state()
-            )
-            if localization_state.localization.waypoint_id:
-                self.navigate_init_as.publish_feedback(
-                    NavigateInitFeedback(localization_state.localization.waypoint_id)
-                )
-            rospy.Rate(10).sleep()
-
-    def handle_navigate_init(self, req: NavigateInitGoal):
+    def handle_navigate_init(self, req: NavigateInitRequest) -> NavigateInitResponse:
+        """ROS service handler for initializing GraphNav localization"""
         if not self.robot_allowed_to_move():
             rospy.logerr(
                 "navigate_init was requested but robot is not allowed to move."
             )
-            self.navigate_init_as.set_aborted(
-                NavigateInitResult(False, "Autonomy is not enabled")
-            )
-            return
-
-        # create thread to periodically publish feedback
-        feedback_thread = threading.Thread(
-            target=self.handle_navigate_init_feedback, args=()
-        )
-        self.run_navigate_init = True
-        feedback_thread.start()
+            return NavigateInitResponse(False, "Autonomy is not enabled")
 
         # run navigate_init
         resp = self.spot_wrapper.spot_graph_nav.navigate_initial_localization(
@@ -1227,14 +1250,12 @@ class SpotROS:
             initial_localization_fiducial=req.initial_localization_fiducial,
             initial_localization_waypoint=req.initial_localization_waypoint,
         )
-        self.run_navigate_init = False
-        feedback_thread.join()
 
         # check status
         if resp[0]:
-            self.navigate_init_as.set_succeeded(NavigateInitResult(resp[0], resp[1]))
+            return NavigateInitResponse(resp[0], resp[1])
         else:
-            self.navigate_init_as.set_aborted(NavigateInitResult(resp[0], resp[1]))
+            return NavigateInitResponse(resp[0], resp[1])
 
     def handle_navigate_to_feedback(self):
         """Thread function to send navigate_to feedback"""
@@ -1508,11 +1529,6 @@ class SpotROS:
         )
         return Grasp3dResponse(resp[0], resp[1])
 
-    def handle_arm_gaze(self, srv_data) -> TriggerResponse:
-        """ROS service handler to do a gaze with the arm"""
-        resp = self.spot_wrapper.spot_arm.arm_gaze()
-        return TriggerResponse(resp[0], resp[1])
-
     ##################################################################
 
     def shutdown(self):
@@ -1630,19 +1646,6 @@ class SpotROS:
     def publish_allow_motion(self):
         self.motion_allowed_pub.publish(self.allow_motion)
 
-    def check_for_subscriber(self):
-        for pub in list(self.camera_pub_to_async_task_mapping.keys()):
-            task_name = self.camera_pub_to_async_task_mapping[pub]
-            if (
-                task_name not in self.active_camera_tasks
-                and pub.get_num_connections() > 0
-            ):
-                self.spot_wrapper.update_image_tasks(task_name)
-                self.active_camera_tasks.append(task_name)
-                print(
-                    f"Detected subscriber for {task_name} task, adding task to publish"
-                )
-
     def initialize_tf2(self):
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -1709,11 +1712,20 @@ class SpotROS:
         self.hand_depth_in_hand_color_pub = rospy.Publisher(
             "depth/hand/depth_in_color", Image, queue_size=10
         )
+        self.back_depth_in_visual_pub = rospy.Publisher(
+            "depth/back/depth_in_visual", Image, queue_size=10
+        )
         self.frontleft_depth_in_visual_pub = rospy.Publisher(
             "depth/frontleft/depth_in_visual", Image, queue_size=10
         )
         self.frontright_depth_in_visual_pub = rospy.Publisher(
             "depth/frontright/depth_in_visual", Image, queue_size=10
+        )
+        self.left_depth_in_visual_pub = rospy.Publisher(
+            "depth/left/depth_in_visual", Image, queue_size=10
+        )
+        self.right_depth_in_visual_pub = rospy.Publisher(
+            "depth/right/depth_in_visual", Image, queue_size=10
         )
 
         # EAP Pointcloud #
@@ -1772,29 +1784,20 @@ class SpotROS:
         self.frontright_depth_in_visual_info_pub = rospy.Publisher(
             "depth/frontright/depth_in_visual/camera_info", CameraInfo, queue_size=10
         )
+        self.left_depth_in_visual_info_pub = rospy.Publisher(
+            "depth/left/depth_in_visual/camera_info", CameraInfo, queue_size=10
+        )
+        self.right_depth_in_visual_info_pub = rospy.Publisher(
+            "depth/right/depth_in_visual/camera_info", CameraInfo, queue_size=10
+        )
+        self.back_depth_in_visual_info_pub = rospy.Publisher(
+            "depth/back/depth_in_visual/camera_info", CameraInfo, queue_size=10
+        )
 
-        self.camera_pub_to_async_task_mapping = {
-            self.frontleft_image_pub: "front_image",
-            self.frontleft_depth_pub: "front_image",
-            self.frontleft_image_info_pub: "front_image",
-            self.frontright_image_pub: "front_image",
-            self.frontright_depth_pub: "front_image",
-            self.frontright_image_info_pub: "front_image",
-            self.back_image_pub: "rear_image",
-            self.back_depth_pub: "rear_image",
-            self.back_image_info_pub: "rear_image",
-            self.right_image_pub: "side_image",
-            self.right_depth_pub: "side_image",
-            self.right_image_info_pub: "side_image",
-            self.left_image_pub: "side_image",
-            self.left_depth_pub: "side_image",
-            self.left_image_info_pub: "side_image",
-            self.hand_image_color_pub: "hand_image",
-            self.hand_image_mono_pub: "hand_image",
-            self.hand_image_mono_info_pub: "hand_image",
-            self.hand_depth_pub: "hand_image",
-            self.hand_depth_in_hand_color_pub: "hand_image",
-        }
+        # World Objects publishers #
+        self.world_objects_pub = rospy.Publisher(
+            "world_objects", WorldObjectArray, queue_size=10
+        )
 
         # Status Publishers #
         self.joint_state_pub = rospy.Publisher(
@@ -1837,7 +1840,7 @@ class SpotROS:
         )
 
     def initialize_subscribers(self):
-        rospy.Subscriber("cmd_vel", Twist, self.cmdVelCallback, queue_size=1)
+        rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_callback, queue_size=1)
         rospy.Subscriber(
             "go_to_pose", PoseStamped, self.trajectory_callback, queue_size=1
         )
@@ -1882,6 +1885,7 @@ class SpotROS:
         rospy.Service(
             "optimize_graph_anchoring", Trigger, self.handle_graph_optimize_anchoring
         )
+        rospy.Service("navigate_init", NavigateInit, self.handle_navigate_init)
 
         rospy.Service("roll_over_right", Trigger, self.handle_roll_over_right)
         rospy.Service("roll_over_left", Trigger, self.handle_roll_over_left)
@@ -1906,7 +1910,6 @@ class SpotROS:
         )
         rospy.Service("gripper_pose", HandPose, self.handle_gripper_pose)
         rospy.Service("grasp_3d", Grasp3d, self.handle_grasp_3d)
-        rospy.Service("arm_gaze", Trigger, self.handle_arm_gaze)
 
         # Stop service calls other services so initialise it after them to prevent crashes which can happen if
         # the service is immediately called
@@ -1914,14 +1917,6 @@ class SpotROS:
         rospy.Service("locked_stop", Trigger, self.handle_locked_stop)
 
     def initialize_action_servers(self):
-        self.navigate_init_as = actionlib.SimpleActionServer(
-            "navigate_init",
-            NavigateInitAction,
-            execute_cb=self.handle_navigate_init,
-            auto_start=False,
-        )
-        self.navigate_init_as.start()
-
         self.navigate_as = actionlib.SimpleActionServer(
             "navigate_to",
             NavigateToAction,
@@ -1971,8 +1966,9 @@ class SpotROS:
         self.dock_as.start()
 
     def main(self):
-        """Main function for the SpotROS class.  Gets config from ROS and initializes the wrapper.  Holds lease from wrapper and updates all async tasks at the ROS rate"""
-        rospy.init_node(self.node_name, anonymous=True)
+        """Main function for the SpotROS class. Gets config from ROS and initializes the wrapper. Holds lease from
+        wrapper and updates all async tasks at the ROS rate"""
+        rospy.init_node("spot_ros", anonymous=True)
 
         self.rates = rospy.get_param("~rates", {})
         if "loop_frequency" in self.rates:
@@ -1990,24 +1986,40 @@ class SpotROS:
                 )
 
         rate = rospy.Rate(loop_rate)
+        self.robot_name = rospy.get_param("~robot_name", "spot")
         self.username = rospy.get_param("~username", "default_value")
         self.password = rospy.get_param("~password", "default_value")
         self.hostname = rospy.get_param("~hostname", "default_value")
         self.motion_deadzone = rospy.get_param("~deadzone", 0.05)
+        self.start_estop = rospy.get_param("~start_estop", True)
         self.estop_timeout = rospy.get_param("~estop_timeout", 9.0)
         self.autonomy_enabled = rospy.get_param("~autonomy_enabled", True)
         self.allow_motion = rospy.get_param("~allow_motion", True)
-        self.is_charging = False
+        self.use_take_lease = rospy.get_param("~use_take_lease", False)
+        self.get_lease_on_action = rospy.get_param("~get_lease_on_action", False)
         self.depth_in_visual = rospy.get_param("~depth_in_visual", False)
+        self.is_charging = False
 
         self.initialize_tf2()
-
         self.logger = logging.getLogger("rosout")
 
         rospy.loginfo("Starting ROS driver for Spot")
-        self.initialize_spot_wrapper()
-        if not self.spot_wrapper.is_valid or not self.spot_wrapper:
-            rospy.logerr("Spot wrapper failed to initialize")
+        self.spot_wrapper = SpotWrapper(
+            username=self.username,
+            password=self.password,
+            hostname=self.hostname,
+            robot_name=self.robot_name,
+            logger=self.logger,
+            start_estop=self.start_estop,
+            estop_timeout=self.estop_timeout,
+            rates=self.rates,
+            callbacks=self.callbacks,
+            use_take_lease=self.use_take_lease,
+            get_lease_on_action=self.get_lease_on_action,
+        )
+
+        if not self.spot_wrapper.is_valid:
+            rospy.logerr("SpotWrapper failed to initialize. Shutting down")
             return
 
         self.initialize_publishers()
@@ -2027,7 +2039,7 @@ class SpotROS:
         self.auto_stand = rospy.get_param("~auto_stand", False)
 
         if self.auto_claim:
-            self.spot_wrapper.spot_estop_lease.claim()
+            self.spot_wrapper.claim()
             if self.auto_power_on:
                 self.spot_wrapper.power_on()
                 if self.auto_stand:
@@ -2039,15 +2051,17 @@ class SpotROS:
         rate_limited_mobility_params = RateLimitedCall(
             self.publish_mobility_params, self.rates["mobility_params"]
         )
-        rate_check_for_subscriber = RateLimitedCall(
-            self.check_for_subscriber, self.rates["check_subscribers"]
-        )
         rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
+        rate_publish_camera_images = RateLimitedCall(
+            self.publish_all_images_callback,
+            max(0.0, self.rates.get("camera_images", 10)),
+        )
+
         rospy.loginfo("Driver started")
         while not rospy.is_shutdown():
             self.spot_wrapper.updateTasks()
             rate_limited_feedback()
             rate_limited_mobility_params()
             rate_limited_motion_allowed()
-            rate_check_for_subscriber()
+            rate_publish_camera_images()
             rate.sleep()

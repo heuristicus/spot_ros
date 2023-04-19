@@ -1,7 +1,9 @@
 import copy
 
+import typing
+import numpy as np
+
 import rospy
-import tf2_ros
 import transforms3d
 
 from sensor_msgs.msg import Image, CameraInfo
@@ -36,11 +38,15 @@ from bosdyn.api import world_object_pb2, geometry_pb2
 from bosdyn.api.docking import docking_pb2
 from bosdyn.client.spot_check import spot_check_pb2
 from bosdyn.client.math_helpers import SE3Pose
-from bosdyn.client.frame_helpers import get_odom_tform_body, get_vision_tform_body
+from bosdyn.client.frame_helpers import (
+    get_odom_tform_body,
+    get_vision_tform_body,
+    get_a_tform_b,
+)
 
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from .spot_wrapper import SpotWrapper
+from spot_wrapper.wrapper import SpotWrapper
 
 
 friendly_joint_names = {}
@@ -108,7 +114,10 @@ class DefaultCameraInfo(CameraInfo):
 
 
 def populateTransformStamped(
-    time: rospy.Time, parent_frame: str, child_frame: str, transform: Transform
+    time: rospy.Time,
+    parent_frame: str,
+    child_frame: str,
+    transform: Transform,
 ) -> TransformStamped:
     """Populates a TransformStamped message
 
@@ -1099,3 +1108,160 @@ def GetWorldObjectsMsg(
         world_object_msg.world_objects.append(new_world_object)
 
     return world_object_msg
+
+
+def GetFrameNamesAssociatedWithObject(
+    world_object: world_object_pb2.WorldObject,
+) -> typing.List[str]:
+    possible_frame_names = [
+        world_object.apriltag_properties.frame_name_fiducial,
+        world_object.apriltag_properties.frame_name_fiducial_filtered,
+        world_object.dock_properties.frame_name_dock,
+        world_object.image_properties.frame_name_image_coordinates,
+    ]
+    frame_names = [name for name in possible_frame_names if name]
+    for drawable in world_object.drawable_properties:
+        frame_names.append(drawable.frame_name_drawable)
+
+    return frame_names
+
+
+def GetTFFromWorldObjects(
+    world_objects: typing.List[world_object_pb2.WorldObject],
+    spot_wrapper: SpotWrapper,
+    parent_frame: str,
+) -> TFMessage:
+    tf_msg = TFMessage()
+    for world_object in world_objects:
+        frames = GetFrameNamesAssociatedWithObject(world_object)
+        for frame in frames:
+            try:
+                spot_parent_frame = parent_frame[parent_frame.rfind("/") + 1 :]
+                transform = get_a_tform_b(
+                    world_object.transforms_snapshot, spot_parent_frame, frame
+                )
+                local_time = spot_wrapper.robotToLocalTime(
+                    world_object.acquisition_time
+                )
+                tf_time = rospy.Time(secs=local_time.seconds, nsecs=local_time.nanos)
+                if transform:
+                    new_tf = populateTransformStamped(
+                        tf_time, parent_frame, frame, transform
+                    )
+                    tf_msg.transforms.append(new_tf)
+
+            except Exception as e:
+                spot_wrapper.logger.error("Error: {}".format(e))
+    return tf_msg
+
+
+def bosdyn_data_to_image_and_camera_info_msgs(
+    data: image_pb2.ImageResponse, spot_wrapper: SpotWrapper
+) -> typing.Tuple[Image, CameraInfo]:
+    """Takes the image and camera data and populates the necessary ROS messages
+    Args:
+        spot_wrapper: SpotWrapper
+        data: Image proto
+    Returns:
+        (tuple):
+            * Image: message of the image captured
+            * CameraInfo: message to define the state and config of the camera that took the image
+    """
+    image_msg = Image()
+    local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
+    image_msg.header.stamp = rospy.Time(secs=local_time.seconds, nsecs=local_time.nanos)
+    image_msg.header.frame_id = data.shot.frame_name_image_sensor
+    image_msg.height = data.shot.image.rows
+    image_msg.width = data.shot.image.cols
+
+    # Color/greyscale formats.
+    # JPEG format
+    if data.shot.image.format == image_pb2.Image.FORMAT_JPEG:
+        image_msg.encoding = "rgb8"
+        image_msg.is_bigendian = True
+        image_msg.step = 3 * data.shot.image.cols
+        image_msg.data = data.shot.image.data
+
+    # Uncompressed.  Requires pixel_format.
+    if data.shot.image.format == image_pb2.Image.FORMAT_RAW:
+        # One byte per pixel.
+        if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_GREYSCALE_U8:
+            image_msg.encoding = "mono8"
+            image_msg.is_bigendian = True
+            image_msg.step = data.shot.image.cols
+            image_msg.data = data.shot.image.data
+
+        # Three bytes per pixel.
+        if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_RGB_U8:
+            image_msg.encoding = "rgb8"
+            image_msg.is_bigendian = True
+            image_msg.step = 3 * data.shot.image.cols
+            image_msg.data = data.shot.image.data
+
+        # Four bytes per pixel.
+        if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_RGBA_U8:
+            image_msg.encoding = "rgba8"
+            image_msg.is_bigendian = True
+            image_msg.step = 4 * data.shot.image.cols
+            image_msg.data = data.shot.image.data
+
+        # Little-endian uint16 z-distance from camera (mm).
+        if data.shot.image.pixel_format == image_pb2.Image.PIXEL_FORMAT_DEPTH_U16:
+            image_msg.encoding = "16UC1"
+            image_msg.is_bigendian = False
+            image_msg.step = 2 * data.shot.image.cols
+            image_msg.data = data.shot.image.data
+
+    # camera_info_msg = createDefaulCameraInfo(camera_info_msg)
+    camera_info_msg = CameraInfo()
+    camera_info_msg.distortion_model = "plumb_bob"
+
+    camera_info_msg.D.append(0)
+    camera_info_msg.D.append(0)
+    camera_info_msg.D.append(0)
+    camera_info_msg.D.append(0)
+    camera_info_msg.D.append(0)
+
+    camera_info_msg.K[1] = 0
+    camera_info_msg.K[3] = 0
+    camera_info_msg.K[6] = 0
+    camera_info_msg.K[7] = 0
+    camera_info_msg.K[8] = 1
+
+    camera_info_msg.R[0] = 1
+    camera_info_msg.R[1] = 0
+    camera_info_msg.R[2] = 0
+    camera_info_msg.R[3] = 0
+    camera_info_msg.R[4] = 1
+    camera_info_msg.R[5] = 0
+    camera_info_msg.R[6] = 0
+    camera_info_msg.R[7] = 0
+    camera_info_msg.R[8] = 1
+
+    camera_info_msg.P[1] = 0
+    camera_info_msg.P[3] = 0
+    camera_info_msg.P[4] = 0
+    camera_info_msg.P[7] = 0
+    camera_info_msg.P[8] = 0
+    camera_info_msg.P[9] = 0
+    camera_info_msg.P[10] = 1
+    camera_info_msg.P[11] = 0
+    local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
+    camera_info_msg.header.stamp = rospy.Time(
+        secs=local_time.seconds, nsecs=local_time.nanos
+    )
+    camera_info_msg.header.frame_id = data.shot.frame_name_image_sensor
+    camera_info_msg.height = data.shot.image.rows
+    camera_info_msg.width = data.shot.image.cols
+
+    camera_info_msg.K[0] = data.source.pinhole.intrinsics.focal_length.x
+    camera_info_msg.K[2] = data.source.pinhole.intrinsics.principal_point.x
+    camera_info_msg.K[4] = data.source.pinhole.intrinsics.focal_length.y
+    camera_info_msg.K[5] = data.source.pinhole.intrinsics.principal_point.y
+
+    camera_info_msg.P[0] = data.source.pinhole.intrinsics.focal_length.x
+    camera_info_msg.P[2] = data.source.pinhole.intrinsics.principal_point.x
+    camera_info_msg.P[5] = data.source.pinhole.intrinsics.focal_length.y
+    camera_info_msg.P[6] = data.source.pinhole.intrinsics.principal_point.y
+
+    return image_msg, camera_info_msg

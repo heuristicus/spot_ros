@@ -22,15 +22,17 @@ jobs:
         run: |
           mkdir -p $GITHUB_WORKSPACE/catkin_ws/src
 
-      # Check out the code
-      - uses: actions/checkout@v3
+      # Check out the Spot ROS code
+      - name: Checkout SpotROS
+        uses: actions/checkout@v3
         with:
           path: catkin_ws/src/spot_ros
 
-      - name: Check that code has been downloaded correctly
-        run: |
-          ls $GITHUB_WORKSPACE/catkin_ws/src
-          ls $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
+      - name: Checkout Spot Wrapper
+        uses: actions/checkout@v3
+        with:
+          repository: jeremysee2/spot_wrapper #TODO: Change to bdaiinstitute once merged
+          path: catkin_ws/src/spot_ros/spot_wrapper
 
       # Install the required packages
       - name: Install dependencies (minus qttools)
@@ -46,6 +48,18 @@ jobs:
             bosdyn-core \
             empy
         working-directory: catkin_ws/
+
+      # Install SpotWrapper
+      - name: Install SpotWrapper
+        run: |
+          cd $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
+          pip install -r spot_wrapper/requirements.txt
+          pip install -e spot_wrapper
+
+      - name: Check that code has been downloaded correctly
+        run: |
+          ls $GITHUB_WORKSPACE/catkin_ws/src
+          ls $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
 
       # Build our workspace
       - name: Build workspace for spot_driver

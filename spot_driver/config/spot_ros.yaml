@@ -6,9 +6,7 @@ rates:
   robot_state: 20.0
   metrics: 0.04
   lease: 1.0
-  front_image: 10.0
-  side_image: 10.0
-  rear_image: 10.0
+  camera_images: 10.0
   point_cloud: 10.0
   hand_image: 10.0
   feedback: 10.0
@@ -24,13 +22,6 @@ auto_power_on: False
 auto_stand: False
 depth_in_visual: True
 mode_parent_odom_tf: vision
-
-claim:
-  # If true, forcefully take the lease, instead of acquiring it, which can fail if someone else has it
-  use_take_lease: False
-  # If true, try and claim the lease when doing actions if we don't already have it. Also automatically powers on for
-  # stand, rollover and self-right commands
-  get_lease_on_action: False
 
 claim:
   # If true, forcefully take the lease, instead of acquiring it, which can fail if someone else has it

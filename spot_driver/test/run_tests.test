@@ -1,4 +1,8 @@
 <launch>
+  <test test-name="spot_ros_tests" pkg="spot_driver" type="spot_ros_test.py" time-limit="1000.0"/>
+
+  <test test-name="spot_driver_helper_tests" pkg="spot_driver" type="run_tests.py" time-limit="1000.0"/>
+
   <arg name="username" default="dummyusername" />
   <arg name="password" default="dummypassword" />
   <arg name="hostname" default="192.168.80.3" />
@@ -26,8 +30,4 @@
     <remap from="joint_states" to="/joint_states"/>
     <remap from="tf" to="/tf"/>
   </node>
-
-    <test test-name="spot_ros_tests" pkg="spot_driver" type="spot_ros_test.py" time-limit="1000.0"/>
-
-    <test test-name="spot_driver_helper_tests" pkg="spot_driver" type="run_tests.py" time-limit="1000.0"/>
 </launch>

@@ -3,10 +3,11 @@ PKG = "ros_helpers"
 NAME = "ros_helpers_test"
 SUITE = "ros_helpers_test.TestSuiteROSHelpers"
 
-import pickle
+import logging
 import unittest
 import rospy
 
+from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import Transform
 from spot_msgs.msg import FootState, FootStateArray
 from spot_msgs.msg import (
@@ -41,7 +42,8 @@ from spot_wrapper.wrapper import SpotWrapper
 
 class TestSpotWrapper(SpotWrapper):
     def __init__(self):
-        pass
+        self._logger = logging.getLogger("spot_wrapper")
+        self._frame_prefix = ""
 
     @property
     def time_skew(self) -> duration_pb2.Duration:
@@ -489,18 +491,20 @@ class TestGetTFFromState(unittest.TestCase):
             state, spot_wrapper, inverse_target_frame
         )
 
-        self.assertEqual(len(tf_message.transforms), 2)
-        self.assertEqual(tf_message.transforms[0].header.frame_id, "body")
-        self.assertEqual(tf_message.transforms[0].child_frame_id, "odom")
-        self.assertEqual(tf_message.transforms[0].transform.translation.x, -2.0)
-        self.assertEqual(tf_message.transforms[0].transform.translation.y, -3.0)
-        self.assertEqual(tf_message.transforms[0].transform.translation.z, -2.0)
+        transforms = sorted(tf_message.transforms, key=lambda x: x.child_frame_id)
 
-        self.assertEqual(tf_message.transforms[1].header.frame_id, "body")
-        self.assertEqual(tf_message.transforms[1].child_frame_id, "vision")
-        self.assertEqual(tf_message.transforms[1].transform.translation.x, 2.0)
-        self.assertEqual(tf_message.transforms[1].transform.translation.y, 3.0)
-        self.assertEqual(tf_message.transforms[1].transform.translation.z, 2.0)
+        self.assertEqual(len(transforms), 2)
+        self.assertEqual(transforms[0].header.frame_id, "body")
+        self.assertEqual(transforms[0].child_frame_id, "odom")
+        self.assertEqual(transforms[0].transform.translation.x, -2.0)
+        self.assertEqual(transforms[0].transform.translation.y, -3.0)
+        self.assertEqual(transforms[0].transform.translation.z, -2.0)
+
+        self.assertEqual(transforms[1].header.frame_id, "body")
+        self.assertEqual(transforms[1].child_frame_id, "vision")
+        self.assertEqual(transforms[1].transform.translation.x, 2.0)
+        self.assertEqual(transforms[1].transform.translation.y, 3.0)
+        self.assertEqual(transforms[1].transform.translation.z, 2.0)
 
     def test_get_tf_from_state_vision(self):
         state = robot_state_pb2.RobotState()
@@ -537,25 +541,27 @@ class TestGetTFFromState(unittest.TestCase):
         tf_message = ros_helpers.GetTFFromState(
             state, spot_wrapper, inverse_target_frame
         )
-        self.assertEqual(len(tf_message.transforms), 3)
 
-        self.assertEqual(tf_message.transforms[0].header.frame_id, "body")
-        self.assertEqual(tf_message.transforms[0].child_frame_id, "odom")
-        self.assertEqual(tf_message.transforms[0].transform.translation.x, -2.0)
-        self.assertEqual(tf_message.transforms[0].transform.translation.y, -3.0)
-        self.assertEqual(tf_message.transforms[0].transform.translation.z, -4.0)
+        transforms = sorted(tf_message.transforms, key=lambda x: x.child_frame_id)
 
-        self.assertEqual(tf_message.transforms[1].header.frame_id, "vision")
-        self.assertEqual(tf_message.transforms[1].child_frame_id, "body")
-        self.assertEqual(tf_message.transforms[1].transform.translation.x, -4.0)
-        self.assertEqual(tf_message.transforms[1].transform.translation.y, -5.0)
-        self.assertEqual(tf_message.transforms[1].transform.translation.z, -6.0)
+        self.assertEqual(len(transforms), 3)
+        self.assertEqual(transforms[0].header.frame_id, "vision")
+        self.assertEqual(transforms[0].child_frame_id, "body")
+        self.assertEqual(transforms[0].transform.translation.x, -4.0)
+        self.assertEqual(transforms[0].transform.translation.y, -5.0)
+        self.assertEqual(transforms[0].transform.translation.z, -6.0)
 
-        self.assertEqual(tf_message.transforms[2].header.frame_id, "special_frame")
-        self.assertEqual(tf_message.transforms[2].child_frame_id, "body")
-        self.assertEqual(tf_message.transforms[2].transform.translation.x, 7.0)
-        self.assertEqual(tf_message.transforms[2].transform.translation.y, 8.0)
-        self.assertEqual(tf_message.transforms[2].transform.translation.z, 9.0)
+        self.assertEqual(transforms[1].header.frame_id, "special_frame")
+        self.assertEqual(transforms[1].child_frame_id, "body")
+        self.assertEqual(transforms[1].transform.translation.x, 7.0)
+        self.assertEqual(transforms[1].transform.translation.y, 8.0)
+        self.assertEqual(transforms[1].transform.translation.z, 9.0)
+
+        self.assertEqual(transforms[2].header.frame_id, "body")
+        self.assertEqual(transforms[2].child_frame_id, "odom")
+        self.assertEqual(transforms[2].transform.translation.x, -2.0)
+        self.assertEqual(transforms[2].transform.translation.y, -3.0)
+        self.assertEqual(transforms[2].transform.translation.z, -4.0)
 
 
 class TestGetBatteryStatesFromState(unittest.TestCase):
@@ -1348,14 +1354,9 @@ class TestGetImagePropertiesMsg(unittest.TestCase):
 
 
 class TestGetWorldObjectsMsg(unittest.TestCase):
-    def test_get_world_objects_msg(self):
-        # Create a TestSpotWrapper
-        spot_wrapper = TestSpotWrapper()
-
+    def setUp(self):
         # Create world_object_pb2.ListWorldObjectResponse test data, similar to real data
-        data = world_object_pb2.ListWorldObjectResponse()
-
-        world_object = world_object_pb2.WorldObject(
+        self.world_object = world_object_pb2.WorldObject(
             id=1,
             name="world_obj_apriltag_350",
             acquisition_time=timestamp_pb2.Timestamp(
@@ -1493,7 +1494,15 @@ class TestGetWorldObjectsMsg(unittest.TestCase):
                 size_ewrt_frame=geometry_pb2.Vec3(x=1.0, y=2.0, z=3.0),
             ),
         )
-        data.world_objects.append(world_object)
+        return super().setUp()
+
+    def test_get_world_objects_msg(self):
+        # Create a TestSpotWrapper
+        spot_wrapper = TestSpotWrapper()
+
+        data = world_object_pb2.ListWorldObjectResponse(
+            world_objects=[self.world_object]
+        )
 
         # Create a WorldObjects message
         world_objects_msg: WorldObjectArray = ros_helpers.GetWorldObjectsMsg(
@@ -1572,6 +1581,98 @@ class TestGetWorldObjectsMsg(unittest.TestCase):
         self.assertEqual(msg_world_obj.bounding_box_size_ewrt_frame.y, 2.0)
         self.assertEqual(msg_world_obj.bounding_box_size_ewrt_frame.z, 3.0)
 
+    def test_get_tf_world_objects(self):
+        # Test the GetTFFromWorldObjects function
+
+        # Create a TestSpotWrapper
+        spot_wrapper = TestSpotWrapper()
+
+        # Create a WorldObject
+        world_objects = [self.world_object]
+
+        # Get the TF message
+        tf_msg: TFMessage = ros_helpers.GetTFFromWorldObjects(
+            world_objects, spot_wrapper, "vision"
+        )
+
+        # Check that the TF message is correct
+        transforms = sorted(tf_msg.transforms, key=lambda x: x.child_frame_id)
+
+        self.assertEqual(len(transforms), 2)
+        self.assertEqual(transforms[1].header.frame_id, "vision")
+        self.assertEqual(transforms[1].child_frame_id, "filtered_fiducial_350")
+        self.assertAlmostEqual(transforms[1].transform.translation.x, -44.0, places=1)
+        self.assertAlmostEqual(transforms[1].transform.translation.y, -96.0, places=1)
+        self.assertAlmostEqual(transforms[1].transform.translation.z, 1.8, places=1)
+        self.assertAlmostEqual(transforms[1].transform.rotation.x, 0.94, places=1)
+        self.assertAlmostEqual(transforms[1].transform.rotation.y, 1.0, places=1)
+        self.assertAlmostEqual(transforms[1].transform.rotation.z, 1.02, places=1)
+        self.assertAlmostEqual(transforms[1].transform.rotation.w, -0.92, places=1)
+
+        self.assertEqual(transforms[0].header.frame_id, "vision")
+        self.assertEqual(transforms[0].child_frame_id, "fiducial_350")
+        self.assertAlmostEqual(transforms[0].transform.translation.x, 1.08, places=1)
+        self.assertAlmostEqual(transforms[0].transform.translation.y, -0.8, places=1)
+        self.assertAlmostEqual(transforms[0].transform.translation.z, 2.44, places=1)
+        self.assertAlmostEqual(transforms[0].transform.rotation.x, 1.46, places=1)
+        self.assertAlmostEqual(transforms[0].transform.rotation.y, -1.3, places=1)
+        self.assertAlmostEqual(transforms[0].transform.rotation.z, 0.0, places=1)
+        self.assertAlmostEqual(transforms[0].transform.rotation.w, -0.22, places=1)
+
+    def test_get_tf_world_objects_no_world_objects(self):
+        # Test the GetTFFromWorldObjects function with no WorldObjects
+
+        # Create a TestSpotWrapper
+        spot_wrapper = TestSpotWrapper()
+
+        # Create a WorldObject
+        world_objects = []
+
+        # Get the TF message
+        tf_msg: TFMessage = ros_helpers.GetTFFromWorldObjects(
+            world_objects, spot_wrapper, "vision"
+        )
+
+        # Check that the TF message is correct
+        self.assertEqual(len(tf_msg.transforms), 0)
+
+
+class TestGetBodyImageMsgs(unittest.TestCase):
+    def setUp(self):
+        # Make a test ImageResponse
+        image_response = image_pb2.ImageResponse()
+        image_response.shot.image.data = b"test"
+        image_response.shot.image.cols = 640
+        image_response.shot.image.rows = 480
+        image_response.shot.image.format = image_pb2.Image.FORMAT_RAW
+        image_response.shot.image.pixel_format = image_pb2.Image.PIXEL_FORMAT_RGB_U8
+        image_response.shot.frame_name_image_sensor = "frontleft_fisheye_image"
+
+        self.image_response = image_response
+
+    def test_get_image_msgs(self):
+        # Create TestSpotWrapper
+        spot_wrapper = TestSpotWrapper()
+
+        # Get the ImageMsgs
+        image_msg, camera_info = ros_helpers.bosdyn_data_to_image_and_camera_info_msgs(
+            self.image_response, spot_wrapper
+        )
+
+        # Check that the ImageMsg is correct
+        self.assertEqual(image_msg.header.frame_id, "frontleft_fisheye_image")
+        self.assertEqual(image_msg.height, 480)
+        self.assertEqual(image_msg.width, 640)
+        self.assertEqual(image_msg.encoding, "rgb8")
+        self.assertEqual(image_msg.is_bigendian, True)
+        self.assertEqual(image_msg.step, 1920)
+        self.assertEqual(image_msg.data, b"test")
+
+        # Check that the CameraInfoMsg is correct
+        self.assertEqual(camera_info.header.frame_id, "frontleft_fisheye_image")
+        self.assertEqual(camera_info.height, 480)
+        self.assertEqual(camera_info.width, 640)
+
 
 class TestSuiteROSHelpers(unittest.TestSuite):
     def __init__(self):
@@ -1600,6 +1701,7 @@ class TestSuiteROSHelpers(unittest.TestSuite):
         self.addTest(self.loader.loadTestsFromTestCase(TestGetAprilTagPropertiesMsg))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetImagePropertiesMsg))
         self.addTest(self.loader.loadTestsFromTestCase(TestGetWorldObjectsMsg))
+        self.addTest(self.loader.loadTestsFromTestCase(TestGetBodyImageMsgs))
 
 
 if __name__ == "__main__":
@@ -1629,5 +1731,6 @@ if __name__ == "__main__":
     rosunit.unitrun(PKG, NAME, TestGetAprilTagPropertiesMsg)
     rosunit.unitrun(PKG, NAME, TestGetImagePropertiesMsg)
     rosunit.unitrun(PKG, NAME, TestGetWorldObjectsMsg)
+    rosunit.unitrun(PKG, NAME, TestGetBodyImageMsgs)
 
     print("Tests complete!")
