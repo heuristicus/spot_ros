@@ -23,6 +23,9 @@
   <exec_depend>velodyne_pointcloud</exec_depend>
   <exec_depend>python-transforms3d-pip</exec_depend>
 
+  <test_depend>rostest</test_depend>
+  <test_depend>rosunit</test_depend>
+
   <export>
     <rosdoc config="rosdoc.yaml" />
   </export>

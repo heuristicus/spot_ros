@@ -1,0 +1,26 @@
+# See https://dev.bostondynamics.com/python/bosdyn-client/src/bosdyn/client/spot_check
+bool start
+bool blocking
+bool revert_calibration
+bool feedback_only
+---
+bool success
+string message
+
+string[] camera_names
+spot_msgs/SpotCheckDepth[] camera_results
+
+string[] load_cell_names
+spot_msgs/SpotCheckLoadCell[] load_cell_results
+
+string[] kinematic_joint_names
+spot_msgs/SpotCheckKinematic[] kinematic_cal_results
+
+spot_msgs/SpotCheckPayload payload_result
+
+string[] leg_names
+spot_msgs/SpotCheckHipROM[] hip_range_of_motion_results
+
+float32 progress
+
+time last_cal_timestamp
