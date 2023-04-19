@@ -3,11 +3,6 @@ import typing
 import rosunit
 
 test_cases: typing.List[typing.Tuple[str, str, str]] = [
-    (
-        "graph_nav_util",
-        "graph_nav_util_test",
-        "graph_nav_util_test.TestSuiteGraphNavUtil",
-    ),
     ("ros_helpers", "ros_helpers_test", "ros_helpers_test.TestSuiteROSHelpers"),
 ]
 

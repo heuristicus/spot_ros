@@ -19,6 +19,19 @@ Go to the source directory of your ROS workspace and clone this repository with
 git clone git@github.com:heuristicus/spot_ros.git
 ```
 
+Then, initialise the submodule for the wrapper we use to interact with the Boston Dynamics SDK
+
+```bash
+cd spot_ros
+git submodule init
+git submodule update
+```
+
+Then, install the python package containing the wrapper
+
+```bash
+pip3 install -e spot_wrapper 
+```
 Build the ROS packages 
 
 ```bash

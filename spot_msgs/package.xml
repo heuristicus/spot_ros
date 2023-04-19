@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>spot_msgs</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>The spot_msgs package</description>
 
   <maintainer email="michal@robots.ox.ac.uk">Michal Staniaszek</maintainer>

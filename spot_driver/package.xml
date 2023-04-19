@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>spot_driver</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>The spot_driver package</description>
 
   <maintainer email="michal@robots.ox.ac.uk">Michal Staniaszek</maintainer>
@@ -21,6 +21,7 @@
   <exec_depend>interactive_marker_twist_server</exec_depend>
   <exec_depend>teleop_twist_joy</exec_depend>
   <exec_depend>velodyne_pointcloud</exec_depend>
+  <exec_depend>python-transforms3d-pip</exec_depend>
 
   <test_depend>rostest</test_depend>
   <test_depend>rosunit</test_depend>
