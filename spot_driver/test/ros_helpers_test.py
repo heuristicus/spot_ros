@@ -36,7 +36,7 @@ from bosdyn.client.frame_helpers import (
 )
 
 import spot_driver.ros_helpers as ros_helpers
-from spot_driver.spot_wrapper import SpotWrapper
+from spot_wrapper.wrapper import SpotWrapper
 
 
 class TestSpotWrapper(SpotWrapper):
