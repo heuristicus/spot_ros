@@ -1,4 +1,4 @@
-Arm control
+Arm Control
 ===========
 
 The driver can also send commands to the robots arm, if it has one. The following services
