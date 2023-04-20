@@ -1,4 +1,4 @@
-Spot EAP usage
+Spot EAP Usage
 ==========================================
 
 The `Spot EAP package <https://support.bostondynamics.com/s/article/Spot-Enhanced-Autonomy-Package-EAP>`_ is a payload that
