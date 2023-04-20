@@ -11,3 +11,5 @@ Spot ROS User Documentation
     ros_usage
     arm_usage
     eap_usage
+    graphnav_usage
+    docker_deploy
