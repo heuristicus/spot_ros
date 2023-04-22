@@ -542,7 +542,9 @@ class TestGetTFFromState(unittest.TestCase):
             state, spot_wrapper, inverse_target_frame
         )
 
-        transforms = sorted(tf_message.transforms, key=lambda x: x.child_frame_id)
+        transforms = list(
+            reversed(sorted(tf_message.transforms, key=lambda x: x.header.frame_id))
+        )
 
         self.assertEqual(len(transforms), 3)
         self.assertEqual(transforms[0].header.frame_id, "vision")

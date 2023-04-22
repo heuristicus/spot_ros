@@ -128,7 +128,7 @@ def populateTransformStamped(
         transform: A transform to copy into a StampedTransform object. Should have position (x,y,z) and rotation (x,
         y,z,w) members
     Returns:
-        TransformStamped message. Empty if transform does not have position or translation attribute
+        TransformStamped ROS message. Empty if transform does not have position or translation attribute
     """
     if hasattr(transform, "position"):
         position = transform.position
@@ -243,7 +243,7 @@ def GetPointCloudMsg(
         data: PointCloud proto (PointCloudResponse)
         spot_wrapper: A SpotWrapper object
     Returns:
-           PointCloud: message of the point cloud (PointCloud2)
+        PointCloud: ROS message of the point cloud (PointCloud2)
     """
     point_cloud_msg = PointCloud2()
     local_time = spot_wrapper.robotToLocalTime(data.point_cloud.source.acquisition_time)
@@ -280,7 +280,7 @@ def GetJointStatesFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        JointState message
+        JointState ROS message
     """
     joint_state = JointState()
     local_time = spot_wrapper.robotToLocalTime(
@@ -309,7 +309,7 @@ def GetEStopStateFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        EStopArray message
+        EStopArray ROS message
     """
     estop_array_msg = EStopStateArray()
     for estop in state.estop_states:
@@ -334,7 +334,7 @@ def GetFeetFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        FootStateArray message
+        FootStateArray ROS message
     """
     foot_array_msg = FootStateArray()
     for foot in state.foot_state:
@@ -378,7 +378,7 @@ def GetOdomTwistFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        TwistWithCovarianceStamped message
+        TwistWithCovarianceStamped ROS message
     """
     twist_odom_msg = TwistWithCovarianceStamped()
     local_time = spot_wrapper.robotToLocalTime(
@@ -481,7 +481,7 @@ def GetOdomFromState(
         spot_wrapper: A SpotWrapper object
         use_vision: If true, the odometry frame will be vision rather than odom
     Returns:
-        Odometry message
+        Odometry ROS message
     """
     odom_msg = Odometry()
     local_time = spot_wrapper.robotToLocalTime(
@@ -519,7 +519,7 @@ def GetWifiFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        WiFiState message
+        WiFiState ROS message
     """
     wifi_msg = WiFiState()
     for comm_state in state.comms_states:
@@ -539,7 +539,7 @@ def GenerateFeetTF(
     Args:
         foot_states_msg: FootStateArray message containing the foot states from the robot state
 
-    Returns: tf message with foot states
+    Returns: tf ROS message with foot states
 
     """
     foot_ordering = ["front_left", "front_right", "rear_left", "rear_right"]
@@ -575,7 +575,7 @@ def GetTFFromState(
         spot_wrapper: A SpotWrapper object
         inverse_target_frame: A frame name to be inversed to a parent frame.
     Returns:
-        TFMessage message
+        TFMessage ROS message
     """
     tf_msg = TFMessage()
 
@@ -626,7 +626,7 @@ def GetBatteryStatesFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        BatteryStateArray message
+        BatteryStateArray ROS message
     """
     battery_states_array_msg = BatteryStateArray()
     for battery in state.battery_states:
@@ -658,7 +658,7 @@ def GetPowerStatesFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        PowerState message
+        PowerState ROS message
     """
     power_state_msg = PowerState()
     local_time = spot_wrapper.robotToLocalTime(state.power_state.timestamp)
@@ -681,7 +681,7 @@ def GetDockStatesFromState(state: docking_pb2.DockState) -> DockState:
     Args:
         state: Robot State proto
     Returns:
-        DockState message
+        DockState ROS message
     """
     dock_state_msg = DockState()
     dock_state_msg.status = state.status
@@ -701,7 +701,7 @@ def GetBehaviorFaults(
         behavior_faults: List of BehaviorFaults
         spot_wrapper: A SpotWrapper object
     Returns:
-        List of BehaviorFault messages
+        List of BehaviorFault ROS messages
     """
     faults = []
 
@@ -726,7 +726,7 @@ def GetBehaviorFaultsFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        BehaviorFaultState message
+        BehaviorFaultState ROS message
     """
     behavior_fault_state_msg = BehaviorFaultState()
     behavior_fault_state_msg.faults = GetBehaviorFaults(
@@ -744,7 +744,7 @@ def GetSystemFaults(
         systen_faults: List of SystemFaults
         spot_wrapper: A SpotWrapper object
     Returns:
-        List of SystemFault messages
+        List of SystemFault ROS messages
     """
     faults = []
 
@@ -776,7 +776,7 @@ def GetSystemFaultsFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
     Returns:
-        SystemFaultState message
+        SystemFaultState ROS message
     """
     system_fault_state_msg = SystemFaultState()
     system_fault_state_msg.faults = GetSystemFaults(
@@ -791,7 +791,15 @@ def GetSystemFaultsFromState(
 def GetSpotCheckResultsMsg(
     data: spot_check_pb2.SpotCheckFeedbackResponse, resp: typing.Tuple[bool, str]
 ) -> SpotCheckResponse:
-    """Build the SpotCheckReponse message from the SpotCheckFeedbackResponse"""
+    """Build the SpotCheckReponse message from the SpotCheckFeedbackResponse
+
+    Args:
+        data: SpotCheckFeedbackResponse proto, containing Spot Check data
+        resp: Response status from spot_wrapper function call
+
+    Returns:
+        SpotCheckResponse ROS message
+    """
     ros_resp = SpotCheckResponse()
     ros_resp.success = resp[0]
     ros_resp.message = resp[1]
@@ -815,7 +823,14 @@ def GetSpotCheckResultsMsg(
 
 
 def GetFrameTreeSnapshotMsg(data: geometry_pb2.FrameTreeSnapshot) -> FrameTreeSnapshot:
-    """Build the FrameTreeSnapshot message from the FrameTreeSnapshot proto"""
+    """Build the FrameTreeSnapshot message from the FrameTreeSnapshot proto
+
+    Args:
+        data: FrameTreeSnapshot proto, containing transforms between reference frames
+
+    Returns:
+        FrameTreeSnapshot ROS message
+    """
     frame_tree_snapshot_msg = FrameTreeSnapshot()
     child_parent_map: typing.Dict[
         str, geometry_pb2.SE3Pose
@@ -850,7 +865,14 @@ def GetFrameTreeSnapshotMsg(data: geometry_pb2.FrameTreeSnapshot) -> FrameTreeSn
 def GetAprilTagPropertiesMsg(
     data: world_object_pb2.AprilTagProperties,
 ) -> AprilTagProperties:
-    """Build the AprilTagProperties message from the AprilTagProperties proto"""
+    """Build the AprilTagProperties message from the AprilTagProperties proto
+
+    Args:
+        data: AprilTagProperties proto, containing size and reference frame data of the AprilTage
+
+    Returns:
+        AprilTagProperties ROS message
+    """
     april_tag_properties_msg = AprilTagProperties()
     april_tag_properties_msg.tag_id = data.tag_id
     april_tag_properties_msg.x = data.dimensions.x
@@ -879,7 +901,15 @@ def GetAprilTagPropertiesMsg(
 def GetImagePropertiesMsg(
     data: world_object_pb2.ImageProperties, spot_wrapper: "SpotWrapper"
 ) -> ImageProperties:
-    """Build the ImageProperties message from the ImageProperties proto"""
+    """Build the ImageProperties message from the ImageProperties proto
+
+    Args:
+        data: ImageProperties proto, containing camera properties associated with the image
+        spot_wrapper: SpotWrapper object to convert robotToLocalTime
+
+    Returns:
+        ImageProperties ROS message
+    """
     image_properties_msg = ImageProperties()
     image_properties_msg.camera_source = data.camera_source
     if data.coordinates:
@@ -975,7 +1005,15 @@ def GetWorldObjectsMsg(
     data: world_object_pb2.ListWorldObjectResponse,
     spot_wrapper: SpotWrapper,
 ) -> WorldObjectArray:
-    """Build the WorldObjectsResponse message from the WorldObjectsResponse"""
+    """Build the WorldObjectsResponse message from the WorldObjectsResponse
+
+    Args:
+        data: ListWorldObjectResponse proto
+        spot_wrapper: SpotWrapper object to convert robotToLocalTime
+
+    Returns:
+        WorldObjectArray ROS message
+    """
     world_object_msg = WorldObjectArray()
 
     world_objects: typing.List[world_object_pb2.WorldObject] = data.world_objects
@@ -1051,6 +1089,14 @@ def GetWorldObjectsMsg(
 def GetFrameNamesAssociatedWithObject(
     world_object: world_object_pb2.WorldObject,
 ) -> typing.List[str]:
+    """Extract the possible frame names associated with World Objects
+
+    Args:
+        world_object: WorldObject proto containing World Object data
+
+    Returns:
+        list of possible frame names to search for in the FrameTreeSnapshot later
+    """
     possible_frame_names = [
         world_object.apriltag_properties.frame_name_fiducial,
         world_object.apriltag_properties.frame_name_fiducial_filtered,
@@ -1069,6 +1115,16 @@ def GetTFFromWorldObjects(
     spot_wrapper: SpotWrapper,
     parent_frame: str,
 ) -> TFMessage:
+    """Extract transforms from detected world objects and returns TFMessage to be published to /tf
+
+    Args:
+        world_objects: list of WorldObject protos, describing detected World Objects
+        spot_wrapper: SpotWrapper object to convert robotToLocalTime
+        parent_frame: Parent frame to be used in the TFMessage
+
+    returns:
+        TFMessage ROS message, describing position of World Objects relative to parent_frame
+    """
     tf_msg = TFMessage()
     for world_object in world_objects:
         frames = GetFrameNamesAssociatedWithObject(world_object)
