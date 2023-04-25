@@ -23,6 +23,9 @@ class GripperActionServer:
         self.task_wrapper = ros_wrapper.task_wrapper
         self.ros_wrapper = ros_wrapper
     
+    def handler(self, goal):
+        raise NotImplementedError("Must be implemented by subclass")
+
     def _handle_feedback(self):
         while not rospy.is_shutdown() and self._running:
             f = GripperFeedback(self.task_wrapper.feedback)
@@ -43,7 +46,7 @@ class GripperActionServer:
 
         # Check requirements
         goal = self.ros_wrapper._transform_pose_to_body_frame(goal)
-        rospy.loginfo("transformed goal to: " + str(goal))
+        rospy.loginfo(f"transformed goal to: {goal.pose}")
         
         # Start feedback thread
         self._feedback_thread = threading.Thread(target=self._handle_feedback, args=())
@@ -51,9 +54,8 @@ class GripperActionServer:
         self._feedback_thread.start()
 
         # Run action
-        pose = self._ros_pose_to_mat(goal.pose)
         try:
-            self.task_wrapper.grasp(pose, goal.header.frame_id)
+            self.handler(goal)
             self._server.set_succeeded(
                 GripperResult(
                     success=True,
@@ -71,3 +73,22 @@ class GripperActionServer:
         # Stop feedback thread
         self._running = False
         self._feedback_thread.join()
+
+
+class GraspActionServer(GripperActionServer):
+    def __init__(self, ros_wrapper, action_name, feedback_rate=5):
+        super().__init__(ros_wrapper, action_name, feedback_rate)
+
+    def handler(self, goal):
+        pose = self._ros_pose_to_mat(goal.pose)
+        return self.task_wrapper.grasp(pose, goal.header.frame_id)
+
+
+
+class MoveActionServer(GripperActionServer):
+    def __init__(self, ros_wrapper, action_name, feedback_rate=5):
+        super().__init__(ros_wrapper, action_name, feedback_rate)
+
+    def handler(self, goal):
+        pose = self._ros_pose_to_mat(goal.pose)
+        return self.task_wrapper.move_object(pose, goal.header.frame_id)

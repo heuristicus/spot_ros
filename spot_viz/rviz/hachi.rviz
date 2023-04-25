@@ -7,7 +7,6 @@ Panels:
         - /Global Options1
         - /Status1
         - /TF1/Frames1
-        - /DepthClouds1
       Splitter Ratio: 0.5
     Tree Height: 808
   - Class: rviz/Selection

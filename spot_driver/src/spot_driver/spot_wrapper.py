@@ -56,11 +56,14 @@ from bosdyn.api import synchronized_command_pb2
 from bosdyn.api import robot_command_pb2
 from bosdyn.api import geometry_pb2
 from bosdyn.api import trajectory_pb2
+from bosdyn.api.gripper_command_pb2 import ClawGripperCommand
 from bosdyn.util import seconds_to_duration
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from .utils.asynchronous_tasks import AsyncMetrics, AsyncLease, AsyncImageService, AsyncIdle, AsyncEStopMonitor
+from bosdyn.client.robot_command import block_until_arm_arrives
+
 
 """List of image sources for front image periodic query"""
 front_image_infos = {
@@ -301,35 +304,41 @@ class SpotWrapper:
             self._estop_endpoint = None
             self._estop_keepalive = None
 
-            self._async_tasks = AsyncTasks(
-                [
-                    self._robot_state_task,
-                    self._robot_metrics_task,
-                    self._lease_task,
-                    self._front_image_task,
-                    self._side_image_task,
-                    self._rear_image_task,
-                    self._idle_task,
-                    self._estop_monitor,
-                ]
-            )
+            self._async_tasks = AsyncTasks([])
+            def _add_task(task): 
+                if task: self._async_tasks.add_task(task)
+
+            for t in [  
+                self._robot_state_task,
+                self._robot_metrics_task,
+                self._lease_task,
+                self._front_image_task,
+                self._side_image_task,
+                self._rear_image_task,
+                self._idle_task,
+                self._estop_monitor,
+            ]: _add_task(t)
 
             if self._robot.has_arm():
-                self._async_tasks.add_task(self._hand_image_task)
-                self._async_tasks.add_task(self._hand_pointcloud_task)
-                self._async_tasks.add_task(self._front_pointcloud_task)
-                self._async_tasks.add_task(self._rear_pointcloud_task)
-                self._async_tasks.add_task(self._side_pointcloud_task)
+                for t in [
+                    self._hand_image_task,
+                    self._hand_pointcloud_task,
+                    self._front_pointcloud_task,
+                    self._rear_pointcloud_task,
+                    self._side_pointcloud_task,
+                ]: _add_task(t)
 
             self._robot_id = None
             self._lease = None
 
     def _make_image_service(self, cb_name, data_requester):
         '''Helper function to create an AsyncImageService'''
+        rate = max(0.0, self._rates.get(cb_name, 0.0))
+        if rate < 0.0001: return None
         return AsyncImageService(
                     self._image_client,
                     self._logger,
-                    max(0.0, self._rates.get(cb_name, 0.0)),
+                    rate,
                     self._callbacks.get(cb_name, lambda: None),
                     data_requester,
                 )
@@ -517,6 +526,7 @@ class SpotWrapper:
     def release(self):
         """Return the lease on the body and the eStop handle."""
         try:
+            self.sit()
             self.releaseLease()
             self.releaseEStop()
             return True, "Success"
@@ -561,6 +571,7 @@ class SpotWrapper:
 
     def sit(self):
         """Stop the robot's motion and sit down if able."""
+        self.arm_stow()
         response = self._robot_command(RobotCommandBuilder.synchro_sit_command())
         self._last_sit_command = response[2]
         return response[0], response[1]
@@ -603,11 +614,15 @@ class SpotWrapper:
     def safe_power_off(self):
         """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
         try:
+            self.arm_stow()
             self._robot.safe_power_off()
+            assert not self._robot.is_powered_on(), "Robot power off failed."
             self.spot.releaseLease()
             return True, "Success"
         except Exception as e:
             return False, str(e)
+    
+    def __del__(self): self.safe_power_off()
 
     def clear_behavior_fault(self, id):
         """Clear the behavior fault defined by id."""
@@ -678,7 +693,8 @@ class SpotWrapper:
         reference_frame=BODY_FRAME_NAME,
         frame_name="odom",
         precise_position=False,
-        blocking=False
+        blocking=False,
+        build_on_command=None,
     ):
         """Send a trajectory motion command to the robot.
 
@@ -698,7 +714,10 @@ class SpotWrapper:
         
         if frame_name not in [ODOM_FRAME_NAME, VISION_FRAME_NAME]: 
             raise ValueError("frame_name must be 'vision' or 'odom'")
-        self._logger.info("trajectory_cmd: goal_x: {}, goal_y: {}, goal_heading: {}, cmd_duration: {}, frame_name: {}, precise_position: {}".format(goal_x, goal_y, goal_heading, cmd_duration, frame_name, precise_position))
+        self._logger.info("Recieved Pose Trajectory Command.")
+        self._logger.debug(f"\tx: {goal_x}, y: {goal_y}, goal_heading: {goal_heading}")
+        self._logger.debug(f"cmd_duration: {cmd_duration}, frame_name: {frame_name}, precise_position: {precise_position}")
+
         self._at_goal = False
         self._near_goal = False
         self._trajectory_status_unknown = False
@@ -706,9 +725,6 @@ class SpotWrapper:
         end_time = time.time() + cmd_duration
 
         T_in_ref = bdSE2Pose(x=goal_x, y=goal_y, angle=goal_heading)
-        # transforms = self._robot_state_client.get_robot_state().kinematic_state.transforms_snapshot
-        # target_T_ref = get_se2_a_tform_b(transforms, frame_name, reference_frame)
-        # T_in_target = target_T_ref * T_in_ref
         T_in_target = self._transform_bd_pose(T_in_ref, reference_frame, frame_name)
 
         response = self._robot_command(
@@ -718,6 +734,7 @@ class SpotWrapper:
                     goal_heading=T_in_target.angle,
                     frame_name=frame_name,
                     params=self._mobility_params,
+                    build_on_command=build_on_command,
                 ),
                 end_time_secs=end_time,
             )
@@ -725,7 +742,8 @@ class SpotWrapper:
         if response[0]: 
             self._last_trajectory_command = response[2]
             if blocking: 
-                handle_se2_traj_cmd_feedback(response[2], self._robot_command_client)
+                handle_se2_traj_cmd_feedback(response[2], 
+                                             self._robot_command_client)
 
         return response[0], response[1]
 
@@ -822,19 +840,13 @@ class SpotWrapper:
 
     def arm_stow(self):
         try:
-            success, msg = self.ensure_arm_power_and_stand()
-            if not success:
-                self._logger.info(msg)
-                return False, msg
-            else:
-                # Stow Arm
-                stow = RobotCommandBuilder.arm_stow_command()
+            # Stow Arm
+            stow = RobotCommandBuilder.arm_stow_command()
 
-                # Command issue with RobotCommandClient
-                self._robot_command_client.robot_command(stow)
-                self._logger.info("Command stow issued")
-                time.sleep(2.0)
-
+            # Command issue with RobotCommandClient
+            cmd_id = self._robot_command_client.robot_command(stow)
+            block_until_arm_arrives(self._robot_command_client, cmd_id, 10.0)
+            self._logger.info("Command stow issued")
         except Exception as e:
             return False, "Exception occured while trying to stow"
 
@@ -851,7 +863,9 @@ class SpotWrapper:
                 unstow = RobotCommandBuilder.arm_ready_command()
 
                 # Command issue with RobotCommandClient
-                self._robot_command_client.robot_command(unstow)
+                cmd_id = self._robot_command_client.robot_command(unstow)
+                block_until_arm_arrives(self._robot_command_client, cmd_id, 10.0)
+                
                 self._logger.info("Command unstow issued")
                 time.sleep(2.0)
 
@@ -871,7 +885,8 @@ class SpotWrapper:
                 carry = RobotCommandBuilder.arm_carry_command()
 
                 # Command issue with RobotCommandClient
-                self._robot_command_client.robot_command(carry)
+                cmd_id = self._robot_command_client.robot_command(carry)
+                block_until_arm_arrives(self._robot_command_client, cmd_id, 10.0)
                 self._logger.info("Command carry issued")
                 time.sleep(2.0)
 
@@ -1058,6 +1073,35 @@ class SpotWrapper:
 
         return True, "Moved arm successfully"
 
+    def _block_for_gripper(self, id, timeout_sec):
+        class Timer: 
+            def __init__(self, timeout_sec):
+                self.timeout_sec = timeout_sec
+                self.start_time = time.time()
+            def ringing(self):
+                return (time.time() - self.start_time) >= self.timeout_sec
+
+        # Ensure it is a gripper command id
+        resp = self._robot_command_client.robot_command_feedback(id)
+        f = resp.feedback
+        if not f.HasField('synchronized_feedback') or\
+           not f.synchronized_feedback.HasField('gripper_command') or\
+           not f.synchronized_feedback.gripper_command.HasField('claw_gripper_feedback'):
+            raise RuntimeError('Wrong command id passed to _block_for_gripper...')
+        
+        timer = Timer(timeout_sec)
+        # Start checking status: return on fail, break otherwise
+        status = f.gripper_command.claw_gripper_feedback.status
+        while not timer.ringing():
+            time.sleep(0.2)
+            resp = self._robot_command_client.robot_command_feedback(id)
+            status = resp.feedback.synchronized_feedback.gripper_command.claw_gripper_feedback.status
+            if status == ClawGripperCommand.Feedback.STATUS_UNKNOWN: return False
+            elif status != ClawGripperCommand.Feedback.STATUS_IN_PROGRESS: break
+        time.sleep(0.5)  # Allow the gripper to apply some force
+        return False if timer.ringing() else True
+        
+
     def gripper_open(self):
         try:
             success, msg = self.ensure_arm_power_and_stand()
@@ -1069,9 +1113,10 @@ class SpotWrapper:
                 command = RobotCommandBuilder.claw_gripper_open_command()
 
                 # Command issue with RobotCommandClient
-                self._robot_command_client.robot_command(command)
+                cmd_id = self._robot_command_client.robot_command(command)
                 self._logger.info("Command gripper open sent")
-                time.sleep(2.0)
+                # time.sleep(2.0)
+                self._block_for_gripper(cmd_id, 2.0)
 
         except Exception as e:
             return False, "Exception occured while gripper was moving"
@@ -1089,9 +1134,10 @@ class SpotWrapper:
                 command = RobotCommandBuilder.claw_gripper_close_command()
 
                 # Command issue with RobotCommandClient
-                self._robot_command_client.robot_command(command)
+                cmd_id = self._robot_command_client.robot_command(command)
                 self._logger.info("Command gripper close sent")
-                time.sleep(2.0)
+                # time.sleep(2.0)
+                self._block_for_gripper(cmd_id, 2.0)
 
         except Exception as e:
             return False, "Exception occured while gripper was moving"

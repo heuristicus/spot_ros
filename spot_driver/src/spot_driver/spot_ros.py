@@ -65,8 +65,8 @@ from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
 
 from .ros_helpers import *
 from .spot_wrapper import SpotWrapper
-from .spot_task_wrapper import SpotTaskWrapper
-from .utils.ros_wrappers.gripper_action import GripperActionServer
+from .utils.spot_task_wrapper import SpotTaskWrapper
+from .utils.ros_wrappers.gripper_action import GraspActionServer, MoveActionServer
 from .utils.ros_pointcloud import images_to_pointcloud2
 import actionlib
 import logging
@@ -1634,7 +1634,8 @@ class SpotROS:
         ########################################################
         # High level actions # 
         self.task_wrapper = SpotTaskWrapper(self.spot_wrapper, self.logger)
-        self._gripper_action_server = GripperActionServer(self, 'grasp')
+        self._gripper_action_server = GraspActionServer(self, 'grasp')
+        self._gripper_action_server = MoveActionServer(self, 'manipulate')
 
         #########################################################
         # Stop service calls other services so initialise it after them to prevent crashes which can happen if

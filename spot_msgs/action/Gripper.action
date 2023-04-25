@@ -1,5 +1,6 @@
 
 geometry_msgs/Pose pose
+std_msgs/Float32 percentage_open
 std_msgs/Header header
 ---
 bool success
