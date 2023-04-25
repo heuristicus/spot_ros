@@ -294,15 +294,10 @@ class SpotWrapper:
             self._rear_pointcloud_task  = self._make_image_service("rear_pointcloud",  self._rear_image_requests)
             self._side_pointcloud_task  = self._make_image_service("side_pointcloud",  self._side_image_requests)
 
-            self._idle_task = AsyncIdle(
-                self._robot_command_client, self._logger, 10.0, self
-            )
-            self._estop_monitor = AsyncEStopMonitor(
-                self._estop_client, self._logger, 20.0, self
-            )
+            self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
 
-            self._estop_endpoint = None
-            self._estop_keepalive = None
+            self._estop_monitor = AsyncEStopMonitor(self._estop_client, self._logger, 20.0, self)
+            self._estop_endpoint = self._estop_keepalive = None
 
             self._async_tasks = AsyncTasks([])
             def _add_task(task): 
@@ -318,7 +313,7 @@ class SpotWrapper:
                 self._idle_task,
                 self._estop_monitor,
             ]: _add_task(t)
-
+           
             if self._robot.has_arm():
                 for t in [
                     self._hand_image_task,
@@ -615,9 +610,10 @@ class SpotWrapper:
         """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
         try:
             self.arm_stow()
+            self.disconnect()
+            # self.spot.releaseLease()  # TODO: check if this ought to be used. 
             self._robot.safe_power_off()
             assert not self._robot.is_powered_on(), "Robot power off failed."
-            self.spot.releaseLease()
             return True, "Success"
         except Exception as e:
             return False, str(e)
