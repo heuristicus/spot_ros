@@ -296,8 +296,8 @@ class SpotWrapper:
 
             self._idle_task = AsyncIdle(self._robot_command_client, self._logger, 10.0, self)
 
-            self._estop_monitor = AsyncEStopMonitor(self._estop_client, self._logger, 20.0, self)
             self._estop_endpoint = self._estop_keepalive = None
+            self._estop_monitor = AsyncEStopMonitor(self._estop_client, self._logger, 20.0, self)
 
             self._async_tasks = AsyncTasks([])
             def _add_task(task): 
@@ -609,10 +609,10 @@ class SpotWrapper:
     def safe_power_off(self):
         """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
         try:
-            self.arm_stow()
-            self.disconnect()
-            # self.spot.releaseLease()  # TODO: check if this ought to be used. 
+            self.sit()
             self._robot.safe_power_off()
+            # self.spot.releaseLease()  # TODO: check if this ought to be used. 
+            self.disconnect()
             assert not self._robot.is_powered_on(), "Robot power off failed."
             return True, "Success"
         except Exception as e:
@@ -741,7 +741,7 @@ class SpotWrapper:
                 handle_se2_traj_cmd_feedback(response[2], 
                                              self._robot_command_client)
 
-        return response[0], response[1]
+        return response[0], response[1], response[2]
 
     def list_graph(self, upload_path):
         """List waypoint ids of garph_nav
@@ -841,8 +841,11 @@ class SpotWrapper:
 
             # Command issue with RobotCommandClient
             cmd_id = self._robot_command_client.robot_command(stow)
-            block_until_arm_arrives(self._robot_command_client, cmd_id, 10.0)
             self._logger.info("Command stow issued")
+
+            if not block_until_arm_arrives(self._robot_command_client, cmd_id, 10.0):
+                return False, "Arm failed to stow"
+        
         except Exception as e:
             return False, "Exception occured while trying to stow"
 

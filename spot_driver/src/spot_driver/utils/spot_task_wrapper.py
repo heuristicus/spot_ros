@@ -7,10 +7,12 @@ from bosdyn.api import (robot_command_pb2,
                         mobility_command_pb2, 
                         basic_command_pb2,
                         arm_command_pb2)
+from bosdyn.api.spot.robot_command_pb2 import (BodyControlParams, 
+                                               MobilityParams)
 
 from bosdyn.api.arm_command_pb2 import (ArmCommand, ArmCartesianCommand)
 from bosdyn.api.basic_command_pb2 import (ArmDragCommand)
-from bosdyn.api.robot_command_pb2 import (RobotCommand)
+from bosdyn.api.robot_command_pb2 import (RobotCommand )
 from bosdyn.api.synchronized_command_pb2 import (SynchronizedCommand)
 
 from bosdyn.client.math_helpers import SE2Pose as bdSE2Pose
@@ -160,8 +162,7 @@ class SpotTaskWrapper:
     def move_object(self, pose, reference_frame:str, **kwargs):
         '''Commands the robot to move an object to a desired pose.'''
         self._log.info(f'Moving object to pose {pose} in frame {reference_frame}')
-        # return self._follow_arm_to(pose, reference_frame)
-        return self._joint_body_arm_impedance_cmd(pose, reference_frame)
+        return self._move_heavy_object(pose, reference_frame)
 
     def _follow_arm_to(self, pose, reference_frame):
         pose = self._to_bd_se3(pose, reference_frame)
@@ -185,8 +186,15 @@ class SpotTaskWrapper:
         self._log.info('Succeeded')
         return True
     
-    def _drag_arm_to(self, pose:bdSE3Pose, reference_frame):
-
+    def _drag_arm_to(self, pose:bdSE3Pose, reference_frame, duration_sec=15.0):
+        '''Commands the robot to position the robot at the commanded
+        pose while leaving the arm commpliant thus allowing it to drag
+        objects.
+        Args:
+            pose: The desired pose of the robot.
+            reference_frame: The frame in which the pose is defined.
+        returns:
+                '''
         self._log.info(f'Building drag command.')
         robot_cmd = RobotCommand(
             synchronized_command = SynchronizedCommand.Request(
@@ -195,33 +203,96 @@ class SpotTaskWrapper:
                 )
             )
         )
-        self._log.info(f'Building se2 command.')
         pose = pose.get_closest_se2_transform()
-        robot_cmd = CmdBuilder.synchro_se2_trajectory_point_command(
-            goal_x=pose.x,
-            goal_y=pose.y,
+        self._log.info(f'Sending Robot Command.')
+        succeeded, _, id = self.spot.trajectory_cmd(
+            goal_x=pose.x, goal_y=pose.y,
             goal_heading=pose.angle,
-            frame_name=reference_frame,
-            params=CmdBuilder.mobility_params(),
+            cmd_duration=duration_sec, 
+            reference_frame=reference_frame,
+            blocking=False,
             build_on_command=robot_cmd
         )
+        if succeeded:
+            block_for_trajectory_cmd(self.spot._robot_command_client,
+                                     cmd_id=id, 
+                                     feedback_interval_secs=0.5, 
+                                     timeout_sec=duration_sec,
+                                     logger=self._log)
+        else: 
+            self._log.error('Failed to send trajectory command.')
+            return False
+        return True
+    
+    def _get_body_assist_stance_command(self, build_on_command=None):
+        '''A assistive stance is used when manipulating heavy
+        objects or interacting with the environment. 
+        
+        Returns: A body assist stance command'''
+        manip_assist = BodyControlParams.BodyAssistForManipulation(
+                            enable_hip_height_assist=True, 
+                            enable_body_yaw_assist=False
+                        )
+        body_control = BodyControlParams(
+                            body_assist_for_manipulation=manip_assist
+                        )
+        stand_command = CmdBuilder.synchro_stand_command(
+                        params=MobilityParams(body_control=body_control),
+                        build_on_command=build_on_command
+                    )
+        return stand_command
 
-        ### robot_cmd = robot_command_pb2.RobotCommand()
-        ### robot_cmd.synchronized_command.mobility_command.CopyFrom(mobility_cmd)
-        ### robot_cmd.synchronized_command.arm_command.CopyFrom(arm_cmd)
-        
-        self._log.info(f'Sending Robot Command.')
-        self._log.info(f'Robot Command: {robot_cmd}')
-        end_time = 5.0
-        cmd_id = self.spot._robot_command_client.robot_command(command=robot_cmd, 
-                                                               lease=None, 
-                                                               end_time_secs=time.time() + end_time)
-        block_for_trajectory_cmd(self.spot._robot_command_client, cmd_id, 
-                                 feedback_interval_secs=0.5, 
-                                 timeout_sec=end_time,
-                                 logger=self._log)
-        
-        # time.sleep(5.0)
+
+    def _arm_impedance_cmd(self, pose, reference_frame, duration_sec=10.0):
+        '''Commands the robot arm to perform an impedance command
+        which allows it to move heavy objects or perform surface 
+        interaction.
+        This will force the robot to stand and support the arm. 
+        Args:
+            pose: The desired end-effector pose.
+            reference_frame: The frame in which the pose is defined.
+            duration_sec: The max duration given for the command to conclude.
+        Returns:
+            True if the command succeeded, False otherwise.
+        TODO:
+            - Try to apply and retain force on the gripper
+            - If no object is in hand, raise an error
+            - Try work with stiffness
+        '''
+
+
+
+        robot_cmd = self._get_body_assist_stance_command()
+        arm_cmd = robot_cmd.synchronized_command.arm_command.arm_impedance_command
+
+        # Set up our root frame, task frame, and tool frame.
+        # NOTE: root_tform_task, wrist_tform_tool can be set to identify
+        #   the desired task frame and tool frame. Check arm command proto 
+        #   for more details.
+        arm_cmd.root_frame_name = reference_frame
+
+        # Set up stiffness and damping matrices.
+        # NOTE: Max stiffness: [500, 500, 500, 60, 60, 60]
+        #      Max damping: [2.5, 2.5, 2.5, 1.0, 1.0, 1.0]
+        arm_cmd.diagonal_stiffness_matrix.CopyFrom(
+            geometry_pb2.Vector(values=[200, 200, 200, 30, 30, 30]))
+        arm_cmd.diagonal_damping_matrix.CopyFrom(
+            geometry_pb2.Vector(values=[1.5, 1.5, 1.5, 0.5, 0.5, 0.5]))
+
+        # Set up our `desired_tool` trajectory. This is where we want the tool to be with respect to
+        # the task frame. The stiffness we set will drag the tool towards `desired_tool`.
+        traj = arm_cmd.task_tform_desired_tool
+        pt1 = traj.points.add()
+        pt1.time_since_reference.CopyFrom(seconds_to_duration(4.0))
+        pt1.pose.CopyFrom(pose.to_proto())
+
+        # Execute the impedance command
+        cmd_id = self.spot._robot_command_client.robot_command(robot_cmd)
+        succeeded = block_until_arm_arrives(self.spot._robot_command_client, 
+                                            cmd_id, self._log,
+                                            timeout_sec=duration_sec)
+        return succeeded
+
 
     def _joint_mobility_arm_cmd(self, pose, reference_frame):
         '''Command the arm to a certain pose and request that the 
@@ -229,7 +300,7 @@ class SpotTaskWrapper:
         raise NotImplementedError('This is not currently supported by the robot.')
 
 
-    def _joint_body_arm_impedance_cmd(self, pose, reference_frame):
+    def _move_heavy_object(self, pose, reference_frame):
         '''Commands the robot to move an object to a desired pose.
         This involves dragging the object near the goal pose, then
         moving the arm to properly position it.
@@ -251,70 +322,11 @@ class SpotTaskWrapper:
             self._log.info(f'Object is too far away. Dragging it closer.')
 
             # Define where the object should stand to position the object.
-            stance_t = [-0.2, 0.2, 0.0]
-            stance_R = bdQuat.from_yaw(np.pi/2)
-            stance = pose * bdSE3Pose(stance_t, stance_R)
-            
-            self._drag_arm_to(stance, self.default_ref_frame)
-
-        return True
-        # # To move the object to place, we could move the arm then 
-        # # move the robot body based on some heuristic.
-
-
-
-
-        # #  # Create the arm & body command.
-        # # arm_command = CmdBuilder.arm_pose_command(
-        # #     pose.x, pose.y, pose.z, 
-        # #     pose.rot.w, pose.rot.x, pose.rot.y, pose.rot.z, 
-        # #     self.default_ref_frame, 
-        # #     2.0)
-        
-        # robot_cmd = robot_command_pb2.RobotCommand()
-        
-        # mobility_command = mobility_command_pb2.MobilityCommand.Request(
-        #     follow_arm_request=basic_command_pb2.FollowArmCommand.Request())
-        # robot_cmd.synchronized_command.mobility_command.CopyFrom(mobility_command)
-
-        # arm_cmd = robot_cmd.synchronized_command.arm_command.arm_impedance_command
-
-        # # Set up our root frame, task frame, and tool frame.
-        # # NOTE: root_tform_task, wrist_tform_tool can be set to identify
-        # #   the desired task frame and tool frame. Check arm command proto 
-        # #   for more details.
-        # arm_cmd.root_frame_name = self.default_ref_frame
-
-        # # Set up downward force.
-        # ffwd_wrench = arm_cmd.feed_forward_wrench_at_tool_in_desired_tool
-        # ffwd_wrench.force.x = -2.0  # Newtons
-        # ffwd_wrench.force.y = 0
-        # ffwd_wrench.force.z = 0
-        # ffwd_wrench.torque.x = -0.5
-        # ffwd_wrench.torque.y = 0
-        # ffwd_wrench.torque.z = 0
-
-        # # Set up stiffness and damping matrices.
-        # # NOTE: Max stiffness: [500, 500, 500, 60, 60, 60]
-        # #      Max damping: [2.5, 2.5, 2.5, 1.0, 1.0, 1.0]
-        # arm_cmd.diagonal_stiffness_matrix.CopyFrom(
-        #     geometry_pb2.Vector(values=[200, 200, 200, 30, 30, 30]))
-        # arm_cmd.diagonal_damping_matrix.CopyFrom(
-        #     geometry_pb2.Vector(values=[1.5, 1.5, 1.5, 0.5, 0.5, 0.5]))
-
-        # # Set up our `desired_tool` trajectory. This is where we want the tool to be with respect to
-        # # the task frame. The stiffness we set will drag the tool towards `desired_tool`.
-        # traj = arm_cmd.task_tform_desired_tool
-        # pt1 = traj.points.add()
-        # pt1.time_since_reference.CopyFrom(seconds_to_duration(4.0))
-        # pt1.pose.CopyFrom(pose.to_proto())
-        # # pt2 = traj.points.add()
-        # # pt2.time_since_reference.CopyFrom(seconds_to_duration(4.0))
-        # # pose.x -= 0.1
-        # # pt2.pose.CopyFrom(pose.to_proto())
-
-        # # Execute the impedance command
-        # # follow_arm_cmd = CmdBuilder.follow_arm_command()
-        # # cmd = CmdBuilder.build_synchro_command(follow_arm_cmd, robot_cmd)
-        # cmd_id = self.spot._robot_command_client.robot_command(robot_cmd)
-        # time.sleep(5.0)
+            t = [-1.0, 0.5, 0.0]
+            R = bdQuat.from_yaw(-np.pi/4)  # np.pi/2
+            stance = pose * bdSE3Pose(x=t[0], y=t[1], z=t[2], rot=R)
+            self._drag_arm_to(stance, self.default_ref_frame,
+                              duration_sec=30.0)
+        # Move arm to adjust pose. 
+        self._arm_impedance_cmd(pose, self.default_ref_frame,
+                                duration_sec=15.0)
