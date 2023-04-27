@@ -5,213 +5,73 @@ from interactive_markers.menu_handler import *
 from visualization_msgs.msg import *
 
 import rospy
-import actionlib
-from spot_msgs.msg import TrajectoryAction, TrajectoryGoal
-from spot_msgs.msg import GripperAction, GripperGoal
+
 from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import Duration
 
-from scipy.spatial.transform import Rotation as R
-import numpy as np
+from interactive_marker_utils import (GoToMarkerCallback, 
+                                    GrabMarkerCallback, 
+                                    DragToMarkerCallback,
+                                    create_interactive_marker)
 
+class InteractiveMarkerPoseSubscriber(object):
+    '''Subscribes to a pose topic and updates the interactive marker accordingly.'''
+    def __init__(self, topic_name, marker, server):
+        self._sub = rospy.Subscriber(topic_name, PoseStamped, self)
+        self._marker, self._server = marker, server
+    def __call__(self, pose_stamped):
+        rospy.loginfo('Updating interactive marker pose.')
+        rospy.logdebug(pose_stamped)
+        self._server.applyChanges()
+        if not self._server.setPose(self._marker.name, pose_stamped.pose):
+            rospy.logerr("Failed to set pose for marker.")
+        else: self._server.applyChanges()
 
-def print_cv(msg):
-    rospy.loginfo(msg)
-
-def make_box(scale=0.001, color=[1.0, 0.0, 1.0, 1.0], mesh=None):
-    if not isinstance(scale, list) and not isinstance(scale, tuple): 
-        scale = (scale, scale, scale)
-    m = Marker()
-    if mesh: 
-        m.type = Marker.MESH_RESOURCE
-        m.mesh_resource = mesh
-    m.scale.x, m.scale.y, m.scale.z = tuple(scale)
-    m.color.r, m.color.g, m.color.b, m.color.a = tuple(color)
-    return m
-
-def make_box_control(int_marker, **kwargs):
-    control =  InteractiveMarkerControl()
-    control.always_visible = True
-    control.markers.append(make_box(**kwargs))
-    int_marker.controls.append(control)
-    return control
-
-def append_3d_controls(int_marker):
-    int_marker.controls[0].interaction_mode = InteractiveMarkerControl.MOVE_ROTATE_3D
-    
-    # x axis control
-    c = InteractiveMarkerControl()
-    o = c.orientation
-    o.w, o.x, o.y, o.z = (1, 1, 0, 0)
-    c.name = "move_x"
-    c.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-    int_marker.controls.append(c)
-    # x axis rotation
-    c = InteractiveMarkerControl()
-    o = c.orientation
-    o.w, o.x, o.y, o.z = (1, 1, 0, 0)
-    c.name = "rotate_x"
-    c.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
-    int_marker.controls.append(c)
-    # y axis control
-    c = InteractiveMarkerControl()
-    o = c.orientation
-    o.w, o.x, o.y, o.z = (1, 0, 1, 0)
-    c.name = "move_y"
-    c.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-    int_marker.controls.append(c)
-    # y axis rotation
-    c = InteractiveMarkerControl()
-    o = c.orientation
-    o.w, o.x, o.y, o.z = (1, 0, 1, 0)
-    c.name = "rotate_y"
-    c.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
-    int_marker.controls.append(c)
-    # z axis control
-    c = InteractiveMarkerControl()
-    o = c.orientation
-    o.w, o.x, o.y, o.z = (1, 0, 0, 1)
-    c.name = "move_z"
-    c.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-    int_marker.controls.append(c)
-    # z axis rotation
-    c = InteractiveMarkerControl()
-    o = c.orientation
-    o.w, o.x, o.y, o.z = (1, 0, 1, 0)
-    c.name = "rotate_z"
-    c.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
-    int_marker.controls.append(c)
-
-
-def _get_ros_stamped_pose(position, orientation):
-    pose = PoseStamped()
-    pose.header.stamp = rospy.Time.now()
-    o = pose.pose.orientation
-    o.x, o.y, o.z, o.w = orientation.x, orientation.y, orientation.z, orientation.w
-    p = pose.pose.position
-    p.x, p.y, p.z = position.x, position.y, position.z
-    return pose
-
-class GoToMarkerCallback(object):
-
-    def __init__(self, server_name='spot/trajectory'):
-        rospy.loginfo("Setting up client...")
-        self._client = actionlib.SimpleActionClient(server_name, TrajectoryAction)
-        rospy.loginfo(f"Waiting for {server_name} server...")
-        self._client.wait_for_server()
-        rospy.loginfo(f"Connected ChairHandle marker to {server_name}.")
-
-    def __call__(self, feedback):
-        # rospy.loginfo(feedback)
-        rospy.loginfo("Sending navigation goal to server...")
-        ros_pose = _get_ros_stamped_pose(feedback.pose.position, feedback.pose.orientation)
-        ros_pose.header.frame_id = feedback.header.frame_id
-        duration = Duration()
-        duration.data.secs = 5
-        goal = TrajectoryGoal(target_pose=ros_pose, duration=duration)
-        self._client.send_goal(goal)
+        # rospy.loginfo(self._server.marker_contexts[self._marker.name])
+        # rospy.loginfo(self._server.pending_updates[self._marker.name].update_type == UpdateContext.FULL_UPDATE)
         
-        self._client.wait_for_result()
-        result = self._client.get_result()
-        rospy.loginfo(result)
 
-def _get_perpendicular_pose(pose):
-    quat = pose.orientation
-    rot = R.from_quat([quat.x, quat.y, quat.z, quat.w])
-    transform = R.from_rotvec([0, 0, np.pi/2])
-    quat.x, quat.y, quat.z, quat.w = (rot * transform).as_quat()
-    pose.orientation = quat
-    return pose 
-
-class GrabMarkerCallback(object):
-
-    def __init__(self, server_name='spot/grasp'):
-        rospy.loginfo("Setting up client...")
-        self._client = actionlib.SimpleActionClient(server_name, GripperAction)
-        rospy.loginfo(f"Waiting for {server_name} server...")
-        self._client.wait_for_server()
-        rospy.loginfo(f"Connected ChairHandle marker to {server_name}.")
-
-    def __call__(self, feedback):
-        rospy.loginfo("Sending grasp goal to server...")
-        ros_pose = _get_ros_stamped_pose(feedback.pose.position, feedback.pose.orientation)
-        ros_pose.header.frame_id = feedback.header.frame_id
-        goal = GripperGoal(pose=ros_pose.pose, header=ros_pose.header)
-
-        goal.pose = _get_perpendicular_pose(goal.pose)
-
-        self._client.send_goal(goal, feedback_cb=print_cv)
-        self._client.wait_for_result()
-        result = self._client.get_result()
-        rospy.loginfo(result)
-
-class DragToMarkerCallback(object):
-     
-    def __init__(self, server_name='spot/manipulate'):
-        rospy.loginfo("Setting up client...")
-        self._client = actionlib.SimpleActionClient(server_name, GripperAction)
-        rospy.loginfo(f"Waiting for {server_name} server...")
-        self._client.wait_for_server()
-        rospy.loginfo(f"Connected ChairHandle marker to {server_name}.")
-
-    def __call__(self, feedback):
-        rospy.loginfo("Sending manipulation goal...")
-        ros_pose = _get_ros_stamped_pose(feedback.pose.position, feedback.pose.orientation)
-        ros_pose.header.frame_id = feedback.header.frame_id
-        goal = GripperGoal(pose=ros_pose.pose, header=ros_pose.header)
-        goal.pose = _get_perpendicular_pose(goal.pose)
-        self._client.send_goal(goal, feedback_cb=print_cv)
-        self._client.wait_for_result()
-        result = self._client.get_result()
-        rospy.loginfo(result)
-
-
-def menuCb(feedback):
-    rospy.loginfo("button clicked.")
-    rospy.loginfo(feedback)
-
-    
-
-
-def create_interactive_marker(
-        name, scale=0.3, 
-        reference_frame='odom',
-        position=[1, 1, 1], 
-        orientation=[0,0,0,1],
-        ):
-    m = InteractiveMarker()
-    m.header.frame_id = reference_frame
-    p = m.pose.position
-    p.x, p.y, p.z = tuple(position)
-    o = m.pose.orientation 
-    o.x, o.y, o.z, o.w = tuple(orientation)
-    m.name = name
-    m.scale = scale
-    return m
-
-
-
+import numpy as np
 
 def main():
     rospy.init_node("spot_interactive_marker", anonymous=True)
+    mesh_dir = "package://spot_viz/meshes"
+    chair_arm = {
+        'name': 'chair_arm',
+        'mesh': f'{mesh_dir}/chair_arm.stl',
+        'mesh_scale': 0.001,
+        'grasp_t': [0.0, 0.0, 0.0],
+        'grasp_R': [0, 0, np.pi/2],
+    }
+    chair = {
+        'name': 'chair',
+        'mesh': f"{mesh_dir}/office_chair/10239_Office_Chair_v1_L3.obj",
+        'mesh_scale': 0.0075,
+        'grasp_t': [0.2, 0.0, 0.5],
+        'grasp_R': [0, 0, np.pi],
+    }
+    obj = chair_arm
 
     # spawn cube with interactive marker in rviz for right arm
     server = InteractiveMarkerServer("chair_handle")
-    int_marker = create_interactive_marker("chair_arm")
-
-    # insert a box
-    make_box_control(int_marker, mesh="package://spot_viz/meshes/chair_arm.stl")
-    append_3d_controls(int_marker)
+    int_marker = create_interactive_marker(
+            name=obj['name'],
+            mesh=obj['mesh'],
+            mesh_scale=obj['mesh_scale'],
+            control_axis=['x','y','z','yaw']
+            )
     server.insert(int_marker, lambda feedback: feedback)
     server.applyChanges()
 
     # Add a menu
     menu_handler = MenuHandler()
-    menu_handler.insert("goto", callback=GoToMarkerCallback())
-    menu_handler.insert("grasp", callback=GrabMarkerCallback())
-    menu_handler.insert("drag_to", callback=DragToMarkerCallback())
-    # menu_handler.insert("button", callback=menuCb)
+    
+    t, R = obj['grasp_t'], obj['grasp_R']
+    menu_handler.insert("go to", callback=GoToMarkerCallback())
+    menu_handler.insert("grasp left handle", callback=GrabMarkerCallback(t=t, R=R))
+    menu_handler.insert("drag to", callback=DragToMarkerCallback(t=t, R=R))
     menu_handler.apply(server, int_marker.name)
+
+    update_merker_sub = InteractiveMarkerPoseSubscriber('tcpu', int_marker, server)
 
     rospy.spin()
 
