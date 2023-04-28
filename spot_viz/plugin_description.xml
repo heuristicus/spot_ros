@@ -6,4 +6,11 @@
       A panel for controlling the Boston Dynamics Spot robot with the Clearpath driver
     </description>
   </class>
+  <class name="spot_viz/CamLookAtPointTool"
+         type="spot_viz::LookAtPointTool"
+         base_class_type="rviz::Tool">
+    <description>
+      A tool for making the spot cam look at a point in space
+    </description>
+  </class>
 </library>

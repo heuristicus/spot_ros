@@ -13,6 +13,7 @@
 #include <QDoubleValidator>
 #include <QStandardItemModel>
 #include <tf/transform_datatypes.h>
+#include <std_msgs/Float32.h>
 #include <spot_msgs/SetVelocity.h>
 #include <spot_msgs/LeaseArray.h>
 #include <spot_msgs/EStopState.h>
@@ -20,6 +21,9 @@
 #include <spot_msgs/SetTerrainParams.h>
 #include <spot_msgs/PosedStand.h>
 #include <spot_msgs/Dock.h>
+#include <spot_cam/SetPTZState.h>
+#include <spot_cam/SetString.h>
+#include <spot_cam/LookAtPoint.h>
 #include <string.h>
 
 
@@ -64,6 +68,10 @@ namespace spot_viz
         rollOverRightService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/roll_over_right");
         rollOverLeftService_ = nh_.serviceClient<std_srvs::Trigger>("/spot/roll_over_left");
 
+        camSetScreenService_ = nh_.serviceClient<spot_cam::SetString>("/spot/cam/set_screen");
+        camSetPTZService_ = nh_.serviceClient<spot_cam::SetPTZState>("/spot/cam/ptz/set_position");
+        camLookAtPointService_ = nh_.serviceClient<spot_cam::LookAtPoint>("/spot/cam/ptz/look_at_point");
+
         claimLeaseButton = this->findChild<QPushButton*>("claimLeaseButton");
         releaseLeaseButton = this->findChild<QPushButton*>("releaseLeaseButton");
         powerOnButton = this->findChild<QPushButton*>("powerOnButton");
@@ -101,6 +109,25 @@ namespace spot_viz
 
         dockFiducialSpin = this->findChild<QSpinBox*>("dockFiducialSpin");
 
+        // spot cam
+        setPTZButton = this->findChild<QPushButton*>("setPTZButton");
+        setScreenButton = this->findChild<QPushButton*>("setScreenButton");;
+        chooseScreenComboBox = this->findChild<QComboBox*>("chooseScreenComboBox");
+        choosePTZComboBox = this->findChild<QComboBox*>("choosePTZComboBox");
+        LEDSpinBox = this->findChild<QDoubleSpinBox*>("LEDSpinBox");
+        panSpinBox = this->findChild<QDoubleSpinBox*>("panSpinBox");
+        tiltSpinBox = this->findChild<QDoubleSpinBox*>("tiltSpinBox");
+        zoomSpinBox = this->findChild<QDoubleSpinBox*>("zoomSpinBox");
+
+        lookAtFrameLineEdit = this->findChild<QLineEdit*>("lookAtFrameLineEdit");
+        lookXSpinBox = this->findChild<QDoubleSpinBox*>("lookXSpinBox");
+        lookYSpinBox = this->findChild<QDoubleSpinBox*>("lookYSpinBox");
+        lookZSpinBox = this->findChild<QDoubleSpinBox*>("lookZSpinBox");
+        imageWidthSpinBox = this->findChild<QDoubleSpinBox*>("imageWidthSpinBox");
+        lookZoomSpinBox = this->findChild<QDoubleSpinBox*>("lookZoomSpinBox");
+        lookAtPointButton = this->findChild<QPushButton*>("lookAtPointButton");
+        trackPointButton = this->findChild<QPushButton*>("trackPointButton");
+
         setupComboBoxes();
         setupStopButtons();
         setupSpinBoxes();
@@ -112,6 +139,10 @@ namespace spot_viz
         batterySub_ = nh_.subscribe("/spot/status/battery_states", 1, &ControlPanel::batteryCallback, this);
         powerSub_ = nh_.subscribe("/spot/status/power_state", 1, &ControlPanel::powerCallback, this);
         motionAllowedSub_ = nh_.subscribe("/spot/status/motion_allowed", 1, &ControlPanel::motionAllowedCallback, this);
+        camScreensSub_ = nh_.subscribe("/spot/cam/screens", 1, &ControlPanel::screensCallback, this);
+        camPTZSub_ = nh_.subscribe("/spot/cam/ptz/list", 1, &ControlPanel::ptzCallback, this);
+
+        camLEDPub_ = nh_.advertise<std_msgs::Float32>("/spot/cam/set_leds", 1);
 
         connect(claimLeaseButton, SIGNAL(clicked()), this, SLOT(claimLease()));
         connect(releaseLeaseButton, SIGNAL(clicked()), this, SLOT(releaseLease()));
@@ -137,6 +168,11 @@ namespace spot_viz
         connect(selfRightButton, SIGNAL(clicked()), this, SLOT(selfRight()));
         connect(rollOverLeftButton, SIGNAL(clicked()), this, SLOT(rollOverLeft()));
         connect(rollOverRightButton, SIGNAL(clicked()), this, SLOT(rollOverRight()));
+        connect(setPTZButton, SIGNAL(clicked()), this, SLOT(setCamPTZ()));
+        connect(setScreenButton, SIGNAL(clicked()), this, SLOT(setCamScreen()));
+        connect(LEDSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setCamLED(double)));
+        connect(trackPointButton, SIGNAL(clicked()), this, SLOT(camTrackPoint()));
+        connect(lookAtPointButton, SIGNAL(clicked()), this, SLOT(camLookAtPoint()));
     }
 
     void ControlPanel::setupStopButtons() {
@@ -681,6 +717,71 @@ namespace spot_viz
     void ControlPanel::rollOverRight() {
         callTriggerService(rollOverRightService_, "roll over left");
     }
+
+    void ControlPanel::ptzCallback(const spot_cam::PTZDescriptionArray &ptz_descriptions) {
+        // Combobox items should only be populated a single time. The ptzs do not change unless the camera changes
+        if (choosePTZComboBox->count() != 0) {
+            return;
+        }
+        for (auto p: ptz_descriptions.ptzs) {
+            choosePTZComboBox->addItem(p.name.c_str());
+        }
+    }
+
+    void ControlPanel::screensCallback(const spot_cam::StringMultiArray& screens) {
+        // Combobox items should only be populated a single time. The screens do not change unless the camera changes
+        if (chooseScreenComboBox->count() != 0) {
+            return;
+        }
+        for (auto s: screens.data) {
+            chooseScreenComboBox->addItem(s.c_str());
+        }
+    }
+
+    void ControlPanel::setCamPTZ() {
+        spot_cam::PTZDescription ptz_desc;
+        ptz_desc.name = choosePTZComboBox->currentText().toStdString();
+        spot_cam::SetPTZState req;
+        req.request.command.ptz = ptz_desc;
+        req.request.command.pan = panSpinBox->value();
+        req.request.command.tilt = tiltSpinBox->value();
+        req.request.command.zoom = zoomSpinBox->value();
+        callCustomTriggerService(camSetPTZService_, "set cam PTZ", req);
+    }
+
+    void ControlPanel::setCamScreen() {
+        spot_cam::SetString req;
+        req.request.value = chooseScreenComboBox->currentText().toStdString();
+        callCustomTriggerService(camSetScreenService_, "set cam screen", req);
+    }
+
+    void ControlPanel::setCamLED(double value) {
+        std_msgs::Float32 value_ros;
+        value_ros.data = value;
+        camLEDPub_.publish(value_ros);
+    }
+
+    void ControlPanel::camTrackPoint() {
+        lookAtPoint(true);
+    }
+
+    void ControlPanel::camLookAtPoint() {
+        lookAtPoint(false);
+    }
+
+    void ControlPanel::lookAtPoint(const bool track) {
+        spot_cam::LookAtPoint req;
+        req.request.track = track;
+        req.request.target.header.frame_id = lookAtFrameLineEdit->text().toStdString();
+        req.request.target.point.x = lookXSpinBox->value();
+        req.request.target.point.y = lookYSpinBox->value();
+        req.request.target.point.z = lookZSpinBox->value();
+        req.request.image_width = imageWidthSpinBox->value();
+        req.request.zoom_level = zoomSpinBox->value();
+
+        callCustomTriggerService(camLookAtPointService_, "cam look at point", req);
+    }
+
 
     void ControlPanel::save(rviz::Config config) const
     {

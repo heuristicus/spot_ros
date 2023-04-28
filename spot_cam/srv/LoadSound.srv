@@ -1,0 +1,7 @@
+# Name to use for this sound
+string name
+# Path to the wav file to load onto the device
+string wav_path
+----
+bool success
+string message

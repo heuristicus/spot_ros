@@ -1,0 +1,24 @@
+# See https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#ircolormap for definition
+uint8 COLORMAP_UNKNOWN=0
+# The greyscale colormap maps the minimum value (defined below) to black and the maximum value (defined below) to white
+uint8 COLORMAP_GREYSCALE=1
+# The jet colormap uses blues for values closer to the minimum, and red values for values closer to the maximum.
+uint8 COLORMAP_JET=2
+# The inferno colormap maps the minimum value to black and the maximum value to light yellow RGB(252, 252, 164).
+# It is also easier to view by those with color blindness
+uint8 COLORMAP_INFERNO=3
+# The turbo colormap uses blues for values closer to the minumum, red values for values closer to the maximum,
+# and addresses some short comings of the jet color map such as false detail, banding and color blindness
+uint8 COLORMAP_TURBO=4
+
+# The colormap to use for the IR display
+uint8 colormap
+# Minimum value for the color mapping in degrees celsius
+float32 min
+# Maximum value for the color mapping in degrees celsius
+float32 max
+# If true, automatically derive min and max from the image data. Min and max values are ignored
+bool auto_scale
+----
+bool success
+string message

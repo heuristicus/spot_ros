@@ -1,0 +1,10 @@
+# See https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#irmeteroverlay for definition
+# Horizontal coordinate between 0 and 1
+float32 x
+# Vertical coordinate between 0 and 1
+float32 y
+# If false, disable the display of the overlay
+bool enable
+----
+bool success
+string message
