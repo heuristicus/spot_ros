@@ -94,14 +94,9 @@ class SpotTaskWrapper:
         offset = bdSE3Pose.from_matrix(offset)
         return pose * offset
 
-    def go_to(self, 
-              pose, 
-              relative_frame:str, 
-              distance:float=0.0, 
-              dir_axis:str='x', 
-              up_axis:str='z', 
-              body_height=None, 
-              blocking=True):
+    def go_to(self, pose, relative_frame:str, 
+              distance:float=0.0, dir_axis:str='x', 
+              up_axis:str='z', blocking=True):
         '''Moves the robot to a desired pose.'''
         if isinstance(pose, np.ndarray):
             pose = self._pose_np_to_bd(pose, se3=True)
@@ -203,6 +198,9 @@ class SpotTaskWrapper:
                 )
             )
         )
+        # Set the claw to apply force        
+        robot_cmd = CmdBuilder.claw_gripper_close_command(robot_cmd) 
+
         pose = pose.get_closest_se2_transform()
         self._log.info(f'Sending Robot Command.')
         succeeded, _, id = self.spot.trajectory_cmd(
@@ -258,17 +256,15 @@ class SpotTaskWrapper:
             - Try to apply and retain force on the gripper
             - If no object is in hand, raise an error
             - Try work with stiffness
-        '''
+            
+        Reference: Spot sdk python examples: arm_impedance_control.py'''
 
 
 
         robot_cmd = self._get_body_assist_stance_command()
         arm_cmd = robot_cmd.synchronized_command.arm_command.arm_impedance_command
-
-        # Set up our root frame, task frame, and tool frame.
-        # NOTE: root_tform_task, wrist_tform_tool can be set to identify
-        #   the desired task frame and tool frame. Check arm command proto 
-        #   for more details.
+        
+        # Set the reference frame
         arm_cmd.root_frame_name = reference_frame
 
         # Set up stiffness and damping matrices.
@@ -279,12 +275,16 @@ class SpotTaskWrapper:
         arm_cmd.diagonal_damping_matrix.CopyFrom(
             geometry_pb2.Vector(values=[1.5, 1.5, 1.5, 0.5, 0.5, 0.5]))
 
-        # Set up our `desired_tool` trajectory. This is where we want the tool to be with respect to
-        # the task frame. The stiffness we set will drag the tool towards `desired_tool`.
+        # Set up our `desired_tool` trajectory.
         traj = arm_cmd.task_tform_desired_tool
         pt1 = traj.points.add()
         pt1.time_since_reference.CopyFrom(seconds_to_duration(4.0))
         pt1.pose.CopyFrom(pose.to_proto())
+
+        # Set the claw to apply force        
+        robot_cmd = CmdBuilder.claw_gripper_close_command(robot_cmd) 
+
+
 
         # Execute the impedance command
         cmd_id = self.spot._robot_command_client.robot_command(robot_cmd)

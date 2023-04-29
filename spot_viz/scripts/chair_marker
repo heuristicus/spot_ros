@@ -6,32 +6,15 @@ from visualization_msgs.msg import *
 
 import rospy
 
-from geometry_msgs.msg import PoseStamped
-
 from interactive_marker_utils import (GoToMarkerCallback, 
                                     GrabMarkerCallback, 
                                     DragToMarkerCallback,
-                                    create_interactive_marker)
+                                    create_interactive_marker,
+                                    MarkerPoseSubscriber)
 
-class InteractiveMarkerPoseSubscriber(object):
-    '''Subscribes to a pose topic and updates the interactive marker accordingly.'''
-    def __init__(self, topic_name, marker, server):
-        self._sub = rospy.Subscriber(topic_name, PoseStamped, self)
-        self._marker, self._server = marker, server
-    def __call__(self, pose_stamped):
-        rospy.loginfo('Updating interactive marker pose.')
-        rospy.logdebug(pose_stamped)
-        self._server.applyChanges()
-        if not self._server.setPose(self._marker.name, pose_stamped.pose):
-            rospy.logerr("Failed to set pose for marker.")
-        else: self._server.applyChanges()
-
-        # rospy.loginfo(self._server.marker_contexts[self._marker.name])
-        # rospy.loginfo(self._server.pending_updates[self._marker.name].update_type == UpdateContext.FULL_UPDATE)
-        
 
 import numpy as np
-
+        
 def main():
     rospy.init_node("spot_interactive_marker", anonymous=True)
     mesh_dir = "package://spot_viz/meshes"
@@ -41,6 +24,7 @@ def main():
         'mesh_scale': 0.001,
         'grasp_t': [0.0, 0.0, 0.0],
         'grasp_R': [0, 0, np.pi/2],
+        'tag_pose_offset': np.eye(4),
     }
     chair = {
         'name': 'chair',
@@ -48,8 +32,11 @@ def main():
         'mesh_scale': 0.0075,
         'grasp_t': [0.2, 0.0, 0.5],
         'grasp_R': [0, 0, np.pi],
+        'tag_pose_offset': np.array([[1.0,  0.0, 0.0, 0.0],
+                                     [0.0,  0.0, -1.0, 0.3],
+                                     [0.0, 1.0, 0.0, 0.1],]),
     }
-    obj = chair_arm
+    obj = chair
 
     # spawn cube with interactive marker in rviz for right arm
     server = InteractiveMarkerServer("chair_handle")
@@ -57,7 +44,7 @@ def main():
             name=obj['name'],
             mesh=obj['mesh'],
             mesh_scale=obj['mesh_scale'],
-            control_axis=['x','y','z','yaw']
+            control_axis=['x','y','z', 'roll', 'pitch', 'yaw']
             )
     server.insert(int_marker, lambda feedback: feedback)
     server.applyChanges()
@@ -71,7 +58,12 @@ def main():
     menu_handler.insert("drag to", callback=DragToMarkerCallback(t=t, R=R))
     menu_handler.apply(server, int_marker.name)
 
-    update_merker_sub = InteractiveMarkerPoseSubscriber('tcpu', int_marker, server)
+    update_merker_sub = MarkerPoseSubscriber(
+                                'tcpu', 
+                                int_marker, 
+                                server, 
+                                T=obj['tag_pose_offset']
+                            )
 
     rospy.spin()
 
