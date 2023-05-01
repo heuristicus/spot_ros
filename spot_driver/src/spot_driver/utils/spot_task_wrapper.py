@@ -111,7 +111,8 @@ class SpotTaskWrapper:
         self.spot.trajectory_cmd(
             goal_x=pos.x, goal_y=pos.y, 
             goal_heading=heading,
-            cmd_duration=5, reference_frame=relative_frame,
+            cmd_duration=10, 
+            reference_frame=relative_frame,
             blocking=blocking,
         )
 
@@ -127,6 +128,9 @@ class SpotTaskWrapper:
         return pose
 
     def grasp(self, pose, reference_frame:str, **kwargs):
+        if not self.spot.arm_stow()[0]:
+            raise Exception('Failed to stow arm.')
+
         self._log.info(f'Grasping pose {pose} in frame {reference_frame}')
         pose = self._to_bd_se3(pose, reference_frame)
 

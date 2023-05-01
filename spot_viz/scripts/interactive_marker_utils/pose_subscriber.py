@@ -55,15 +55,30 @@ class MarkerPoseSubscriber(object):
             server: The interactive marker server.
             T: A 4x4 transformation matrix to apply to the pose before updating the marker.
         '''
+        self._topic = topic_name
         self._sub = rospy.Subscriber(topic_name, PoseStamped, self)
         self._marker, self._server = marker, server
         
         if isinstance(T, np.ndarray): self._T = SE3Pose.from_matrix(T)
         elif isinstance(T, SE3Pose): self._T = T
         else: raise ValueError("T must be a 4x4 numpy array or a SE3Pose.")
+        self._enabled = True
+
+    def toggle(self, *args, **kwargs):
+        if 'enable' in kwargs: e = kwargs['enable']
+        else: e = not self._enabled
+        if e: self.resume()
+        else: self.pause()
+
+    def pause(self): 
+        self._sub.unregister()
+        self._enabled = False
+    
+    def resume(self): 
+        self._sub = rospy.Subscriber(self._topic, PoseStamped, self)
+        self._enabled = True
 
     def __call__(self, pose_stamped):
-        rospy.loginfo('Updating interactive marker pose.')
         rospy.logdebug(pose_stamped)
         self._server.applyChanges()
         

@@ -30,10 +30,15 @@ def main():
         'name': 'chair',
         'mesh': f"{mesh_dir}/office_chair/10239_Office_Chair_v1_L3.obj",
         'mesh_scale': 0.0075,
-        'grasp_t': [0.2, 0.0, 0.5],
-        'grasp_R': [0, 0, np.pi],
+        # # armrest 
+        # 'grasp_t': [0.2, 0.0, 0.5],
+        # 'grasp_R': [0, 0, np.pi],
+        # armrest stem
+        'grasp_t': [0.2, 0.0, 0.45],
+        'grasp_R': [0.0 , 2.22144147, 2.22144147],
+
         'tag_pose_offset': np.array([[1.0,  0.0, 0.0, 0.0],
-                                     [0.0,  0.0, -1.0, 0.3],
+                                     [0.0,  0.0, -1.0, 0.35],
                                      [0.0, 1.0, 0.0, 0.1],]),
     }
     obj = chair
@@ -44,26 +49,30 @@ def main():
             name=obj['name'],
             mesh=obj['mesh'],
             mesh_scale=obj['mesh_scale'],
+            axis_scale=0.8,
             control_axis=['x','y','z', 'roll', 'pitch', 'yaw']
             )
     server.insert(int_marker, lambda feedback: feedback)
     server.applyChanges()
 
-    # Add a menu
-    menu_handler = MenuHandler()
-    
-    t, R = obj['grasp_t'], obj['grasp_R']
-    menu_handler.insert("go to", callback=GoToMarkerCallback())
-    menu_handler.insert("grasp left handle", callback=GrabMarkerCallback(t=t, R=R))
-    menu_handler.insert("drag to", callback=DragToMarkerCallback(t=t, R=R))
-    menu_handler.apply(server, int_marker.name)
-
+    # Subscribe to pose topic to update marker pose
     update_merker_sub = MarkerPoseSubscriber(
                                 'tcpu', 
                                 int_marker, 
                                 server, 
                                 T=obj['tag_pose_offset']
                             )
+
+    # Add a menu
+    menu_handler = MenuHandler()
+    
+    t, R = obj['grasp_t'], obj['grasp_R']
+    menu_handler.insert("toggle tag tracking", callback=update_merker_sub.toggle)
+    menu_handler.insert("go to", callback=GoToMarkerCallback())
+    menu_handler.insert("grasp left handle", callback=GrabMarkerCallback(t=t, R=R))
+    menu_handler.insert("drag to", callback=DragToMarkerCallback(t=t, R=R))
+    menu_handler.apply(server, int_marker.name)
+
 
     rospy.spin()
 
