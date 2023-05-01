@@ -835,20 +835,26 @@ class SpotWrapper:
         return True, "Spot has an arm, is powered on, and standing"
 
     def arm_stow(self):
-        try:
-            # Stow Arm
-            stow = RobotCommandBuilder.arm_stow_command()
 
-            # Command issue with RobotCommandClient
-            cmd_id = self._robot_command_client.robot_command(stow)
-            self._logger.info("Command stow issued")
+        # Open Gripper
+        s, _ = self.gripper_open()
+        if not s: return s, "Failed to open gripper"
 
-            if not block_until_arm_arrives(self._robot_command_client, cmd_id, 10.0):
-                return False, "Arm failed to stow"
+        # Stow Arm
+        stow = RobotCommandBuilder.arm_stow_command()
+
+        # Command issue with RobotCommandClient
+        cmd_id = self._robot_command_client.robot_command(stow)
+        self._logger.info("Command stow issued")
+
+        s = block_until_arm_arrives(self._robot_command_client, 
+                                          cmd_id, 10.0)
+        if not s: return False, "Arm failed to stow"
         
-        except Exception as e:
-            return False, "Exception occured while trying to stow"
-
+        # Close Gripper
+        s, _ = self.gripper_close()
+        if not s: return s, "Failed to close gripper"
+        
         return True, "Stow arm success"
 
     def arm_unstow(self):
@@ -1082,22 +1088,22 @@ class SpotWrapper:
 
         # Ensure it is a gripper command id
         resp = self._robot_command_client.robot_command_feedback(id)
-        f = resp.feedback
-        if not f.HasField('synchronized_feedback') or\
-           not f.synchronized_feedback.HasField('gripper_command') or\
-           not f.synchronized_feedback.gripper_command.HasField('claw_gripper_feedback'):
+        f = resp.feedback.synchronized_feedback
+        if not f.HasField('gripper_command_feedback') or\
+           not f.gripper_command_feedback.HasField('claw_gripper_feedback'):
             raise RuntimeError('Wrong command id passed to _block_for_gripper...')
         
         timer = Timer(timeout_sec)
         # Start checking status: return on fail, break otherwise
-        status = f.gripper_command.claw_gripper_feedback.status
+        status = f.gripper_command_feedback.claw_gripper_feedback.status
         while not timer.ringing():
-            time.sleep(0.2)
+            time.sleep(0.1)
             resp = self._robot_command_client.robot_command_feedback(id)
-            status = resp.feedback.synchronized_feedback.gripper_command.claw_gripper_feedback.status
+            f = resp.feedback.synchronized_feedback
+            status = f.gripper_command_feedback.claw_gripper_feedback.status
             if status == ClawGripperCommand.Feedback.STATUS_UNKNOWN: return False
             elif status != ClawGripperCommand.Feedback.STATUS_IN_PROGRESS: break
-        time.sleep(0.5)  # Allow the gripper to apply some force
+        time.sleep(0.2)  # Allow the gripper to apply some force
         return False if timer.ringing() else True
         
 
@@ -1118,6 +1124,7 @@ class SpotWrapper:
                 self._block_for_gripper(cmd_id, 2.0)
 
         except Exception as e:
+            self._logger.warning(e)
             return False, "Exception occured while gripper was moving"
 
         return True, "Open gripper success"
