@@ -4,17 +4,17 @@ from interactive_markers.interactive_marker_server import *
 from interactive_markers.menu_handler import *
 from visualization_msgs.msg import *
 
+import numpy as np
 import rospy
 
 from interactive_marker_utils import (GoToMarkerCallback, 
                                     GrabMarkerCallback, 
                                     DragToMarkerCallback,
                                     create_interactive_marker,
-                                    MarkerPoseSubscriber)
+                                    MarkerPoseSubscriber,
+                                    TriggerCallback
+                                    )
 
-
-import numpy as np
-        
 def main():
     rospy.init_node("spot_interactive_marker", anonymous=True)
     mesh_dir = "package://spot_viz/meshes"
@@ -30,16 +30,32 @@ def main():
         'name': 'chair',
         'mesh': f"{mesh_dir}/office_chair/10239_Office_Chair_v1_L3.obj",
         'mesh_scale': 0.0075,
-        # # armrest 
+
+        #################### Grasp relative to Chair ####################
+        ## left armrest 
+        # 'name': 'left armrest', 
         # 'grasp_t': [0.2, 0.0, 0.5],
         # 'grasp_R': [0, 0, np.pi],
-        # armrest stem
-        'grasp_t': [0.2, 0.0, 0.45],
+        
+        # ## left armrest stem - ish
+        # 'name': 'left armrest stem', 
+        # 'grasp_t': [0.2, 0.0, 0.45],
+        # 'grasp_R': [0.0 , 2.22144147, 2.22144147],
+
+        ## back rest
+        'name': 'backrest', 
+        'grasp_t': [0.23, 0.15, 0.6],
         'grasp_R': [0.0 , 2.22144147, 2.22144147],
 
+        #################### Mesh relative to tag ####################
+        ## Tag set upright on bench center
+        # 'tag_pose_offset': np.array([[1.0,  0.0, 0.0, 0.0],
+        #                              [0.0,  0.0, -1.0, 0.35],
+        #                              [0.0, 1.0, 0.0, 0.1],]),
+        ## Tag stuck on backrest
         'tag_pose_offset': np.array([[1.0,  0.0, 0.0, 0.0],
-                                     [0.0,  0.0, -1.0, 0.35],
-                                     [0.0, 1.0, 0.0, 0.1],]),
+                                     [0.0,  0.0, -1.0, 0.8],
+                                     [0.0, 1.0, 0.0, -0.2],]),
     }
     obj = chair
 
@@ -67,10 +83,18 @@ def main():
     menu_handler = MenuHandler()
     
     t, R = obj['grasp_t'], obj['grasp_R']
-    menu_handler.insert("toggle tag tracking", callback=update_merker_sub.toggle)
-    menu_handler.insert("go to", callback=GoToMarkerCallback())
-    menu_handler.insert("grasp left handle", callback=GrabMarkerCallback(t=t, R=R))
-    menu_handler.insert("drag to", callback=DragToMarkerCallback(t=t, R=R))
+    menu_handler.insert("toggle tag tracking", 
+                        callback=update_merker_sub.toggle)
+    menu_handler.insert("go to", 
+                        callback=GoToMarkerCallback(server_name='spot/trajectory'))
+    menu_handler.insert(f"grasp {obj['name']}", 
+                        callback=GrabMarkerCallback(server_name='spot/grasp',
+                                                    t=t, R=R))
+    menu_handler.insert("drag to", 
+                        callback=DragToMarkerCallback(server_name='spot/manipulate', 
+                                                      t=t, R=R))
+    menu_handler.insert("stow arm", 
+                        callback=TriggerCallback('spot/arm_stow'))
     menu_handler.apply(server, int_marker.name)
 
 

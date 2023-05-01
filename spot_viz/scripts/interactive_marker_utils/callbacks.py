@@ -5,6 +5,7 @@ from spot_msgs.msg import TrajectoryAction, TrajectoryGoal
 from spot_msgs.msg import GripperAction, GripperGoal
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Duration
+from std_srvs.srv import Trigger, TriggerRequest
 
 from scipy.spatial.transform import Rotation as R
 import numpy as np
@@ -19,9 +20,21 @@ def _get_ros_stamped_pose(position, orientation):
     p.x, p.y, p.z = position.x, position.y, position.z
     return pose
 
+
+class TriggerCallback():
+    def __init__(self, topic_name):
+        rospy.loginfo(f'Connecting to {topic_name}.')
+        self._srvs = rospy.ServiceProxy(topic_name, Trigger)
+        rospy.loginfo("Waiting for service...")
+        self._srvs.wait_for_service()
+        rospy.loginfo("Connected! ")
+    def __call__(self, feedback):
+        result = self._srvs(TriggerRequest())
+        rospy.loginfo(result)
+
 class GoToMarkerCallback(object):
 
-    def __init__(self, server_name='spot/trajectory'):
+    def __init__(self, server_name):
         rospy.loginfo("Setting up client...")
         self._client = actionlib.SimpleActionClient(server_name, TrajectoryAction)
         rospy.loginfo(f"Waiting for {server_name} server...")
@@ -60,7 +73,7 @@ def _get_perpendicular_pose(pose, rot_vec=[0, 0, np.pi/2], offset=[0.0, 0.0, 0.0
 
 class GrabMarkerCallback(object):
 
-    def __init__(self, server_name='spot/grasp', t=[0.2, 0.0, 0.5], R=[0, 0, 0]):
+    def __init__(self, server_name, t=[0.2, 0.0, 0.5], R=[0, 0, 0]):
         '''
         A functor providing callback that triggers a rasp action server.
         Args:
@@ -89,7 +102,7 @@ class GrabMarkerCallback(object):
 
 class DragToMarkerCallback(object):
      
-    def __init__(self, server_name='spot/manipulate', t=[0.0, 0.0, 0.0], R=[0, 0, 0]):
+    def __init__(self, server_name, t=[0.0, 0.0, 0.0], R=[0, 0, 0]):
         rospy.loginfo("Setting up client...")
         self._client = actionlib.SimpleActionClient(server_name, GripperAction)
         rospy.loginfo(f"Waiting for {server_name} server...")
