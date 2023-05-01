@@ -42,11 +42,11 @@ class GripperActionServer:
         return T
 
     def _handle_action(self, goal):
-        rospy.loginfo("Received goal: " + str(goal))
+        rospy.logdebug("Received goal: " + str(goal))
 
         # Check requirements
         goal = self.ros_wrapper._transform_pose_to_body_frame(goal)
-        rospy.loginfo(f"transformed goal to: {goal.pose}")
+        rospy.logdebug(f"transformed goal to: {goal.pose}")
         
         # Start feedback thread
         self._feedback_thread = threading.Thread(target=self._handle_feedback, args=())

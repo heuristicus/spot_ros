@@ -131,9 +131,9 @@ class SpotTaskWrapper:
         if not self.spot.arm_stow()[0]:
             raise Exception('Failed to stow arm.')
 
-        self._log.info(f'Grasping pose {pose} in frame {reference_frame}')
+        self._log.debug(f'Grasping pose {pose} in frame {reference_frame}')
         pose = self._to_bd_se3(pose, reference_frame)
-
+        
         self._log.info('Approaching desired robot pose.')
         self.go_to(pose, self.default_ref_frame, distance=1.0, **kwargs)
 
