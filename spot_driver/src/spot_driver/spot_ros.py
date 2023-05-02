@@ -827,6 +827,19 @@ class SpotROS:
             )
             return
 
+        mobility_params = self.spot_wrapper.get_mobility_params()
+        max_lin_vel_x=mobility_params.vel_limit.max_vel.linear.x
+        max_lin_vel_y=mobility_params.vel_limit.max_vel.linear.y
+        max_angular_vel=mobility_params.vel_limit.max_vel.angular
+        if max_lin_vel_x==0 or max_lin_vel_y==0 or max_angular_vel==0:
+            rospy.logerr(
+                "Spot will not move as one or more of its velocity limits are set to 0. "
+                )
+            self.trajectory_server.set_aborted(
+                TrajectoryResult(False, "Velocity limits are set to 0.")
+            )
+            return
+
         target_pose = req.target_pose
         if req.target_pose.header.frame_id != "body":
             rospy.logwarn("Pose given was not in the body frame, will transform")
