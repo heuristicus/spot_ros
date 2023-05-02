@@ -160,7 +160,7 @@ class SpotTaskWrapper:
 
     def move_object(self, pose, reference_frame:str, **kwargs):
         '''Commands the robot to move an object to a desired pose.'''
-        self._log.info(f'Moving object to pose {pose} in frame {reference_frame}')
+        self._log.debug(f'Moving object to pose {pose} in frame {reference_frame}')
         return self._move_heavy_object(pose, reference_frame)
 
     def _follow_arm_to(self, pose, reference_frame):
@@ -275,9 +275,9 @@ class SpotTaskWrapper:
         # NOTE: Max stiffness: [500, 500, 500, 60, 60, 60]
         #      Max damping: [2.5, 2.5, 2.5, 1.0, 1.0, 1.0]
         arm_cmd.diagonal_stiffness_matrix.CopyFrom(
-            geometry_pb2.Vector(values=[200, 200, 200, 30, 30, 30]))
+            geometry_pb2.Vector(values=[300, 300, 300, 40, 40, 40]))
         arm_cmd.diagonal_damping_matrix.CopyFrom(
-            geometry_pb2.Vector(values=[1.5, 1.5, 1.5, 0.5, 0.5, 0.5]))
+            geometry_pb2.Vector(values=[1.0, 1.0, 1.0, 0.25, 0.25, 0.25]))
 
         # Set up our `desired_tool` trajectory.
         traj = arm_cmd.task_tform_desired_tool
@@ -287,8 +287,9 @@ class SpotTaskWrapper:
 
         # Set the claw to apply force        
         robot_cmd = CmdBuilder.claw_gripper_close_command(robot_cmd) 
-
-
+        # NOTE: in some places more claw pressure helps. The command below
+        #       fails. Need to find alternatives.
+        # robot_cmd.gripper_command.claw_gripper_command.maximum_torque = 8
 
         # Execute the impedance command
         cmd_id = self.spot._robot_command_client.robot_command(robot_cmd)
@@ -313,7 +314,7 @@ class SpotTaskWrapper:
         this is not currently supported by the robot.
         Instead ArmDragCommand has to first be used followed by 
         Arm impedance command.'''
-
+        self._log.info('Moving a heavy object.')
         pose = self._to_bd_se3(pose, reference_frame)
 
         # Check if pose is farther than some threshold
