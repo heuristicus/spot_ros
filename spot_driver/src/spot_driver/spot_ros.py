@@ -931,6 +931,7 @@ class SpotROS:
                 self.trajectory_server.publish_feedback(TrajectoryFeedback("Preempted"))
                 self.trajectory_server.set_preempted()
                 self.spot_wrapper.stop()
+                return
 
             if self.spot_wrapper.at_goal:
                 self.trajectory_server.publish_feedback(
