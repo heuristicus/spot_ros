@@ -1534,8 +1534,7 @@ class SpotROS:
             rates=self.rates,
             callbacks=self.callbacks,
             use_take_lease=self.use_take_lease,
-            get_lease_on_action=self.get_lease_on_action,
-            publish_odom_tf=self.publish_odom_tf,
+            get_lease_on_action=self.get_lease_on_action
         )
 
         if not self.spot_wrapper.is_valid:
