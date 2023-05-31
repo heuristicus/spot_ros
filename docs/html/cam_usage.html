@@ -24,14 +24,18 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Spot ROS User Documentation
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Spot ROS User Documentation
           </a>
               <div class="version">
                 1.0.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -76,8 +80,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Spot CAM</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Spot CAM</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/cam_usage.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -106,7 +110,7 @@ function. You must change the address of your payload.</p>
 control it, but it is necessary to authenticate to use it.</p>
 <p>The CAM launch has the same authentication parameters as the spot launch. When connected to the robot via wifi, you
 can start the driver with</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">roslaunch</span> <span class="n">spot_cam</span> <span class="n">spot_cam</span><span class="o">.</span><span class="n">launch</span> <span class="n">username</span><span class="o">:=</span><span class="n">user</span> <span class="n">password</span><span class="o">:=</span><span class="n">spot_password</span> <span class="n">hostname</span><span class="o">:=</span><span class="mf">192.168.80.3</span>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">roslaunch</span> <span class="n">spot_cam</span> <span class="n">spot_cam</span><span class="o">.</span><span class="n">launch</span> <span class="n">username</span><span class="p">:</span><span class="o">=</span><span class="n">user</span> <span class="n">password</span><span class="p">:</span><span class="o">=</span><span class="n">spot_password</span> <span class="n">hostname</span><span class="p">:</span><span class="o">=</span><span class="mf">192.168</span><span class="o">.</span><span class="mf">80.3</span>
 </pre></div>
 </div>
 <p>Once you have started the cam driver, you can access a lot of functionality through the rviz panel launched with <code class="docutils literal notranslate"><span class="pre">roslaunch</span> <span class="pre">spot_viz</span> <span class="pre">view_robot.launch</span></code></p>
