@@ -94,7 +94,6 @@ from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
 from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 
 from spot_driver.ros_helpers import *
-from spot_wrapper.spot_config import *
 from spot_wrapper.wrapper import SpotWrapper
 
 
