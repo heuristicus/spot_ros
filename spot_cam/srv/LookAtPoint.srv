@@ -1,0 +1,13 @@
+# Point the spot cam PTZ at a specific point in space
+# The target at which the PTZ should be pointed
+geometry_msgs/PointStamped target
+# Approximate width that the PTZ image should show. This is prioritised over the zoom level - if both are nonzero,
+# this will be used
+float32 image_width
+# Optical zoom level between 1 and 30 to use
+float32 zoom_level
+# If true, the camera will track this point as the robot moves
+bool track
+------
+bool success
+string message

@@ -1,7 +1,7 @@
 Arm Control
 ===========
 
-The driver can also send commands to the robots arm, if it has one. The following services
+The driver can also send commands to the robot's arm, if it has one. The following services
 allow control of various parts of the arm. Note that the arm does not have collision avoidance,
 so it is important to be careful when using these services.
 

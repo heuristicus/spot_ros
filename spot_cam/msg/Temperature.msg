@@ -1,0 +1,2 @@
+string channel_name
+float32 temperature

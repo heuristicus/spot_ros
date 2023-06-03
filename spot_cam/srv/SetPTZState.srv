@@ -1,0 +1,6 @@
+# This message can be used to send either position or velocity commands
+# The description of the ptz does not need to be complete - only the name is used
+spot_cam/PTZState command
+----
+bool success
+string message

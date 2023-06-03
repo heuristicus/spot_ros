@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(spot_viz)
 
-find_package(catkin REQUIRED COMPONENTS rviz spot_msgs)
+find_package(catkin REQUIRED COMPONENTS rviz spot_msgs spot_cam)
 
 catkin_package()
 
@@ -23,6 +23,7 @@ include_directories(
 
 set(SRC_FILES
   src/spot_panel.cpp
+  src/look_at_point_tool.cpp
 )
 
 add_library(${PROJECT_NAME} ${SRC_FILES})
@@ -37,4 +38,5 @@ install(TARGETS
 
 install(DIRECTORY rviz DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY resource DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(FILES plugin_description.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

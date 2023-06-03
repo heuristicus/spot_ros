@@ -1,0 +1,1 @@
+spot_cam/Temperature[] temperatures
