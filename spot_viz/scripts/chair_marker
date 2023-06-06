@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #!/usr/bin/env python3
 
 from interactive_markers.interactive_marker_server import *
@@ -105,4 +106,113 @@ def main():
     rospy.spin()
 
 if __name__ == "__main__":
+=======
+#!/usr/bin/env python3
+
+from interactive_markers.interactive_marker_server import *
+from interactive_markers.menu_handler import *
+from visualization_msgs.msg import *
+
+import numpy as np
+import rospy
+
+from interactive_marker_utils import (GoToMarkerCallback, 
+                                    GrabMarkerCallback, 
+                                    DragToMarkerCallback,
+                                    create_interactive_marker,
+                                    MarkerPoseSubscriber,
+                                    TriggerCallback
+                                    )
+
+def main():
+    rospy.init_node("spot_interactive_marker", anonymous=True)
+    mesh_dir = "package://spot_viz/meshes"
+    chair_arm = {
+        'name': 'chair_arm',
+        'mesh': f'{mesh_dir}/chair_arm.stl',
+        'mesh_scale': 0.001,
+        'grasp_t': [0.0, 0.0, 0.0],
+        'grasp_R': [0, 0, np.pi/2],
+        'tag_pose_offset': np.eye(4),
+    }
+    chair = {
+        'name': 'chair',
+        'mesh': f"{mesh_dir}/office_chair/10239_Office_Chair_v1_L3.obj",
+        'mesh_scale': 0.0075,
+
+        #################### Grasp relative to Chair ####################
+        ## left armrest 
+        # 'name': 'left armrest', 
+        # 'grasp_t': [0.2, 0.0, 0.5],
+        # 'grasp_R': [0, 0, np.pi],
+        
+        # ## left armrest stem - ish
+        # 'name': 'left armrest stem', 
+        # 'grasp_t': [0.2, 0.0, 0.45],
+        # 'grasp_R': [0.0 , 2.22144147, 2.22144147],
+
+        ## back rest
+        'name': 'backrest', 
+        'grasp_t': [0.2, 0.15, 0.6],
+        'grasp_R': [0.0 , 2.22144147, 2.22144147],
+
+        #################### Mesh relative to tag ####################
+        ## Tag set upright on bench center
+        # 'tag_pose_offset': np.array([[1.0,  0.0, 0.0, 0.0],
+        #                              [0.0,  0.0, -1.0, 0.35],
+        #                              [0.0, 1.0, 0.0, 0.1],]),
+        ## Tag stuck on front of backrest
+        'tag_pose_offset': np.array([[1.0,  0.0, 0.0, 0.0],
+                                     [0.0,  0.0, -1.0, 0.8],
+                                     [0.0, 1.0, 0.0, -0.2],]),
+        ## Tag hanging from the back of seat
+        'tag_pose_offset': np.array([[-1.0,  0.0, 0.0, 0.0],
+                                     [0.0,  0.0, -1.0, 0.4],
+                                     [0.0, -1.0, 0.0,  0.25],]),
+    }
+    obj = chair
+
+    # spawn cube with interactive marker in rviz for right arm
+    server = InteractiveMarkerServer("chair_handle")
+    int_marker = create_interactive_marker(
+            name=obj['name'],
+            mesh=obj['mesh'],
+            mesh_scale=obj['mesh_scale'],
+            axis_scale=0.8,
+            control_axis=['x','y','z', 'roll', 'pitch', 'yaw']
+            )
+    server.insert(int_marker, lambda feedback: feedback)
+    server.applyChanges()
+
+    # Subscribe to pose topic to update marker pose
+    update_merker_sub = MarkerPoseSubscriber(
+                                'tcpu', 
+                                int_marker, 
+                                server, 
+                                T=obj['tag_pose_offset']
+                            )
+
+    # Add a menu
+    menu_handler = MenuHandler()
+    
+    t, R = obj['grasp_t'], obj['grasp_R']
+    menu_handler.insert("toggle tag tracking", 
+                        callback=update_merker_sub.toggle)
+    menu_handler.insert("go to", 
+                        callback=GoToMarkerCallback(server_name='spot/trajectory'))
+    menu_handler.insert(f"grasp {obj['name']}", 
+                        callback=GrabMarkerCallback(server_name='spot/grasp',
+                                                    t=t, R=R))
+    menu_handler.insert("drag to", 
+                        callback=DragToMarkerCallback(server_name='spot/manipulate', 
+                                                      t=t, R=R))
+    menu_handler.insert("stow arm", 
+                        callback=TriggerCallback('spot/arm_stow'))
+    menu_handler.apply(server, int_marker.name)
+
+
+    rospy.spin()
+
+if __name__ == "__main__":
+>>>>>>> 966d07414ef2dec65180144a7fcb997b5965bdc6
     main()
