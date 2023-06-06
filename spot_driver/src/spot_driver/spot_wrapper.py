@@ -1301,7 +1301,6 @@ class SpotWrapper:
         if not destination_waypoint:
             # Failed to find the unique waypoint id.
             return
-
         robot_state = self._robot_state_client.get_robot_state()
         current_odom_tform_body = get_odom_tform_body(
             robot_state.kinematic_state.transforms_snapshot
@@ -1395,7 +1394,7 @@ class SpotWrapper:
             # The robot is not localized to the newly uploaded graph.
             self._logger.info(
                 "Upload complete! The robot is currently not localized to the map; please localize",
-                "the robot using commands (2) or (3) before attempting a navigation command.",
+                "the robot before attempting a navigation command.",
             )
 
     def _navigate_to(self, *args):

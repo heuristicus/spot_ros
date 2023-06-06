@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-
+import sys
 import logging
 import time 
-
 from spot_driver.spot_wrapper import SpotWrapper
 from spot_driver.spot_task_wrapper import SpotTaskWrapper
 
@@ -36,10 +35,10 @@ class TaskWrapperTester:
         self.log.debug('Standing...')
         self.spot.ensure_arm_power_and_stand()
 
-        self.log.debug('Turn 90 degrees clockwise.')
-        self.task = SpotTaskWrapper(self.spot, self.log)
+        #self.log.debug('Turn 90 degrees clockwise.')
+        #self.task = SpotTaskWrapper(self.spot, self.log)
         
-        self.test_grasp()
+        #self.test_grasp()
         # self.test_go_to()
     
     def __del__(self):
