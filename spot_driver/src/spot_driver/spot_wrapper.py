@@ -1,5 +1,13 @@
 import time
 import math
+#################################
+# Additional import statements for recording
+import os
+import sys
+import argparse
+import logging
+#Source: Required for recording_command_line.py in the Spot SDK examples
+#################################
 
 import numpy as np
 
@@ -44,6 +52,12 @@ from bosdyn.client.math_helpers import SE2Pose as bdSE2Pose
 from bosdyn.client.math_helpers import SE3Pose as bdSE3Pose
 from bosdyn.client.math_helpers import Quat as bdQuat
 
+#################### Added code ######################
+from bosdyn.client.recording import GraphNavRecordingServiceClient
+from bosdyn.client.map_processing import MapProcessingServiceClient
+# Sourced from recording_command_line.py in Spot-SDK, required to record
+######################################################
+
 from . import graph_nav_util
 from .utils.feedback_handlers import (
     handle_se2_traj_cmd_feedback
@@ -51,6 +65,7 @@ from .utils.feedback_handlers import (
 
 from bosdyn.api import arm_command_pb2
 import bosdyn.api.robot_state_pb2 as robot_state_proto
+from bosdyn.api.robot_state_pb2 import ManipulatorState
 from bosdyn.api import basic_command_pb2
 from bosdyn.api import synchronized_command_pb2
 from bosdyn.api import robot_command_pb2
@@ -63,7 +78,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from .utils.asynchronous_tasks import AsyncMetrics, AsyncLease, AsyncImageService, AsyncIdle, AsyncEStopMonitor
 from bosdyn.client.robot_command import block_until_arm_arrives
-
 
 """List of image sources for front image periodic query"""
 front_image_infos = {
@@ -140,6 +154,8 @@ class SpotWrapper:
         estop_timeout=9.0,
         rates={},
         callbacks={},
+        client_metadata=None, ############ Added this for recording ##############
+        download_filepath=os.getcwd(), ############# Added this for recording ##############
     ):
         self._username = username
         self._password = password
@@ -325,6 +341,25 @@ class SpotWrapper:
 
             self._robot_id = None
             self._lease = None
+        ############################################ Added code begins here
+        # Filepath for the location to put the downloaded graph and snapshots.
+        # What this says is "if no specific file path was given, make a folder that will store it"
+        if download_filepath[-1] == "/":
+            self._download_filepath = download_filepath + "downloaded_graph"
+        else:
+            self._download_filepath = download_filepath + "/downloaded_graph"
+        # Setup the recording service client.
+        # What this says is "Initialize the space on the robot to hold the recording
+        # and signal to the client we are doing so"
+        self._recording_client = self._robot.ensure_client(
+            GraphNavRecordingServiceClient.default_service_name)
+        # Create the recording environment.
+        # Translation: "Set up more backend framework for ensuring we are able to store recorded info"
+        self._recording_environment = GraphNavRecordingServiceClient.make_recording_environment(
+            waypoint_env=GraphNavRecordingServiceClient.make_waypoint_environment(
+                client_metadata=client_metadata))
+        #Source in recording_command_line.py example in Spot-SDK
+        ################################################################
 
     def _make_image_service(self, cb_name, data_requester):
         '''Helper function to create an AsyncImageService'''
@@ -522,8 +557,7 @@ class SpotWrapper:
         """Return the lease on the body and the eStop handle."""
         try:
             self.sit()
-            self.releaseLease()
-            self.releaseEStop()
+            self.disconnect()
             return True, "Success"
         except Exception as e:
             return False, str(e)
@@ -610,10 +644,16 @@ class SpotWrapper:
         """Stop the robot's motion and sit if possible.  Once sitting, disable motor power."""
         try:
             self.sit()
-            self._robot.safe_power_off()
+            
+            self._logger.info('Powering Off...')
+            self._robot.power_off()
             # self.spot.releaseLease()  # TODO: check if this ought to be used. 
+            
+            self._logger.info('Disconnecting...')
             self.disconnect()
+
             assert not self._robot.is_powered_on(), "Robot power off failed."
+            self._logger.info('Done!')
             return True, "Success"
         except Exception as e:
             return False, str(e)
@@ -633,7 +673,7 @@ class SpotWrapper:
     def power_on(self):
         """Enble the motor power if e-stop is enabled."""
         try:
-            power.power_on(self._power_client)
+            self._robot.power_on()
             return True, "Success"
         except Exception as e:
             return False, str(e)
@@ -834,26 +874,32 @@ class SpotWrapper:
 
         return True, "Spot has an arm, is powered on, and standing"
 
+
     def arm_stow(self):
 
-        # Open Gripper
-        s, _ = self.gripper_open()
-        if not s: return s, "Failed to open gripper"
+        state = self.robot_state.manipulator_state
+
+        if state.stow_state == ManipulatorState.StowState.STOWSTATE_STOWED:
+            self._logger.info("Arm is stowed.")
+            return True, "Arm is stowed."
+
+        if state.is_gripper_holding_item:
+            # Open Gripper
+            s, _ = self.gripper_open()
+            if not s: return s, "Failed to open gripper"
 
         # Stow Arm
         stow = RobotCommandBuilder.arm_stow_command()
-
-        # Command issue with RobotCommandClient
         cmd_id = self._robot_command_client.robot_command(stow)
         self._logger.info("Command stow issued")
-
         s = block_until_arm_arrives(self._robot_command_client, 
                                           cmd_id, 10.0)
         if not s: return False, "Arm failed to stow"
         
-        # Close Gripper
-        s, _ = self.gripper_close()
-        if not s: return s, "Failed to close gripper"
+        if state.gripper_open_percentage > 1e-5:
+            # Close Gripper
+            s, _ = self.gripper_close()
+            if not s: return s, "Failed to close gripper"
         
         return True, "Stow arm success"
 
@@ -1228,7 +1274,7 @@ class SpotWrapper:
                         feedback_resp = self._robot_command_client.robot_command_feedback(cmd_id)
                         arm_car_feedback = feedback_resp.feedback.synchronized_feedback\
                                                         .arm_command_feedback.arm_cartesian_feedback
-                        self._logger.info(
+                        self._logger.debug(
                             'Distance to go: ' +
                             '{:.2f} meters'.format(arm_car_feedback.measured_pos_distance_to_goal) +
                             ', {:.2f} radians'.format(arm_car_feedback.measured_rot_distance_to_goal))
@@ -1659,3 +1705,24 @@ class SpotWrapper:
         """Get docking state of robot."""
         state = self._docking_client.get_docking_state(**kwargs)
         return state
+
+    ############################################################################
+    # Additional Code begins here, these functions are analogs to 
+    # spot-sdk\python\examples\graph_nav_command_line\recording_commandline.py
+    def should_we_start_recording():
+        """Helper function to authenticate whether recording can happen"""
+        return
+
+    def record():
+        """Prompts the Robot to record a map of its own motion."""
+        return
+    
+    def stop_recording():
+        """Prompts the Robot to stop recording"""
+        return
+    
+    def download_recording():
+        """Downloads the graph that has been recorded"""
+        return
+    ############################################################################
+    

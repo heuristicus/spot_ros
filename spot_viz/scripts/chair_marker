@@ -44,7 +44,7 @@ def main():
 
         ## back rest
         'name': 'backrest', 
-        'grasp_t': [0.23, 0.15, 0.6],
+        'grasp_t': [0.2, 0.15, 0.6],
         'grasp_R': [0.0 , 2.22144147, 2.22144147],
 
         #################### Mesh relative to tag ####################
@@ -52,10 +52,14 @@ def main():
         # 'tag_pose_offset': np.array([[1.0,  0.0, 0.0, 0.0],
         #                              [0.0,  0.0, -1.0, 0.35],
         #                              [0.0, 1.0, 0.0, 0.1],]),
-        ## Tag stuck on backrest
+        ## Tag stuck on front of backrest
         'tag_pose_offset': np.array([[1.0,  0.0, 0.0, 0.0],
                                      [0.0,  0.0, -1.0, 0.8],
                                      [0.0, 1.0, 0.0, -0.2],]),
+        ## Tag hanging from the back of seat
+        'tag_pose_offset': np.array([[-1.0,  0.0, 0.0, 0.0],
+                                     [0.0,  0.0, -1.0, 0.4],
+                                     [0.0, -1.0, 0.0,  0.25],]),
     }
     obj = chair
 
