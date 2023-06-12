@@ -43,11 +43,21 @@ class RecordingTester:
         self.log.debug('Standing...')
         self.spot.ensure_arm_power_and_stand()
 
-        
-        
+        self.log.debug('Attemptiong to clear maps...')
+        self.spot._clear_graph()
+
+        self.log.debug('Attempting to start recording...')
+        self.spot.record()
+
+        self.log.debug('Walking forward ...')
+        self.spot.trajectory_cmd(1, 0, 2, 10)
+
+        self.log.debug('Attempting to stop recording...')
+        self.spot.stop_recording()
+
 
     def __del__(self):
-        # time.sleep(5)
+        time.sleep(5)
         if self.power_off: self.spot.safe_power_off()
         self.spot.releaseLease()
         self.log.debug(f'Done')
