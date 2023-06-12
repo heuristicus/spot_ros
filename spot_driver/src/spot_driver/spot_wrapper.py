@@ -796,6 +796,7 @@ class SpotWrapper:
             RobotCommandBuilder.battery_change_pose_command(dir_hint)
         )
         return response[0], response[1]
+        
 
     def navigate_to(
         self,
@@ -818,16 +819,14 @@ class SpotWrapper:
         else:
             upload_filepath = upload_path
 
-        # Boolean indicating the robot's power state.
-        power_state = self._robot_state_client.get_robot_state().power_state
-        self._started_powered_on = power_state.motor_power_state == power_state.STATE_ON
-        self._powered_on = self._started_powered_on
 
         # FIX ME somehow,,,, if the robot is stand, need to sit the robot before starting garph nav
         if self.is_standing and not self.is_moving:
             self.sit()
 
-        # TODO verify estop  / claim / power_on
+        assert not self._robot.is_estopped(), "Robot is estopped. cannot complete navigation"
+        assert self.check_is_powered_on(), "Robot not powered on, cannot complete navigation"
+        assert self._lease != None, "No lease claim, cannot complete navigations"
         self._clear_graph()
         self._upload_graph_and_snapshots(upload_filepath)
         if initial_localization_fiducial:
@@ -1329,7 +1328,6 @@ class SpotWrapper:
         if not destination_waypoint:
             # Failed to find the unique waypoint id.
             return
-
         robot_state = self._robot_state_client.get_robot_state()
         current_odom_tform_body = get_odom_tform_body(
             robot_state.kinematic_state.transforms_snapshot
@@ -1423,7 +1421,7 @@ class SpotWrapper:
             # The robot is not localized to the newly uploaded graph.
             self._logger.info(
                 "Upload complete! The robot is currently not localized to the map; please localize",
-                "the robot using commands (2) or (3) before attempting a navigation command.",
+                "the robot before attempting a navigation command.",
             )
 
     def _navigate_to(self, *args):
@@ -1433,7 +1431,9 @@ class SpotWrapper:
             # If no waypoint id is given as input, then return without requesting navigation.
             self._logger.info("No waypoint provided as a destination for navigate to.")
             return
-
+        assert not self._robot.is_estopped(), "Robot is estopped. cannot complete navigation"
+        assert self.check_is_powered_on(), "Robot not powered on, cannot complete navigation"
+        assert self._lease != None, "No lease claim, cannot complete navigations"
         self._lease = self._lease_wallet.get_lease()
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
             args[0][0],
@@ -1471,9 +1471,8 @@ class SpotWrapper:
 
         self._lease = self._lease_wallet.advance()
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
-
         # Update the lease and power off the robot if appropriate.
-        if self._powered_on and not self._started_powered_on:
+        if self.check_is_powered_on():
             # Sit the robot down + power off after the navigation command is complete.
             self.toggle_power(should_power_on=False)
 
@@ -1507,6 +1506,9 @@ class SpotWrapper:
             # If no waypoint ids are given as input, then return without requesting navigation.
             self._logger.error("No waypoints provided for navigate route.")
             return
+        assert not self._robot.is_estopped(), "Robot is estopped. cannot complete navigation"
+        assert self.check_is_powered_on(), "Robot not powered on, cannot complete navigation"
+        assert self._lease != None, "No lease claim, cannot complete navigations"
         waypoint_ids = args[0]
         for i in range(len(waypoint_ids)):
             waypoint_ids[i] = graph_nav_util.find_unique_waypoint_id(
@@ -1518,7 +1520,6 @@ class SpotWrapper:
             if not waypoint_ids[i]:
                 # Failed to find the unique waypoint id.
                 return
-
         edge_ids_list = []
         all_edges_found = True
         # Attempt to find edges in the current graph that match the ordered waypoint pairs.
@@ -1575,7 +1576,7 @@ class SpotWrapper:
             self._lease_keepalive = LeaseKeepAlive(self._lease_client)
 
             # Update the lease and power off the robot if appropriate.
-            if self._powered_on and not self._started_powered_on:
+            if self.check_is_powered_on():
                 # Sit the robot down + power off after the navigation command is complete.
                 self.toggle_power(should_power_on=False)
 
@@ -1610,15 +1611,14 @@ class SpotWrapper:
         else:
             # Return the current power state without change.
             return is_powered_on
-        # Update the locally stored power state.
-        self.check_is_powered_on()
-        return self._powered_on
+        # return the new power state of the robot.
+        return self.check_is_powered_on()
 
     def check_is_powered_on(self):
         """Determine if the robot is powered on or off."""
         power_state = self._robot_state_client.get_robot_state().power_state
-        self._powered_on = power_state.motor_power_state == power_state.STATE_ON
-        return self._powered_on
+        powered_on = power_state.motor_power_state == power_state.STATE_ON
+        return powered_on
 
     def _check_success(self, command_id=-1):
         """Use a navigation command id to get feedback from the robot and sit when command succeeds."""

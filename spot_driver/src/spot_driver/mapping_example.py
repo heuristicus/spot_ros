@@ -24,20 +24,35 @@ class MappingWrapperTester:
 
         #self.log.debug('Standing...')
         #self.spot.ensure_arm_power_and_stand()
-        #self.log.debug("Uploading graph...")
-        #self.spot._upload_graph_and_snapshots(upload_path)
+        self.spot._clear_graph()
+        self.log.debug("Uploading graph...")
+        self.spot._upload_graph_and_snapshots(upload_path)
 
-        #self.spot._get_localization_state()
+        self.spot._get_localization_state()
 
-        #self.spot._list_graph_waypoint_and_edge_ids()
+        self.spot._list_graph_waypoint_and_edge_ids()
 
-        #self.log.debug("localizing ...")
-        #self.spot._set_initial_localization_waypoint("ef ")
+        self.log.debug("localizing ...")
+        # waypoint arguments must be passed in as a list.
+        # passing in strings directly will lead to waypoints not being found
+        self.spot._set_initial_localization_waypoint(["em"])
         self.log.debug("Navigating waypoints...")
+
         # when using navigate_to, must specify path to map
         # destination waypoint, and localization method.
         # if using waypoints, must specify localization waypoint
-        self.spot.navigate_to(upload_path, "ss", False, "ef")
+    
+        # self.spot.navigate_to(upload_path, "ss", False, "ef")
+        
+        time.sleep(2)
+
+        # _navigate_to() method is used to navigate to a waypoint from a map thatis already uploaded to spot
+        #self.spot._navigate_to(["em"])
+
+        # _navigate_route() method is used to navigate through a list of specified waypoints.
+        # there must be edges between each adjacent pair of waypoints in the list
+        #self.spot._navigate_route(["um", "em", "md"])
+        time.sleep(2)
         if self.power_off: self.spot.safe_power_off()
         self.spot.releaseLease()
         self.log.debug(f'Done')
