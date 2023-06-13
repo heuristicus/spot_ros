@@ -1761,6 +1761,14 @@ class SpotWrapper:
                 break
         return
     
+    def get_recording_status(self, *args): #Function that tells whether robot is recording or not, for debugging
+        """Get the recording service's status."""
+        status = self._recording_client.get_record_status()
+        if status.is_recording:
+            print("The recording service is on.")
+        else:
+            print("The recording service is off.")
+    
     def _write_bytes(self, filepath, filename, data): #Helper function
         """Write data to a file. Used for all downloading procedures"""
         os.makedirs(filepath, exist_ok=True)
@@ -1813,7 +1821,7 @@ class SpotWrapper:
             print("Downloaded {} of the total {} edge snapshots.".format(
                 num_edge_snapshots_downloaded, num_to_download))
 
-    def download_recording(download_filepath=os.getcwd()): #Download function to use
+    def download_recording(self, download_filepath=os.getcwd(), *args): #Download function to use
         """Downloads the graph that has been recorded and writes it into subdirectory"""
         # Filepath for the location to put the downloaded graph and snapshots.
         # What this says is "if no specific file path was given, make a folder that will store it"

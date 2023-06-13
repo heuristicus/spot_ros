@@ -16,6 +16,7 @@ class MappingWrapperTester:
                                 '192.168.80.3',  #'192.168.80.3','10.0.0.3', 
                                 logger=self.log,
                                 estop_timeout=9.0,)
+        
         self.log.setLevel('DEBUG')
         
         self.log.debug('Powering on...')
