@@ -776,7 +776,7 @@ class SpotWrapper:
 
         return response[0], response[1], response[2]
 
-    def list_graph(self, upload_path):
+    def list_graph(self):
         """List waypoint ids of garph_nav
         Args:
           upload_path : Path to the root directory of the map.
@@ -1776,12 +1776,12 @@ class SpotWrapper:
             f.write(data)
             f.close()
 
-    def _write_full_graph(self, graph): #Helper function
+    def _write_full_graph(self, graph, download_filepath): #Helper function
         """Download the graph from robot to the specified, local filepath location."""
         graph_bytes = graph.SerializeToString()
-        self._write_bytes(self._download_filepath, '/graph', graph_bytes)
+        self._write_bytes(download_filepath, '/graph', graph_bytes)
 
-    def _download_and_write_waypoint_snapshots(self, waypoints): #Helper function
+    def _download_and_write_waypoint_snapshots(self, waypoints, download_filepath): #Helper function
         """Download the waypoint snapshots from robot to the specified, local filepath location."""
         num_waypoint_snapshots_downloaded = 0
         for waypoint in waypoints:
@@ -1794,14 +1794,14 @@ class SpotWrapper:
                 # Failure in downloading waypoint snapshot. Continue to next snapshot.
                 print("Failed to download waypoint snapshot: " + waypoint.snapshot_id)
                 continue
-            self._write_bytes(self._download_filepath + '/waypoint_snapshots',
+            self._write_bytes(download_filepath + '/waypoint_snapshots',
                               '/' + waypoint.snapshot_id, waypoint_snapshot.SerializeToString())
             num_waypoint_snapshots_downloaded += 1
             print("Downloaded {} of the total {} waypoint snapshots.".format(
                 num_waypoint_snapshots_downloaded, len(waypoints)))
             
 
-    def _download_and_write_edge_snapshots(self, edges): #Helper function
+    def _download_and_write_edge_snapshots(self, edges, download_filepath): #Helper function
         """Download the edge snapshots from robot to the specified, local filepath location."""
         num_edge_snapshots_downloaded = 0
         num_to_download = 0
@@ -1815,7 +1815,7 @@ class SpotWrapper:
                 # Failure in downloading edge snapshot. Continue to next snapshot.
                 print("Failed to download edge snapshot: " + edge.snapshot_id)
                 continue
-            self._write_bytes(self._download_filepath + '/edge_snapshots', '/' + edge.snapshot_id,
+            self._write_bytes(download_filepath + '/edge_snapshots', '/' + edge.snapshot_id,
                               edge_snapshot.SerializeToString())
             num_edge_snapshots_downloaded += 1
             print("Downloaded {} of the total {} edge snapshots.".format(
@@ -1826,19 +1826,19 @@ class SpotWrapper:
         # Filepath for the location to put the downloaded graph and snapshots.
         # What this says is "if no specific file path was given, make a folder that will store it"
         if download_filepath[-1] == "/":
-            self._download_filepath = download_filepath + "downloaded_graph"
+            download_filepath = download_filepath + "downloaded_graph"
         else:
-            self._download_filepath = download_filepath + "/downloaded_graph"
+            download_filepath = download_filepath + "/downloaded_graph"
         """Download the graph and snapshots from the robot."""
         graph = self._graph_nav_client.download_graph()
         if graph is None:
             print("Failed to download the graph.")
             return
-        self._write_full_graph(graph)
+        self._write_full_graph(graph, download_filepath)
         print("Graph downloaded with {} waypoints and {} edges".format(
             len(graph.waypoints), len(graph.edges)))
         # Download the waypoint and edge snapshots.
-        self._download_and_write_waypoint_snapshots(graph.waypoints)
-        self._download_and_write_edge_snapshots(graph.edges)
+        self._download_and_write_waypoint_snapshots(graph.waypoints, download_filepath)
+        self._download_and_write_edge_snapshots(graph.edges, download_filepath)
     
     ############################################################################
