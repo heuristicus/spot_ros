@@ -1,10 +1,14 @@
+import datetime
+import functools
 import logging
+import os
+import pathlib
 import threading
 import typing
 import wave
-import functools
-import actionlib
+import cv2
 
+import actionlib
 import numpy as np
 import rospy
 import tf
@@ -35,6 +39,9 @@ from spot_cam.msg import (
     LookAtPointResult,
 )
 from spot_cam.srv import (
+    CaptureImage,
+    CaptureImageRequest,
+    CaptureImageResponse,
     LoadSound,
     LookAtPoint,
     PlaySound,
@@ -46,11 +53,11 @@ from spot_cam.srv import (
     SetStreamParams,
     SetString,
 )
-from spot_wrapper.cam_wrapper import SpotCamWrapper
 from std_msgs.msg import Float32MultiArray, Float32
 from std_srvs.srv import Trigger
 
 from spot_driver.ros_helpers import getSystemFaults
+from spot_wrapper.cam_wrapper import SpotCamWrapper
 
 
 class ROSHandler:
@@ -1172,9 +1179,37 @@ class ImageStreamHandlerROS(ROSHandler):
         self.compositor_client = wrapper.compositor
         self.cv_bridge = CvBridge()
         self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
+        self.image_capture_srv = rospy.Service(
+            "/spot/cam/capture_image", CaptureImage, self._handle_capture_image
+        )
         self.loop_thread = threading.Thread(target=self._publish_images_loop)
         self.loop_thread.start()
         self.logger.info("Initialised image stream handler")
+
+    def _get_image_from_client(self) -> Image:
+        """
+        Get the latest image from the image client
+
+        Returns:
+            Image
+        """
+        image = self.cv_bridge.cv2_to_imgmsg(self.image_client.last_image, "bgr8")
+        # TODO: This has to do frame switching in the published message headers depending on the compositor view
+        image.header.stamp = rospy.Time.from_sec(
+            self.image_client.last_image_time.timestamp()
+        )
+        try:
+            visible_cameras = self.compositor_client.get_visible_cameras()
+            if len(visible_cameras) == 1:
+                # Can't set the frame id unless there is only a single camera displayed. There is no frame for a
+                # combined image
+                # The camera name here is in the form name:window, we just want the camera name
+                # https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#getvisiblecamerasresponse-stream
+                image.header.frame_id = visible_cameras[0].camera.name.split(":")[0]
+        except RetryableUnavailableError as e:
+            self.logger.warning(f"Failed to get visible cameras: {e}")
+
+        return image
 
     def _publish_images_loop(self):
         """
@@ -1184,30 +1219,100 @@ class ImageStreamHandlerROS(ROSHandler):
         last_image_time = self.image_client.last_image_time
         while not rospy.is_shutdown():
             if last_image_time != self.image_client.last_image_time:
-                image = self.cv_bridge.cv2_to_imgmsg(
-                    self.image_client.last_image, "bgr8"
-                )
-                image.header.stamp = (
-                    rospy.Time.now()
-                )  # Not strictly correct... but close enough?
-                try:
-                    visible_cameras = self.compositor_client.get_visible_cameras()
-                    if len(visible_cameras) == 1:
-                        # Can't set the frame id unless there is only a single camera displayed. There is no frame for a
-                        # combined image
-                        # The camera name here is in the form name:window, we just want the camera name
-                        # https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#getvisiblecamerasresponse-stream
-                        image.header.frame_id = visible_cameras[0].camera.name.split(
-                            ":"
-                        )[0]
-                except RetryableUnavailableError as e:
-                    self.logger.warning(f"Failed to get visible cameras: {e}")
-
-                # TODO: This has to do frame switching in the published message headers depending on the compositor view
+                image = self._get_image_from_client()
                 self.image_pub.publish(image)
                 last_image_time = self.image_client.last_image_time
 
             loop_rate.sleep()
+
+    def _handle_capture_image(self, req: CaptureImageRequest) -> CaptureImageResponse:
+        """
+        Handle a request to capture an image
+
+        Args:
+            req: CaptureImageRequest
+
+        Returns:
+            CaptureImageResponse
+        """
+        success, message = self.capture_image(
+            req.screen,
+            req.save_dir,
+            req.filename,
+            req.capture_duration,
+            req.capture_count,
+        )
+        return CaptureImageResponse(success, message)
+
+    def capture_image(
+        self,
+        screen: str,
+        save_dir: str,
+        filename: str = "spot_cam_capture",
+        capture_duration: typing.Optional[float] = None,
+        capture_count: int = 1,
+    ) -> typing.Tuple[bool, str]:
+        """
+
+        Args:
+            screen: Screen which should be captured
+            save_dir: Directory to which images should be saved
+            filename: Base name of the file which will be generated for each image. It will have the screen and the
+                      date and time of capture in the filename. Default is spot_cam_capture.
+            capture_duration: If provided, all images received on the topic for this duration (in seconds) will be captured.
+                              Overrides capture_count.
+            capture_count: If provided, capture this many images from the topic before exiting. Overridden by
+                           capture_duration.
+
+        Returns:
+            Bool indicating success, string with a message.
+        """
+        self.compositor_client.set_screen(screen)
+        # Check that if the save path exists it's a directory
+        full_path = os.path.abspath(os.path.expanduser(save_dir))
+        if os.path.exists(full_path) and not os.path.isdir(full_path):
+            return (
+                False,
+                f"Requested save directory {full_path} exists and is not a directory.",
+            )
+        # Create the path
+        pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+        def get_and_save_image():
+            image = self._get_image_from_client()
+            full_filename = f"{filename}_{screen}_{self.image_client.last_image_time.strftime('%Y-%m-%d-%H-%M-%S')}"
+            file_path = os.path.join(save_dir, full_filename)
+            cv2.imwrite(file_path, image)
+
+        loop_rate = rospy.Rate(50)
+        last_image_time = self.image_client.last_image_time
+
+        if capture_duration:
+            if capture_duration <= 0:
+                return False, f"Requested capture duration {capture_duration} was less than 0"
+            capture_start_time = rospy.Time.now()
+            total_capture_time = rospy.Duration.from_sec(capture_duration)
+        captured_images = 0
+
+        while not rospy.is_shutdown():
+            if (
+                capture_duration
+                and rospy.Time.now() - capture_start_time >= total_capture_time
+            ):
+                # If the capture duration is set, we loop until the total capture time meets or exceeds that duration.
+                break
+            elif captured_images >= capture_count:
+                # Otherwise, we capture images until we capture the requested number
+                break
+
+            if last_image_time != self.image_client.last_image_time:
+                get_and_save_image()
+                last_image_time = self.image_client.last_image_time
+                captured_images += 1
+
+            loop_rate.sleep()
+
+        return True, f"Saved image(s) to {save_dir}"
 
 
 class SpotCamROS:
