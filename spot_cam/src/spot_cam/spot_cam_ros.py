@@ -1194,7 +1194,6 @@ class ImageStreamHandlerROS(ROSHandler):
             Image
         """
         image = self.cv_bridge.cv2_to_imgmsg(self.image_client.last_image, "bgr8")
-        # TODO: This has to do frame switching in the published message headers depending on the compositor view
         image.header.stamp = rospy.Time.from_sec(
             self.image_client.last_image_time.timestamp()
         )
@@ -1258,7 +1257,10 @@ class ImageStreamHandlerROS(ROSHandler):
             screen: Screen which should be captured
             save_dir: Directory to which images should be saved
             filename: Base name of the file which will be generated for each image. It will have the screen and the
-                      date and time of capture in the filename. Default is spot_cam_capture.
+                      date and time of capture in the filename. Default is spot_cam_capture. If this includes an
+                      extension, output files will be saved with that extension rather than the default of .png.
+                      See https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
+                      for valid extensions
             capture_duration: If provided, all images received on the topic for this duration (in seconds) will be captured.
                               Overrides capture_count.
             capture_count: If provided, capture this many images from the topic before exiting. Overridden by
@@ -1268,6 +1270,8 @@ class ImageStreamHandlerROS(ROSHandler):
             Bool indicating success, string with a message.
         """
         self.compositor_client.set_screen(screen)
+        # Need to have some time for the compositor to actually switch the screen
+        rospy.sleep(1)
         # Check that if the save path exists it's a directory
         full_path = os.path.abspath(os.path.expanduser(save_dir))
         if os.path.exists(full_path) and not os.path.isdir(full_path):
@@ -1278,11 +1282,13 @@ class ImageStreamHandlerROS(ROSHandler):
         # Create the path
         pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
 
-        def get_and_save_image():
-            image = self._get_image_from_client()
-            full_filename = f"{filename}_{screen}_{self.image_client.last_image_time.strftime('%Y-%m-%d-%H-%M-%S')}"
-            file_path = os.path.join(save_dir, full_filename)
-            cv2.imwrite(file_path, image)
+        # If the base filename has an extension, we will try to use that extension when saving the files. Default is png
+        extension = ".png"
+        split = os.path.splitext(filename)
+        # Splitext returns empty string if there is no file extension
+        if split[1] != "":
+            filename = split[0]
+            extension = split[1]
 
         loop_rate = rospy.Rate(50)
         last_image_time = self.image_client.last_image_time
@@ -1292,6 +1298,9 @@ class ImageStreamHandlerROS(ROSHandler):
                 return False, f"Requested capture duration {capture_duration} was less than 0"
             capture_start_time = rospy.Time.now()
             total_capture_time = rospy.Duration.from_sec(capture_duration)
+
+        if capture_count < 1:
+            capture_count = 1
         captured_images = 0
 
         while not rospy.is_shutdown():
@@ -1306,13 +1315,15 @@ class ImageStreamHandlerROS(ROSHandler):
                 break
 
             if last_image_time != self.image_client.last_image_time:
-                get_and_save_image()
+                full_filename = f"{filename}_{screen}_{self.image_client.last_image_time.strftime('%Y-%m-%d-%H-%M-%S')}{extension}"
+                file_path = os.path.join(save_dir, full_filename)
+                cv2.imwrite(file_path, self.image_client.last_image)
                 last_image_time = self.image_client.last_image_time
                 captured_images += 1
 
             loop_rate.sleep()
 
-        return True, f"Saved image(s) to {save_dir}"
+        return True, f"Saved {captured_images} image(s) to {save_dir}"
 
 
 class SpotCamROS:
