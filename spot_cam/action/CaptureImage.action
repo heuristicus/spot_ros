@@ -22,3 +22,5 @@ int32 capture_count
 -----
 bool success
 string message
+---
+string feedback

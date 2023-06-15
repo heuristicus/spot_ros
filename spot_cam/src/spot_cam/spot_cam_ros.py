@@ -37,11 +37,11 @@ from spot_cam.msg import (
     LookAtPointAction,
     LookAtPointGoal,
     LookAtPointResult,
+    CaptureImageAction,
+    CaptureImageGoal,
+    CaptureImageResult,
 )
 from spot_cam.srv import (
-    CaptureImage,
-    CaptureImageRequest,
-    CaptureImageResponse,
     LoadSound,
     LookAtPoint,
     PlaySound,
@@ -1179,8 +1179,8 @@ class ImageStreamHandlerROS(ROSHandler):
         self.compositor_client = wrapper.compositor
         self.cv_bridge = CvBridge()
         self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
-        self.image_capture_srv = rospy.Service(
-            "/spot/cam/capture_image", CaptureImage, self._handle_capture_image
+        self.image_capture_as = actionlib.SimpleActionServer(
+            "/spot/cam/capture_image", CaptureImageAction, self._handle_capture_image
         )
         self.loop_thread = threading.Thread(target=self._publish_images_loop)
         self.loop_thread.start()
@@ -1224,7 +1224,7 @@ class ImageStreamHandlerROS(ROSHandler):
 
             loop_rate.sleep()
 
-    def _handle_capture_image(self, req: CaptureImageRequest) -> CaptureImageResponse:
+    def _handle_capture_image(self, goal: CaptureImageGoal):
         """
         Handle a request to capture an image
 
@@ -1235,13 +1235,17 @@ class ImageStreamHandlerROS(ROSHandler):
             CaptureImageResponse
         """
         success, message = self.capture_image(
-            req.screen,
-            req.save_dir,
-            req.filename,
-            req.capture_duration,
-            req.capture_count,
+            goal.screen,
+            goal.save_dir,
+            goal.filename,
+            goal.capture_duration,
+            goal.capture_count,
         )
-        return CaptureImageResponse(success, message)
+        if not success:
+            self.image_capture_as.set_aborted(CaptureImageResult(success=success, message=message))
+        else:
+            self.image_capture_as.set_succeeded(CaptureImageResult(success=success, message=message))
+
 
     def capture_image(
         self,
@@ -1310,7 +1314,7 @@ class ImageStreamHandlerROS(ROSHandler):
             ):
                 # If the capture duration is set, we loop until the total capture time meets or exceeds that duration.
                 break
-            elif captured_images >= capture_count:
+            elif not capture_duration and captured_images >= capture_count:
                 # Otherwise, we capture images until we capture the requested number
                 break
 

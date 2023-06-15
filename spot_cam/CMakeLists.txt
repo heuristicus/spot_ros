@@ -34,7 +34,6 @@ add_message_files(
 
 add_service_files(
   FILES
-  CaptureImage.srv
   LoadSound.srv
   LookAtPoint.srv
   PlaySound.srv
@@ -49,6 +48,7 @@ add_service_files(
 
 add_action_files(
   FILES
+  CaptureImage.action
   LookAtPoint.action
 )
 
