@@ -227,7 +227,7 @@ class CompositorHandlerROS(ROSHandler):
             "/spot/cam/set_screen", SetString, self.handle_set_screen
         )
         self.current_screen_pub = rospy.Publisher(
-            "/spot/cam/current_screen", String, queue_size=1
+            "/spot/cam/current_screen", String, queue_size=1, latch=True
         )
         self.set_ir_meter_overlay_service = rospy.Service(
             "/spot/cam/set_ir_meter_overlay",
@@ -281,8 +281,11 @@ class CompositorHandlerROS(ROSHandler):
         Loop for publishing the current screen
         """
         loop_rate = rospy.Rate(1)
+        last_screen = self.get_screen()
         while not rospy.is_shutdown():
-            self.current_screen_pub.publish(self.get_screen())
+            if self.get_screen() != last_screen:
+                self.current_screen_pub.publish(self.get_screen())
+            last_screen = self.get_screen()
             loop_rate.sleep()
 
     def handle_set_ir_meter_overlay(self, req: SetIRMeterOverlay):
