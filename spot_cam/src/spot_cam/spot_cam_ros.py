@@ -21,6 +21,7 @@ from bosdyn.client.exceptions import (
 from cv_bridge import CvBridge
 from geometry_msgs.msg import TransformStamped, PointStamped
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 from spot_cam.msg import (
     BITStatus,
     Degradation,
@@ -225,6 +226,9 @@ class CompositorHandlerROS(ROSHandler):
         self.set_screen_service = rospy.Service(
             "/spot/cam/set_screen", SetString, self.handle_set_screen
         )
+        self.current_screen_pub = rospy.Publisher(
+            "/spot/cam/current_screen", String, queue_size=1
+        )
         self.set_ir_meter_overlay_service = rospy.Service(
             "/spot/cam/set_ir_meter_overlay",
             SetIRMeterOverlay,
@@ -239,6 +243,9 @@ class CompositorHandlerROS(ROSHandler):
         )
         self.logger.info("Initialised compositor handler")
 
+        current_screen_thread = threading.Thread(target=self._current_screen_loop)
+        current_screen_thread.start()
+
     def handle_set_screen(self, req: SetString):
         """
         Handle a request to set the screen displayed by webrtc
@@ -251,7 +258,7 @@ class CompositorHandlerROS(ROSHandler):
             self.logger.error(message)
             return False, message
 
-    def set_screen(self, screen):
+    def set_screen(self, screen: str):
         """
         Choose which screen to display. This is how it is possible to view the streams from different cameras
 
@@ -259,6 +266,24 @@ class CompositorHandlerROS(ROSHandler):
             screen: Screen to display
         """
         self.client.set_screen(screen)
+
+    def get_screen(self) -> str:
+        """
+        Get the currently displayed screen
+
+        Returns:
+            Name of the currently displayed screen
+        """
+        return self.client.get_screen()
+
+    def _current_screen_loop(self):
+        """
+        Loop for publishing the current screen
+        """
+        loop_rate = rospy.Rate(1)
+        while not rospy.is_shutdown():
+            self.current_screen_pub.publish(self.get_screen())
+            loop_rate.sleep()
 
     def handle_set_ir_meter_overlay(self, req: SetIRMeterOverlay):
         """
@@ -1242,10 +1267,13 @@ class ImageStreamHandlerROS(ROSHandler):
             goal.capture_count,
         )
         if not success:
-            self.image_capture_as.set_aborted(CaptureImageResult(success=success, message=message))
+            self.image_capture_as.set_aborted(
+                CaptureImageResult(success=success, message=message)
+            )
         else:
-            self.image_capture_as.set_succeeded(CaptureImageResult(success=success, message=message))
-
+            self.image_capture_as.set_succeeded(
+                CaptureImageResult(success=success, message=message)
+            )
 
     def capture_image(
         self,
@@ -1273,9 +1301,13 @@ class ImageStreamHandlerROS(ROSHandler):
         Returns:
             Bool indicating success, string with a message.
         """
+        switching_screen = self.compositor_client.get_screen() != screen
         self.compositor_client.set_screen(screen)
-        # Need to have some time for the compositor to actually switch the screen
-        rospy.sleep(1)
+
+        if switching_screen:
+            # Need to have some time for the compositor to actually switch the screen, if we need to switch
+            rospy.sleep(2)
+
         # Check that if the save path exists it's a directory
         full_path = os.path.abspath(os.path.expanduser(save_dir))
         if os.path.exists(full_path) and not os.path.isdir(full_path):
@@ -1299,7 +1331,10 @@ class ImageStreamHandlerROS(ROSHandler):
 
         if capture_duration:
             if capture_duration <= 0:
-                return False, f"Requested capture duration {capture_duration} was less than 0"
+                return (
+                    False,
+                    f"Requested capture duration {capture_duration} was less than 0",
+                )
             capture_start_time = rospy.Time.now()
             total_capture_time = rospy.Duration.from_sec(capture_duration)
 
