@@ -260,6 +260,13 @@ class SpotWrapper:
                     self._docking_client = self._robot.ensure_client(
                         DockingClient.default_service_name
                     )
+                    ############################################ Added code begins here
+                    # Setup the recording service client.
+                    # What this says is "Initialize the space on the robot to hold the recording
+                    # and signal to the client we are doing so"
+                    self._recording_client = self._robot.ensure_client(
+                        GraphNavRecordingServiceClient.default_service_name)
+                    #############################################
                     initialised = True
                 except Exception as e:
                     sleep_secs = 15
@@ -340,12 +347,7 @@ class SpotWrapper:
 
             self._robot_id = None
             self._lease = None
-        ############################################ Added code begins here
-        # Setup the recording service client.
-        # What this says is "Initialize the space on the robot to hold the recording
-        # and signal to the client we are doing so"
-        self._recording_client = self._robot.ensure_client(
-            GraphNavRecordingServiceClient.default_service_name)
+        ###############################################################
         # Create the recording environment.
         # Translation: "Set up more backend framework for ensuring we are able to store recorded info"
         self._recording_environment = GraphNavRecordingServiceClient.make_recording_environment(
@@ -1726,16 +1728,15 @@ class SpotWrapper:
         """Prompts the Robot to record a map of its own motion."""
         should_start_recording = self.should_we_start_recording() #This is run first to give us the ok to record
         if not should_start_recording: #Failed the ready check, report back
-            print("The system is not in the proper state to start recording.", \
+            self._logger.error("The system is not in the proper state to start recording.", \
                    "Try using the graph_nav_command_line to either clear the map or", \
                    "attempt to localize to the map.")
             return
         try:
-            status = self._recording_client.start_recording(
-                recording_environment=self._recording_environment) #Attempt the recording procedure
-            print("Successfully started recording a map.")
+            self._recording_client.start_recording(recording_environment=self._recording_environment) #Attempt the recording procedure
+            self._logger.info("Successfully started recording a map.")
         except Exception as err: #Any issue in the start-up process will be redirected here
-            print("Start recording failed: " + str(err))
+            self._logger.error("Start recording failed: " + str(err))
         return
     
     def stop_recording(self, *args):
@@ -1745,19 +1746,19 @@ class SpotWrapper:
         first_iter = True #Stores the first iteration
         while True: #Keep running every second
             try: #Attempt the stop
-                status = self._recording_client.stop_recording() #Command to stop
-                print("Successfully stopped recording a map.") #Success
+                self._recording_client.stop_recording() #Command to stop
+                self._logger.info("Successfully stopped recording a map.") #Success
                 break
             except bosdyn.client.recording.NotReadyYetError as err:
                 # It is possible that we are not finished recording yet due to
                 # background processing. Try again every 1 second.
                 if first_iter:
-                    print("Cleaning up recording...")
+                    self._logger.info("Cleaning up recording...")
                 first_iter = False
                 time.sleep(1.0)
                 continue
             except Exception as err:
-                print("Stop recording failed: " + str(err))
+                self._logger.error("Stop recording failed: " + str(err))
                 break
         return
     
@@ -1765,9 +1766,9 @@ class SpotWrapper:
         """Get the recording service's status."""
         status = self._recording_client.get_record_status()
         if status.is_recording:
-            print("The recording service is on.")
+            self._logger.info("The recording service is on.")
         else:
-            print("The recording service is off.")
+            self._logger.info("The recording service is off.")
     
     def _write_bytes(self, filepath, filename, data): #Helper function
         """Write data to a file. Used for all downloading procedures"""
@@ -1792,12 +1793,12 @@ class SpotWrapper:
                     waypoint.snapshot_id)
             except Exception:
                 # Failure in downloading waypoint snapshot. Continue to next snapshot.
-                print("Failed to download waypoint snapshot: " + waypoint.snapshot_id)
+                self._logger.error("Failed to download waypoint snapshot: " + waypoint.snapshot_id)
                 continue
             self._write_bytes(download_filepath + '/waypoint_snapshots',
                               '/' + waypoint.snapshot_id, waypoint_snapshot.SerializeToString())
             num_waypoint_snapshots_downloaded += 1
-            print("Downloaded {} of the total {} waypoint snapshots.".format(
+            self._logger.info("Downloaded {} of the total {} waypoint snapshots.".format(
                 num_waypoint_snapshots_downloaded, len(waypoints)))
             
 
@@ -1813,12 +1814,12 @@ class SpotWrapper:
                 edge_snapshot = self._graph_nav_client.download_edge_snapshot(edge.snapshot_id)
             except Exception:
                 # Failure in downloading edge snapshot. Continue to next snapshot.
-                print("Failed to download edge snapshot: " + edge.snapshot_id)
+                self._logger.error("Failed to download edge snapshot: " + edge.snapshot_id)
                 continue
             self._write_bytes(download_filepath + '/edge_snapshots', '/' + edge.snapshot_id,
                               edge_snapshot.SerializeToString())
             num_edge_snapshots_downloaded += 1
-            print("Downloaded {} of the total {} edge snapshots.".format(
+            self._logger.info("Downloaded {} of the total {} edge snapshots.".format(
                 num_edge_snapshots_downloaded, num_to_download))
 
     def download_recording(self, download_filepath=os.getcwd(), *args): #Download function to use
@@ -1832,10 +1833,10 @@ class SpotWrapper:
         """Download the graph and snapshots from the robot."""
         graph = self._graph_nav_client.download_graph()
         if graph is None:
-            print("Failed to download the graph.")
+            self._logger.error("Failed to download the graph.")
             return
         self._write_full_graph(graph, download_filepath)
-        print("Graph downloaded with {} waypoints and {} edges".format(
+        self._logger.info("Graph downloaded with {} waypoints and {} edges".format(
             len(graph.waypoints), len(graph.edges)))
         # Download the waypoint and edge snapshots.
         self._download_and_write_waypoint_snapshots(graph.waypoints, download_filepath)
