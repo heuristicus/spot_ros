@@ -4,13 +4,9 @@ import logging
 import time
 import os
 import sys
-# Get the absolute path of the current file
-current_dir_of_file = os.path.dirname(os.path.abspath("recording_testing.py"))
-# Add the parent directory of spot_driver to the Python path
-parent_dir = os.path.join(current_dir_of_file, '..')
-sys.path.append(parent_dir)
-
-
+# run this exaple from the spot_driver directory, using
+# python3 scripts/examples/mapping_example.py
+sys.path.append(os.getcwd() + "/src")
 from spot_driver.spot_wrapper import SpotWrapper
 #from spot_driver.spot_task_wrapper import SpotTaskWrapper
 

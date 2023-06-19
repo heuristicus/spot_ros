@@ -1,8 +1,10 @@
 import logging
 import time 
 import sys
-sys.path.append("/mnt/c/Users/rhett/UMN_Github/repo-olso9295-5/SpotRobotProject/spot_ros/spot_driver/src")
-#print(sys.path)
+import os
+# run this exaple from the spot_driver directory, using
+# python3 scripts/examples/mapping_example.py
+sys.path.append(os.getcwd() + "/src")
 from spot_driver.spot_wrapper import SpotWrapper
 class MappingWrapperTester:
     def __init__(self, download_path, power_off=False):
@@ -75,15 +77,16 @@ class MappingWrapperTester:
         time.sleep(2)
 
         # _navigate_to() method is used to navigate to a waypoint from a map thatis already uploaded to spot
-        #self.spot._navigate_to([waypoints[1]])
+        # self.spot._navigate_to([waypoints[1]])
 
         # _navigate_route() method is used to navigate through a list of specified waypoints.
         # there must be edges between each adjacent pair of waypoints in the list
-        self.spot._navigate_route([waypoints[0], waypoints[1]])
+        self.spot._navigate_route(waypoints)
         time.sleep(2)
         if self.power_off: self.spot.safe_power_off()
         self.spot.releaseLease()
         self.log.debug(f'Done')
 if __name__ == "__main__":
-    download_path = "/mnt/c/Users/rhett/UMN_Github/repo-olso9295-5/SpotRobotProject/spot-sdk/python/examples/graph_nav_command_line/"
+    # specify the path to download and upload the graph here
+    download_path = os.getcwd() + "/scrips/examples"
     MappingWrapperTester(download_path)

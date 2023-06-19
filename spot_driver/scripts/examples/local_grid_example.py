@@ -1,8 +1,10 @@
 import logging
 import time 
 import sys
-sys.path.append("/mnt/c/Users/rhett/UMN_Github/repo-olso9295-5/SpotRobotProject/spot_ros/spot_driver/src")
-#print(sys.path)
+import os
+# run this exaple from the spot_driver directory, using
+# python3 scripts/examples/local_grid_example.py
+sys.path.append(os.getcwd() + "/src")
 from spot_driver.spot_wrapper import SpotWrapper
 class LocalGridTester:
     def __init__(self, power_off=False):
