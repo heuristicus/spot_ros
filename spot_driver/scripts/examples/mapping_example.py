@@ -42,8 +42,14 @@ class MappingWrapperTester:
         self.spot.trajectory_cmd(1, 0, 0, 2)
 
         time.sleep(2)
-        self.spot.trajectory_cmd(0, 0, 0.6, 2)
-        time.sleep(2)
+        self.spot.trajectory_cmd(0, 0, 0.6, 3)
+        time.sleep(3)
+        self.spot.trajectory_cmd(0.5, 0, 0, 3)
+        time.sleep(3)
+        self.spot.trajectory_cmd(0, 0, -1.2, 3)
+        time.sleep(3)
+        self.spot.trajectory_cmd(0.5, 0, 0, 3)
+        time.sleep(3)
 
         self.log.debug('Attempting to stop recording...')
         self.spot.stop_recording()
@@ -71,8 +77,9 @@ class MappingWrapperTester:
         # when using navigate_to, must specify path to map
         # destination waypoint, and localization method.
         # if using waypoints, must specify localization waypoint
-    
-        # self.spot.navigate_to(upload_path, "ss", False, "ef")
+        print(waypoints[-1])
+        print(waypoints[0])
+        self.spot.navigate_to(download_path + "/downloaded_graph", waypoints[0], False, waypoints[-1])
         
         time.sleep(2)
 
@@ -81,12 +88,12 @@ class MappingWrapperTester:
 
         # _navigate_route() method is used to navigate through a list of specified waypoints.
         # there must be edges between each adjacent pair of waypoints in the list
-        self.spot._navigate_route(waypoints)
+        # self.spot._navigate_route(waypoints)
         time.sleep(2)
         if self.power_off: self.spot.safe_power_off()
         self.spot.releaseLease()
         self.log.debug(f'Done')
 if __name__ == "__main__":
     # specify the path to download and upload the graph here
-    download_path = os.getcwd() + "/scrips/examples"
+    download_path = os.getcwd() + "/scripts/examples"
     MappingWrapperTester(download_path)
