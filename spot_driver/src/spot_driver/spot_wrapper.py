@@ -1706,7 +1706,7 @@ class SpotWrapper:
         return state
 
     ############################################################################
-    # Additional Code begins here, these functions are analogs to 
+    # Additional Code begins here for recording, these functions are analogs to 
     # spot-sdk\python\examples\graph_nav_command_line\recording_commandline.py
 
     def should_we_start_recording(self):
@@ -1847,6 +1847,7 @@ class SpotWrapper:
         self._download_and_write_edge_snapshots(graph.edges, download_filepath)
     
     ############################################################################
+    # Additional code begins here, for obstacle detection
     def get_obstacle_distance_grid(self):
         """
         Gives the obstacle distance grid of the robot, which represents how close points surrounding the robot are
