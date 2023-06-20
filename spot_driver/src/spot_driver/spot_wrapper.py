@@ -1292,7 +1292,6 @@ class SpotWrapper:
         return True, "Moved arm successfully"
 
     ###################################################################
-
     ## copy from spot-sdk/python/examples/graph_nav_command_line/graph_nav_command_line.py
     def _get_localization_state(self, *args):
         """Get the current localization and state of the robot."""
@@ -1872,3 +1871,45 @@ class SpotWrapper:
         return np.reshape(full_cells_array, (y_dim, x_dim))
     
         
+    #Code for Object Collision
+    #Main function for detecting and relocating an obstacle in the way
+    #Param is grid, which is a numpy integer array determining the distance an obstacle is from spot
+    def obstacle_protocol(self, obstacle_location, grid, *args):
+        #Step 1: Stop the movement to avoid collision
+        self.stop()
+        self._logger.info("Obstacle ahead, trying to find a safe place to relocate it")
+        #Step 2: Determine a safe location to move the obstacle
+        #obstacle_destination = self._find_safe_place_for_obstacle(grid)
+        #Step 3: Prompt the Arm to grab the obstacle (ASSUME: It has an apriltag on it)
+
+        #Step 4: Determine a path to get to the safe place to move the obstacle
+
+        #Step 5: Navigate back to most recent waypoint and resume pathing
+
+        return
+    
+    def _find_safe_place_for_obstacle(self, grid_array, *args):
+        Safe_place = None
+        #Step 1: Loop through grid, so we need to extract the data
+        rows = len(grid_array)
+        columns = len(grid_array[0])
+
+
+        #Step 2: confirming the point, but also its neighbors
+
+        return Safe_place
+    
+    #Helper function extracts neighbors of a point and checks if all of them are safe
+    def _ensure_neighbors(self, i, j, grid):
+        rows = len(grid) #Extract rows
+        columns = len(grid[0]) #Extract columns
+        neighbors = [] #Array that stores the neighbors of a point
+        for x in range(max(0, i-1), min(i+1, rows-1)):
+            for y in range(max(0, j-1), min(j+1, columns-1)):
+                if x != 1 or y != j:
+                    neighbors.append(grid[x][y])
+        neighbors = np.array(neighbors) #This is a list of neighbors, there should be 8 maximum, 3 minimum
+        #The neighbors must now be checked to confirm the point is safe
+        check_bool = np.all(neighbors >= 3) #Using >= 3 is safe on the obstacle grid
+        return check_bool
+    
