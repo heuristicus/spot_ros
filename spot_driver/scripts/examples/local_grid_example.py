@@ -28,7 +28,7 @@ class LocalGridTester:
 
         self.log.debug(str(self.spot._local_grid_client.get_local_grid_types()))
 
-        self.log.debug(str(self.spot._local_grid_client.get_local_grids(["terrain", "terrain_valid", "intensity", "no_step", "obstacle_distance"])))
+        self.log.debug(str(self.spot._local_grid_client.get_local_grids(["obstacle_distance"])))
         
         time.sleep(2)
 

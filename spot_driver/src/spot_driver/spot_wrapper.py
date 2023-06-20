@@ -56,6 +56,8 @@ from bosdyn.client.math_helpers import Quat as bdQuat
 from bosdyn.client.recording import GraphNavRecordingServiceClient
 from bosdyn.client.map_processing import MapProcessingServiceClient
 # Sourced from recording_command_line.py in Spot-SDK, required to record
+# adding local grid client
+from bosdyn.client.local_grid import LocalGridClient
 ######################################################
 
 from . import graph_nav_util
@@ -267,6 +269,9 @@ class SpotWrapper:
                     self._recording_client = self._robot.ensure_client(
                         GraphNavRecordingServiceClient.default_service_name)
                     #############################################
+                    # adding local grid client
+                    self._local_grid_client = self._robot.ensure_client(
+                        LocalGridClient.default_service_name)
                     initialised = True
                 except Exception as e:
                     sleep_secs = 15
