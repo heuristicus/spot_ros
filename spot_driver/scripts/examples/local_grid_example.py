@@ -2,6 +2,8 @@ import logging
 import time 
 import sys
 import os
+import numpy as np
+from bosdyn.api import local_grid_pb2
 # run this exaple from the spot_driver directory, using
 # python3 scripts/examples/local_grid_example.py
 sys.path.append(os.getcwd() + "/src")
@@ -28,11 +30,6 @@ class LocalGridTester:
 
         self.log.debug(str(self.spot._local_grid_client.get_local_grid_types()))
 
-        self.log.debug(str(self.spot._local_grid_client.get_local_grids(["obstacle_distance"])))
-        
-        time.sleep(2)
-
-        time.sleep(2)
-        
+        self.log.info(str(self.spot.get_obstacle_distance_grid()))
 if __name__ == "__main__":
     LocalGridTester()

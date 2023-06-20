@@ -1848,3 +1848,27 @@ class SpotWrapper:
         self._download_and_write_edge_snapshots(graph.edges, download_filepath)
     
     ############################################################################
+    def get_obstacle_distance_grid(self):
+        """
+        Gives the obstacle distance grid of the robot, which represents how close points surrounding the robot are
+        to obstacles.
+        
+        returns: a 2-dimensional numpy array, with each entry (x, y) having a value representing how far away it is from 
+        the nearest obstacle. Distances are measured in cells, which are roughly 0.03 meters"""
+        # get local grid proto
+        obstacle_distance_proto = self._local_grid_client.get_local_grids(["obstacle_distance"])[0]
+        cells_pz = np.frombuffer(obstacle_distance_proto.local_grid.data, np.int16)
+        cells_pz_full = []
+        # For each value of rle_counts, we expand the cell data at the matching index
+        # to have that many repeated, consecutive values.
+        for i in range(0, len(obstacle_distance_proto.local_grid.rle_counts)):
+            for j in range(0, obstacle_distance_proto.local_grid.rle_counts[i]):
+                cells_pz_full.append(cells_pz[i])
+        # get dimensions of obstacle_distance_grid, usually 128x128
+        x_dim = obstacle_distance_proto.local_grid.extent.num_cells_x
+        y_dim = obstacle_distance_proto.local_grid.extent.num_cells_y  
+        full_cells_array = np.array(cells_pz_full)
+        # reshape the distances list to fit the dimensions of the grid
+        return np.reshape(full_cells_array, (y_dim, x_dim))
+    
+        
