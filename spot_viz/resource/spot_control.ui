@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>437</width>
+    <width>445</width>
     <height>855</height>
    </rect>
   </property>
@@ -1165,7 +1165,7 @@
                      <enum>QAbstractSpinBox::NoButtons</enum>
                     </property>
                     <property name="minimum">
-                     <double>0.010000000000000</double>
+                     <double>0.000000000000000</double>
                     </property>
                     <property name="maximum">
                      <double>100.000000000000000</double>
