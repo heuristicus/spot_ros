@@ -18,6 +18,7 @@ from bosdyn.client.exceptions import (
     InternalServerError,
     RetryableUnavailableError,
 )
+from visualization_msgs.msg import MarkerArray, Marker
 from cv_bridge import CvBridge
 from geometry_msgs.msg import TransformStamped, PointStamped
 from sensor_msgs.msg import Image
@@ -844,6 +845,9 @@ class PTZHandlerROS(ROSHandler):
             execute_cb=self.handle_look_at_point_action,
             auto_start=False,
         )
+        self.cam_marker_pub = rospy.Publisher(
+            "/spot/cam/markers", MarkerArray, queue_size=10, latch=True
+        )
         self.look_at_point_as.start()
 
         self.publish_ptz_list()
@@ -1109,7 +1113,9 @@ class PTZHandlerROS(ROSHandler):
             zoom_level: The zoom level that the Spot cam should be set to
             image_diagonal: The diagonal of the image frame in meters, overrides the zoom_level
         """
-
+        rospy.loginfo(
+            f"Looking at point {target.point.x}, {target.point.y}, {target.point.z}"
+        )
         # Look-up transform from ptz to given frame_id
         tf_buffer = tf2_ros.Buffer()
         tf_listener = tf2_ros.TransformListener(tf_buffer)
@@ -1188,6 +1194,23 @@ class PTZHandlerROS(ROSHandler):
         )
         try:
             self.set_ptz_position("mech", pan_angle, tilt_angle, zoom_factor)
+            point_marker = Marker()
+            point_marker.action = Marker.ADD
+            point_marker.ns = "/cam/target_point"
+            point_marker.type = Marker.SPHERE
+            point_marker.pose.position.x = target.point.x
+            point_marker.pose.position.y = target.point.y
+            point_marker.pose.position.z = target.point.z
+            point_marker.scale.x = 0.2
+            point_marker.scale.y = 0.2
+            point_marker.scale.z = 0.2
+            point_marker.color.r = 1
+            point_marker.color.b = 1
+            point_marker.color.a = 1
+            point_marker.header.frame_id = target.header.frame_id
+            arr = MarkerArray()
+            arr.markers = [point_marker]
+            self.cam_marker_pub.publish(arr)
             return True, "Set ptz to look at point"
         except Exception as e:
             return False, f"Failed to look at point: {e}"
