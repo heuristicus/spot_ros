@@ -1312,7 +1312,7 @@ class ImageStreamHandlerROS(ROSHandler):
         """
 
         Args:
-            screen: Screen which should be captured
+            screen: Screen which should be captured. If empty, captures the current screen.
             save_dir: Directory to which images should be saved
             filename: Base name of the file which will be generated for each image. It will have the screen and the
                       date and time of capture in the filename. Default is spot_cam_capture. If this includes an
@@ -1327,12 +1327,14 @@ class ImageStreamHandlerROS(ROSHandler):
         Returns:
             Bool indicating success, string with a message.
         """
-        switching_screen = self.compositor_client.get_screen() != screen
-        self.compositor_client.set_screen(screen)
+        if screen != "":
+            # If there is a screen specified, switch to it. Otherwise just capture the current screen
+            switching_screen = self.compositor_client.get_screen() != screen
+            self.compositor_client.set_screen(screen)
 
-        if switching_screen:
-            # Need to have some time for the compositor to actually switch the screen, if we need to switch
-            rospy.sleep(2)
+            if switching_screen:
+                # Need to have some time for the compositor to actually switch the screen, if we need to switch
+                rospy.sleep(2)
 
         # Check that if the save path exists it's a directory
         full_path = os.path.abspath(os.path.expanduser(save_dir))

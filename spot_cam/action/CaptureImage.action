@@ -1,6 +1,6 @@
 # Capture an image from the camera
 
-# Select which screen should be captured. See /spot/cam/screens for valid options
+# Select which screen should be captured. See /spot/cam/screens for valid options. If empty, captures the current screen
 string screen
 
 # Directory to which the image(s) should be saved
