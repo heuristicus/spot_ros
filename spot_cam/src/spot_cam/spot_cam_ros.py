@@ -11,6 +11,7 @@ import cv2
 import actionlib
 import numpy as np
 import rospy
+import spot_wrapper.cam_wrapper
 import tf
 import tf2_ros
 from bosdyn.client.exceptions import (
@@ -42,6 +43,9 @@ from spot_cam.msg import (
     CaptureImageAction,
     CaptureImageGoal,
     CaptureImageResult,
+    CaptureImageHighQualityAction,
+    CaptureImageHighQualityGoal,
+    CaptureImageHighQualityResult,
 )
 from spot_cam.srv import (
     LoadSound,
@@ -59,7 +63,7 @@ from std_msgs.msg import Float32MultiArray, Float32
 from std_srvs.srv import Trigger
 
 from spot_driver.ros_helpers import getSystemFaults
-from spot_wrapper.cam_wrapper import SpotCamWrapper
+from spot_wrapper.cam_wrapper import SpotCamWrapper, SpotCamCamera
 
 
 class ROSHandler:
@@ -1228,10 +1232,18 @@ class ImageStreamHandlerROS(ROSHandler):
         # Need the compositor to get information about what camera is currently on screen so we can correctly set the
         # frame id of the image
         self.compositor_client = wrapper.compositor
+        self.medialog_client = wrapper.media_log
         self.cv_bridge = CvBridge()
         self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
         self.image_capture_as = actionlib.SimpleActionServer(
-            "/spot/cam/capture_image", CaptureImageAction, self._handle_capture_image
+            "/spot/cam/capture_image_low_quality",
+            CaptureImageAction,
+            self._handle_capture_image_low_quality,
+        )
+        self.image_capture_as = actionlib.SimpleActionServer(
+            "/spot/cam/capture_image",
+            CaptureImageHighQualityAction,
+            self._handle_capture_image_high_quality,
         )
         self.loop_thread = threading.Thread(target=self._publish_images_loop)
         self.loop_thread.start()
@@ -1275,17 +1287,17 @@ class ImageStreamHandlerROS(ROSHandler):
 
             loop_rate.sleep()
 
-    def _handle_capture_image(self, goal: CaptureImageGoal):
+    def _handle_capture_image_low_quality(self, goal: CaptureImageGoal) -> None:
         """
-        Handle a request to capture an image
+        Handle a request to capture a low quality image from the webrtc stream
 
         Args:
-            req: CaptureImageRequest
+            goal: CaptureImageGoal
 
         Returns:
             CaptureImageResponse
         """
-        success, message = self.capture_image(
+        success, message = self.capture_image_low_quality(
             goal.screen,
             goal.save_dir,
             goal.filename,
@@ -1301,12 +1313,12 @@ class ImageStreamHandlerROS(ROSHandler):
                 CaptureImageResult(success=success, message=message)
             )
 
-    def capture_image(
+    def capture_image_low_quality(
         self,
         screen: str,
         save_dir: str,
-        filename: str = "spot_cam_capture",
-        capture_duration: typing.Optional[float] = None,
+        filename: str = "spot_cam_stream_capture",
+        capture_duration: float = 0,
         capture_count: int = 1,
     ) -> typing.Tuple[bool, str]:
         """
@@ -1320,7 +1332,7 @@ class ImageStreamHandlerROS(ROSHandler):
                       See https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
                       for valid extensions
             capture_duration: If provided, all images received on the topic for this duration (in seconds) will be captured.
-                              Overrides capture_count.
+                              Overrides capture_count. Ignored if 0.
             capture_count: If provided, capture this many images from the topic before exiting. Overridden by
                            capture_duration.
 
@@ -1372,7 +1384,7 @@ class ImageStreamHandlerROS(ROSHandler):
 
         while not rospy.is_shutdown():
             if (
-                capture_duration
+                capture_duration > 0
                 and rospy.Time.now() - capture_start_time >= total_capture_time
             ):
                 # If the capture duration is set, we loop until the total capture time meets or exceeds that duration.
@@ -1391,6 +1403,112 @@ class ImageStreamHandlerROS(ROSHandler):
             loop_rate.sleep()
 
         return True, f"Saved {captured_images} image(s) to {save_dir}"
+
+    def _handle_capture_image_high_quality(
+        self, goal: CaptureImageHighQualityGoal
+    ) -> None:
+        """
+        Handle a request to capture a high quality image. This uses the medialog functionality to store logpoints and
+        retrieve the high quality images from those rather than saving from the webrtc stream.
+
+        Args:
+            goal: CaptureImageHighQualityGoal
+        """
+        self.capture_image_high_quality(
+            goal.camera,
+            goal.save_dir,
+            goal.filename,
+            goal.capture_frequency,
+            goal.capture_duration,
+            goal.capture_count,
+        )
+
+    def capture_image_high_quality(
+        self,
+        camera: str,
+        save_dir: str,
+        filename: str = "spot_cam_capture",
+        capture_frequency: float = 1,
+        capture_duration: float = 0,
+        capture_count: int = 1,
+    ) -> typing.Tuple[bool, str]:
+        """
+        Use the medialog functionality to capture high quality images.
+
+        Args:
+            camera: Screen which should be captured. If empty, captures the current screen.
+            save_dir: Directory to which images should be saved
+            filename: Base name of the file which will be generated for each image. It will have the screen and the
+                      date and time of capture in the filename. Default is spot_cam_capture.
+            capture_frequency: Frequency at which images should be captured. Must be set if capture_duration is set.
+            capture_duration: If provided, capture images at capture_frequency for the duration. Overrides capture_count. Ignored if 0.
+            capture_count: If provided, capture this many images. Ignored if capture_duration is also provided.
+
+        Returns:
+            Bool indicating success, string with a message.
+        """
+
+        try:
+            cam_camera = SpotCamCamera(camera)
+        except ValueError as e:
+            return (
+                False,
+                f"Camera {camera} is not a valid option. Choose from ptz, pano, ir, c0, c1, c2, c3, c4",
+            )
+
+        # Check that if the save path exists it's a directory
+        full_path = os.path.abspath(os.path.expanduser(save_dir))
+        if os.path.exists(full_path) and not os.path.isdir(full_path):
+            return (
+                False,
+                f"Requested save directory {full_path} exists and is not a directory.",
+            )
+        # Create the path
+        pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+        # Special case of the simplest capture of just a single image.
+        if capture_duration == 0 and capture_count == 1:
+            self.medialog_client.store_and_save_image(cam_camera, full_path, filename)
+
+        # Otherwise things are a bit more complicated and we need to loop
+        rate = rospy.Rate(capture_frequency)
+        capture_start_time = rospy.Time.now()
+        total_capture_duration = rospy.Duration(capture_duration)
+        # Loop until the duration elapses
+        captured_images = 0
+        saving_threads = []
+        while not rospy.is_shutdown():
+            if (
+                capture_duration > 0
+                and rospy.Time.now() - capture_start_time >= total_capture_duration
+            ):
+                # If the capture duration is set, we loop until the total capture time meets or exceeds that duration.
+                break
+            elif not capture_duration and captured_images >= capture_count:
+                # Otherwise, we capture images until we capture the requested number
+                break
+
+            # Spawn a thread to store and save the image. This should be the most efficient and simple way to do this.
+            save_thread = threading.Thread(
+                target=functools.partial(
+                    self.medialog_client.store_and_save_image,
+                    cam_camera,
+                    full_path,
+                    filename,
+                )
+            )
+            save_thread.start()
+            saving_threads.append(save_thread)
+
+            captured_images += 1
+
+            rate.sleep()
+
+        # Once we've exited the loop, wait for the threads to finish their jobs
+        for thread in saving_threads:
+            thread.join()
+
+        return True, f"Saved {captured_images} images to {full_path}"
 
 
 class SpotCamROS:
