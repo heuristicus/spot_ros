@@ -1244,7 +1244,7 @@ class ImageStreamHandlerROS(ROSHandler):
         Returns:
             Image
         """
-        image = self.cv_bridge.cv2_to_imgmsg(self.image_client.last_image, "bgr8")
+        image = self.cv_bridge.cv2_to_imgmsg(self.image_client.last_image)
         image.header.stamp = rospy.Time.from_sec(
             self.image_client.last_image_time.timestamp()
         )
