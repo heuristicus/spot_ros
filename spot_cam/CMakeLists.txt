@@ -49,6 +49,7 @@ add_service_files(
 add_action_files(
   FILES
   CaptureImage.action
+  CaptureImageHighQuality.action
   LookAtPoint.action
 )
 
