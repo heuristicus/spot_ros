@@ -1494,7 +1494,7 @@ class ImageStreamHandlerROS(ROSHandler):
         while not rospy.is_shutdown():
             if (
                 capture_duration > 0
-                and rospy.Time.now() - capture_start_time >= total_capture_duration
+                and rospy.Time.now() - capture_start_time > total_capture_duration
             ):
                 # If the capture duration is set, we loop until the total capture time meets or exceeds that duration.
                 break
