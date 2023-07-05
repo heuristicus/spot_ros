@@ -1482,6 +1482,9 @@ class ImageStreamHandlerROS(ROSHandler):
             return True, f"Saved 1 image to {output_file}"
 
         # Otherwise things are a bit more complicated and we need to loop
+        if capture_frequency <= 0:
+            rospy.logwarn("Received capture frequency of <= 0, will be set to 1.")
+            capture_frequency = 1
         rate = rospy.Rate(capture_frequency)
         capture_start_time = rospy.Time.now()
         total_capture_duration = rospy.Duration(capture_duration)
