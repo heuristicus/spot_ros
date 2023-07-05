@@ -1477,7 +1477,7 @@ class ImageStreamHandlerROS(ROSHandler):
         # Special case of the simplest capture of just a single image.
         if capture_duration == 0 and capture_count == 1:
             self.medialog_client.store_and_save_image(cam_camera, full_path, filename)
-            return
+            return True, f"Saved 1 image to {full_path}"
 
         # Otherwise things are a bit more complicated and we need to loop
         rate = rospy.Rate(capture_frequency)
