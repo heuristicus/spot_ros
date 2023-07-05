@@ -1424,11 +1424,11 @@ class ImageStreamHandlerROS(ROSHandler):
         )
         if not success:
             self.image_capture_high_quality_as.set_aborted(
-                CaptureImageResult(success=success, message=message)
+                CaptureImageHighQualityResult(success=success, message=message)
             )
         else:
             self.image_capture_high_quality_as.set_succeeded(
-                CaptureImageResult(success=success, message=message)
+                CaptureImageHighQualityResult(success=success, message=message)
             )
 
     def capture_image_high_quality(
