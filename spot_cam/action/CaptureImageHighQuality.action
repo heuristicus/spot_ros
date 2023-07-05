@@ -12,7 +12,7 @@ string save_dir
 string filename
 
 # Determines the frequency at which images should be saved
-int32 capture_frequency
+float32 capture_frequency
 
 # Duration in seconds for which images should be captured.
 int32 capture_duration
