@@ -102,7 +102,7 @@ class SpotROS:
     """Parent class for using the wrapper.  Defines all callbacks and keeps the wrapper alive"""
 
     def __init__(self):
-        self.spot_wrapper = None
+        self.spot_wrapper: SpotWrapper = None
         self.last_tf_msg = TFMessage()
 
         self.callbacks = {}
@@ -910,7 +910,7 @@ class SpotROS:
             and not self.spot_wrapper._trajectory_status_unknown
         ):
             if self.spot_wrapper.near_goal:
-                if self.spot_wrapper._last_trajectory_command_precise:
+                if self.spot_wrapper.last_trajectory_command_precise:
                     self.trajectory_server.publish_feedback(
                         TrajectoryFeedback("Near goal, performing final adjustments")
                     )
