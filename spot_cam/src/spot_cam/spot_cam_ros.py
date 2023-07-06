@@ -988,7 +988,7 @@ class PTZHandlerROS(ROSHandler):
             f"Successfully set ptz {req.command.ptz.name} to requested velocity",
         )
 
-    def set_ptz_position(self, ptz_name, pan, tilt, zoom):
+    def set_ptz_position(self, ptz_name, pan, tilt, zoom, blocking=False):
         """
         Set the position of the specified ptz
 
@@ -997,8 +997,9 @@ class PTZHandlerROS(ROSHandler):
             pan: Pan in degrees
             tilt: Tilt in degrees
             zoom: Zoom in zoom levels
+            blocking: Block until the ptz reaches the requested position
         """
-        self.client.set_ptz_position(ptz_name, pan, tilt, zoom)
+        self.client.set_ptz_position(ptz_name, pan, tilt, zoom, blocking=blocking)
 
     def _publish_ptz_positions(self):
         rate = rospy.Rate(20)
@@ -1042,6 +1043,7 @@ class PTZHandlerROS(ROSHandler):
             zoom_level=action.zoom_level,
             image_diagonal=action.image_width,
             track=action.track,
+            blocking=action.blocking
         )
         result = LookAtPointResult(success, message)
 
@@ -1060,6 +1062,7 @@ class PTZHandlerROS(ROSHandler):
             zoom_level=req.zoom_level,
             image_diagonal=req.image_width,
             track=req.track,
+            blocking=req.blocking,
         )
 
     def look_at_point(
@@ -1068,6 +1071,7 @@ class PTZHandlerROS(ROSHandler):
         zoom_level: float,
         image_diagonal: float,
         track: bool,
+        blocking: bool,
     ):
         if self._track_timer:
             self._track_timer.shutdown()
@@ -1082,7 +1086,7 @@ class PTZHandlerROS(ROSHandler):
                 Helper function for the timer callback
                 """
                 res = self._look_at_point(
-                    target_, zoom_level=zoom_level_, image_diagonal=image_diagonal_
+                    target_, zoom_level=zoom_level_, image_diagonal=image_diagonal_, blocking=blocking
                 )
                 if not res:
                     self.logger.error(res[1])
@@ -1091,13 +1095,13 @@ class PTZHandlerROS(ROSHandler):
             self._track_timer = rospy.Timer(
                 realign_interval,
                 callback=functools.partial(
-                    look_at_point_timer_cb, target, zoom_level, image_diagonal
+                    look_at_point_timer_cb, target, zoom_level, image_diagonal, blocking=blocking
                 ),
             )
             return True, "Tracking point"
         else:
             return self._look_at_point(
-                target, zoom_level=zoom_level, image_diagonal=image_diagonal
+                target, zoom_level=zoom_level, image_diagonal=image_diagonal, blocking=blocking
             )
 
     def _look_at_point(
@@ -1106,6 +1110,7 @@ class PTZHandlerROS(ROSHandler):
         *,
         zoom_level: float = 1,
         image_diagonal: float = 0,
+        blocking: bool = True,
     ) -> typing.Tuple[bool, str]:
         """
         Point the ptz camera at a point in an arbitrary frame.
@@ -1116,6 +1121,7 @@ class PTZHandlerROS(ROSHandler):
             target: The target point and frame id that the Spot cam should be aimed at
             zoom_level: The zoom level that the Spot cam should be set to
             image_diagonal: The diagonal of the image frame in meters, overrides the zoom_level
+            blocking: Does not return until the approximate target pan tilt and zoom have been reached
         """
         rospy.loginfo(
             f"Looking at point {target.point.x}, {target.point.y}, {target.point.z}"
@@ -1197,7 +1203,7 @@ class PTZHandlerROS(ROSHandler):
             f"Setting ptz to pan: {pan_angle}, tilt: {tilt_angle}, zoom: {zoom_factor}"
         )
         try:
-            self.set_ptz_position("mech", pan_angle, tilt_angle, zoom_factor)
+            self.set_ptz_position("mech", pan_angle, tilt_angle, zoom_factor, blocking=blocking)
             point_marker = Marker()
             point_marker.action = Marker.ADD
             point_marker.ns = "/cam/target_point"
