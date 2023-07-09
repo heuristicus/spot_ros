@@ -25,14 +25,18 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Spot ROS User Documentation
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Spot ROS User Documentation
           </a>
               <div class="version">
                 1.0.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -66,8 +70,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Driver configuration</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Driver configuration</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/driver_configuration.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -162,6 +166,22 @@ Consider whether you need these settings, and ensure the area is clear before st
 </tr>
 <tr class="row-even"><td>auto_stand</td>
 <td>A boolean to automatically stand the robot after the driver conneccts</td>
+</tr>
+</tbody>
+</table>
+<p>By default, the driver publishes the odom and gpe transformation with its origin at the start-up location.
+When using a Global Positioning System like GNSS, this can be disabled to use an external position estimator.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Parameter</td>
+<td>Description</td>
+</tr>
+<tr class="row-even"><td>publish_odom_tf</td>
+<td>A boolean to determine if the driver should publish the odom and gpe tf</td>
 </tr>
 </tbody>
 </table>

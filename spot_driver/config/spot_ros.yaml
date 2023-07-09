@@ -21,6 +21,8 @@ auto_claim: False
 auto_power_on: False
 # If true, automatically stand when the driver starts (requires auto_power_on)
 auto_stand: False
+# If false, the odom and gpe transformation won't be published
+publish_odom_tf: True
 
 claim:
   # If true, forcefully take the lease, instead of acquiring it, which can fail if someone else has it

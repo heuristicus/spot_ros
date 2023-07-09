@@ -25,14 +25,18 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Spot ROS User Documentation
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Spot ROS User Documentation
           </a>
               <div class="version">
                 1.0.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -66,8 +70,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Computer Setup</li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Computer Setup</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/ros_setup.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -185,13 +189,13 @@ of the frames on the robot.</p>
 of this form:</p>
 <div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
   <span class="n">File</span> <span class="s2">&quot;/home/administrator/catkin_ws/src/spot_ros/spot_driver/scripts/spot_ros&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">3</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
-    <span class="kn">from</span> <span class="nn">spot_driver.spot_ros</span> <span class="kn">import</span> <span class="n">SpotROS</span>
+    <span class="kn">from</span> <span class="nn">spot_driver.spot_ros</span> <span class="k">import</span> <span class="n">SpotROS</span>
   <span class="n">File</span> <span class="s2">&quot;/home/administrator/catkin_ws/src/spot_ros/spot_driver/src/spot_driver/spot_ros.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">19</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
     <span class="kn">import</span> <span class="nn">tf2_ros</span>
   <span class="n">File</span> <span class="s2">&quot;/opt/ros/melodic/lib/python2.7/dist-packages/tf2_ros/__init__.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">38</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
-    <span class="kn">from</span> <span class="nn">tf2_py</span> <span class="kn">import</span> <span class="o">*</span>
+    <span class="kn">from</span> <span class="nn">tf2_py</span> <span class="k">import</span> <span class="o">*</span>
   <span class="n">File</span> <span class="s2">&quot;/opt/ros/melodic/lib/python2.7/dist-packages/tf2_py/__init__.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">38</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
-    <span class="kn">from</span> <span class="nn">._tf2</span> <span class="kn">import</span> <span class="o">*</span>
+    <span class="kn">from</span> <span class="nn">._tf2</span> <span class="k">import</span> <span class="o">*</span>
 <span class="ne">ImportError</span><span class="p">:</span> <span class="n">dynamic</span> <span class="n">module</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">define</span> <span class="n">module</span> <span class="n">export</span> <span class="n">function</span> <span class="p">(</span><span class="n">PyInit__tf2</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -201,11 +205,11 @@ of this form:</p>
 <li><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/ros/geometry2</span> <span class="pre">--branch</span> <span class="pre">0.6.5</span></code> into your <code class="docutils literal notranslate"><span class="pre">src</span></code> folder</li>
 <li>rebuild your workspace with</li>
 </ol>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">catkin_make</span> <span class="o">--</span><span class="n">cmake</span><span class="o">-</span><span class="n">args</span> <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span> <span class="o">-</span><span class="n">DPYTHON_EXECUTABLE</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python3</span> <span class="o">-</span><span class="n">DPYTHON_INCLUDE_DIR</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">include</span><span class="o">/</span><span class="n">python3</span><span class="mf">.6</span><span class="n">m</span> <span class="o">-</span><span class="n">DPYTHON_LIBRARY</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">x86_64</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">gnu</span><span class="o">/</span><span class="n">libpython3</span><span class="mf">.6</span><span class="n">m</span><span class="o">.</span><span class="n">so</span>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">catkin_make</span> <span class="o">--</span><span class="n">cmake</span><span class="o">-</span><span class="n">args</span> <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span> <span class="o">-</span><span class="n">DPYTHON_EXECUTABLE</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python3</span> <span class="o">-</span><span class="n">DPYTHON_INCLUDE_DIR</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">include</span><span class="o">/</span><span class="n">python3</span><span class="o">.</span><span class="mi">6</span><span class="n">m</span> <span class="o">-</span><span class="n">DPYTHON_LIBRARY</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">x86_64</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">gnu</span><span class="o">/</span><span class="n">libpython3</span><span class="o">.</span><span class="mi">6</span><span class="n">m</span><span class="o">.</span><span class="n">so</span>
 </pre></div>
 </div>
 <p>Or if you are using an Nvidia Jetson:</p>
-<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">catkin_make</span> <span class="o">--</span><span class="n">cmake</span><span class="o">-</span><span class="n">args</span> <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span> <span class="o">-</span><span class="n">DPYTHON_EXECUTABLE</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python3</span> <span class="o">-</span><span class="n">DPYTHON_INCLUDE_DIR</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">include</span><span class="o">/</span><span class="n">python3</span><span class="mf">.6</span><span class="n">m</span> <span class="o">-</span><span class="n">DPYTHON_LIBRARY</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">aarch64</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">gnu</span><span class="o">/</span><span class="n">libpython3</span><span class="mf">.6</span><span class="n">m</span><span class="o">.</span><span class="n">so</span>
+<div class="code bash highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">catkin_make</span> <span class="o">--</span><span class="n">cmake</span><span class="o">-</span><span class="n">args</span> <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Release</span> <span class="o">-</span><span class="n">DPYTHON_EXECUTABLE</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">python3</span> <span class="o">-</span><span class="n">DPYTHON_INCLUDE_DIR</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">include</span><span class="o">/</span><span class="n">python3</span><span class="o">.</span><span class="mi">6</span><span class="n">m</span> <span class="o">-</span><span class="n">DPYTHON_LIBRARY</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">aarch64</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">gnu</span><span class="o">/</span><span class="n">libpython3</span><span class="o">.</span><span class="mi">6</span><span class="n">m</span><span class="o">.</span><span class="n">so</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="4">

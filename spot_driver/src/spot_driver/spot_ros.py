@@ -131,7 +131,7 @@ class SpotROS:
             self.joint_state_pub.publish(joint_state)
 
             ## TF ##
-            tf_msg = GetTFFromState(state, self.spot_wrapper, self.mode_parent_odom_tf)
+            tf_msg = GetTFFromState(state, self.spot_wrapper, self.mode_parent_odom_tf, self.publish_odom_tf)
             to_remove = []
             if len(tf_msg.transforms) > 0:
                 for transform in tf_msg.transforms:
@@ -1488,6 +1488,7 @@ class SpotROS:
         self.allow_motion = rospy.get_param("~allow_motion", True)
         self.use_take_lease = rospy.get_param("~use_take_lease", False)
         self.get_lease_on_action = rospy.get_param("~get_lease_on_action", False)
+        self.publish_odom_tf = rospy.get_param("~publish_odom_tf", True)
         self.is_charging = False
 
         self.tf_buffer = tf2_ros.Buffer()
@@ -1533,7 +1534,7 @@ class SpotROS:
             rates=self.rates,
             callbacks=self.callbacks,
             use_take_lease=self.use_take_lease,
-            get_lease_on_action=self.get_lease_on_action,
+            get_lease_on_action=self.get_lease_on_action
         )
 
         if not self.spot_wrapper.is_valid:

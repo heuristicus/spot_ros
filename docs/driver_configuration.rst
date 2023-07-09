@@ -62,6 +62,16 @@ There are several parameters which can be used to automatically do certain actio
 | auto_stand             | A boolean to automatically stand the robot after the driver conneccts           |
 +------------------------+---------------------------------------------------------------------------------+
 
+By default, the driver publishes the odom and gpe transformation with its origin at the start-up location. 
+When using a Global Positioning System like GNSS, this can be disabled to use an external position estimator.
+
++------------------------+---------------------------------------------------------------------------------+
+| Parameter              | Description                                                                     |
++------------------------+---------------------------------------------------------------------------------+
+| publish_odom_tf        | A boolean to determine if the driver should publish the odom and gpe tf         |
++------------------------+---------------------------------------------------------------------------------+
+
+
 Environment variables
 ---------------------
 

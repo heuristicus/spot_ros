@@ -522,7 +522,7 @@ def generate_feet_tf(foot_states_msg):
     return foot_tfs
 
 
-def GetTFFromState(state, spot_wrapper, inverse_target_frame):
+def GetTFFromState(state, spot_wrapper, inverse_target_frame, publish_odom_tf):
     """Maps robot link state data from robot state proto to ROS TFMessage message
 
     Args:
@@ -539,7 +539,9 @@ def GetTFFromState(state, spot_wrapper, inverse_target_frame):
     ) in state.kinematic_state.transforms_snapshot.child_to_parent_edge_map:
         if state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(
             frame_name
-        ).parent_frame_name:
+        ).parent_frame_name and (
+            publish_odom_tf or 
+            frame_name not in ('odom', 'gpe')):
             try:
                 transform = state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(
                     frame_name
