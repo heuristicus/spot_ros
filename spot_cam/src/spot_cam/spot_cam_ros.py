@@ -1043,7 +1043,7 @@ class PTZHandlerROS(ROSHandler):
             zoom_level=action.zoom_level,
             image_diagonal=action.image_width,
             track=action.track,
-            blocking=action.blocking
+            blocking=action.blocking,
         )
         result = LookAtPointResult(success, message)
 
@@ -1086,7 +1086,10 @@ class PTZHandlerROS(ROSHandler):
                 Helper function for the timer callback
                 """
                 res = self._look_at_point(
-                    target_, zoom_level=zoom_level_, image_diagonal=image_diagonal_, blocking=blocking
+                    target_,
+                    zoom_level=zoom_level_,
+                    image_diagonal=image_diagonal_,
+                    blocking=blocking,
                 )
                 if not res:
                     self.logger.error(res[1])
@@ -1095,13 +1098,20 @@ class PTZHandlerROS(ROSHandler):
             self._track_timer = rospy.Timer(
                 realign_interval,
                 callback=functools.partial(
-                    look_at_point_timer_cb, target, zoom_level, image_diagonal, blocking=blocking
+                    look_at_point_timer_cb,
+                    target,
+                    zoom_level,
+                    image_diagonal,
+                    blocking=blocking,
                 ),
             )
             return True, "Tracking point"
         else:
             return self._look_at_point(
-                target, zoom_level=zoom_level, image_diagonal=image_diagonal, blocking=blocking
+                target,
+                zoom_level=zoom_level,
+                image_diagonal=image_diagonal,
+                blocking=blocking,
             )
 
     def _look_at_point(
@@ -1127,21 +1137,16 @@ class PTZHandlerROS(ROSHandler):
             f"Looking at point {target.point.x}, {target.point.y}, {target.point.z}"
         )
         # Look-up transform from ptz to given frame_id
-        tf_buffer = tf2_ros.Buffer()
-        tf_listener = tf2_ros.TransformListener(tf_buffer)
         frame_id = target.header.frame_id
         timeout = rospy.Duration(1)
         try:
-            ptz_to_target_frame = tf_buffer.lookup_transform(
+            ptz_to_target_frame = self.tf_buffer.lookup_transform(
                 "ptz_zero", frame_id, rospy.Time(), timeout
             )
-        except tf2_ros.LookupException:
-            return (
-                False,
-                "Can't lookup transform between 'ptz_zero' and '" + frame_id + "'!",
-            )
         except Exception as e:
-            return False, f"Failure while looking up transform: {e}"
+            message = f"Failure while looking up transform between 'ptz_zero' and {frame_id}: {e}"
+            rospy.logerr(message)
+            return False, message
 
         # Apply transform from frame to point
         rot = ptz_to_target_frame.transform.rotation
@@ -1203,7 +1208,9 @@ class PTZHandlerROS(ROSHandler):
             f"Setting ptz to pan: {pan_angle}, tilt: {tilt_angle}, zoom: {zoom_factor}"
         )
         try:
-            self.set_ptz_position("mech", pan_angle, tilt_angle, zoom_factor, blocking=blocking)
+            self.set_ptz_position(
+                "mech", pan_angle, tilt_angle, zoom_factor, blocking=blocking
+            )
             point_marker = Marker()
             point_marker.action = Marker.ADD
             point_marker.ns = "/cam/target_point"
@@ -1482,7 +1489,9 @@ class ImageStreamHandlerROS(ROSHandler):
 
         # Special case of the simplest capture of just a single image.
         if capture_duration == 0 and capture_count == 1:
-            output_file = self.medialog_client.store_and_save_image(cam_camera, full_path, filename)
+            output_file = self.medialog_client.store_and_save_image(
+                cam_camera, full_path, filename
+            )
             if not output_file:
                 return False, "Failed to save image"
             return True, f"Saved 1 image to {output_file}"
