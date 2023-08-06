@@ -35,5 +35,5 @@
     <rosparam command="load" file="$(find spot_driver)/config/twist_mux.yaml" />
     <remap from="cmd_vel_out" to="spot/cmd_vel"/>
   </node>
-  
+
 </launch>

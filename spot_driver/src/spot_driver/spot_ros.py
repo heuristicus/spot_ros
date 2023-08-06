@@ -120,6 +120,29 @@ class RateLimitedCall:
             self.last_call = now_sec
 
 
+class ThreadedFunctionLoop:
+    """
+    Holds a thread which calls a function in a loop at the specified rate
+    """
+
+    def __init__(self, function: typing.Callable, rate: rospy.Rate) -> None:
+        """
+        Args:
+            function: Function which should be called at the specified rate
+            rate: Rate at which the function should be called
+        """
+
+        self.function = function
+        self.rate = rate
+        self.thread = threading.Thread(target=self.run)
+        self.thread.start()
+
+    def run(self):
+        while not rospy.is_shutdown():
+            self.function()
+            self.rate.sleep()
+
+
 class SpotROS:
     """Parent class for using the wrapper.  Defines all callbacks and keeps the wrapper alive"""
 
@@ -392,8 +415,7 @@ class SpotROS:
         self.populate_camera_static_transforms(image_bundle.right)
         self.populate_camera_static_transforms(image_bundle.back)
 
-    def publish_all_images_callback(self):
-        self.publish_camera_images_callback()
+    def publish_depth_images_callback(self):
         if self.depth_in_visual:
             self.publish_depth_in_visual_images_callback()
         else:
@@ -2067,15 +2089,23 @@ class SpotROS:
         )
         rate_limited_motion_allowed = RateLimitedCall(self.publish_allow_motion, 10)
         rate_publish_camera_images = RateLimitedCall(
-            self.publish_all_images_callback,
+            self.publish_camera_images_callback,
+            max(0.0, self.rates.get("camera_images", 10)),
+        )
+        rate_publish_depth_images = RateLimitedCall(
+            self.publish_depth_images_callback,
             max(0.0, self.rates.get("camera_images", 10)),
         )
 
+        # Retrieval and publication of images can take some time, so break it out into its own thread. It's likely this
+        # could be sped up further by breaking it out into separate nodes.
+        camera_publish_thread = ThreadedFunctionLoop(rate_publish_camera_images, rate)
+        depth_publish_thread = ThreadedFunctionLoop(rate_publish_depth_images, rate)
+        update_tasks_thread = ThreadedFunctionLoop(self.spot_wrapper.updateTasks, rate)
+        feedback_thread = ThreadedFunctionLoop(rate_limited_feedback, rate)
+        mobility_thread = ThreadedFunctionLoop(rate_limited_mobility_params, rate)
+        motion_thread = ThreadedFunctionLoop(rate_limited_motion_allowed, rate)
+
+
         rospy.loginfo("Driver started")
-        while not rospy.is_shutdown():
-            self.spot_wrapper.updateTasks()
-            rate_limited_feedback()
-            rate_limited_mobility_params()
-            rate_limited_motion_allowed()
-            rate_publish_camera_images()
-            rate.sleep()
+        rospy.spin()
