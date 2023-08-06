@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GraphNav Service &mdash; Spot ROS User Documentation 1.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Spot CAM" href="cam_usage.html" />
+    <link rel="prev" title="Spot EAP Usage" href="eap_usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Spot ROS User Documentation
+          </a>
+              <div class="version">
+                1.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Robot Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Computer Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Driver configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arm_usage.html">Arm Control</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eap_usage.html">Spot EAP Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">GraphNav Service</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#ros-services-and-actions">ROS Services and Actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#demonstration">Demonstration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cam_usage.html">Spot CAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docker_deploy.html">Docker Deployment</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Spot ROS User Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>GraphNav Service</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/graphnav_usage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="graphnav-service">
+<h1>GraphNav Service<a class="headerlink" href="#graphnav-service" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://dev.bostondynamics.com/docs/concepts/autonomy/graphnav_service">Graph Navigation (GraphNav)</a>
+is Spot’s native mapping and localization service that allows it to perform higher level Autonomy
+features such as Autowalk and Missions.</p>
+<p>Autowalk and Missions are not supported by the ROS driver, but the GraphNav map can still be used to
+traverse a previously recorded Autowalk path, either recorded through the controller or with the command
+line utility.</p>
+<div class="section" id="ros-services-and-actions">
+<h2>ROS Services and Actions<a class="headerlink" href="#ros-services-and-actions" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="16%" />
+<col width="84%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Service / Action</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>/spot/navigate_init</td>
+<td>ROS Service. Initialize the starting point of the robot to the map, with a nearby AprilTag fiducial.</td>
+</tr>
+<tr class="row-odd"><td>/spot/navigate_to</td>
+<td>ROS Action. Go to a waypoint in the current graph, traversing edges formed when recording the map.</td>
+</tr>
+<tr class="row-even"><td>/spot/navigate_route</td>
+<td>ROS Action. Go to a series of waypoints (route) in the current graph, traversing edges formed when recording the map.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li>Record a map with the controller or <a class="reference external" href="https://github.com/boston-dynamics/spot-sdk/tree/master/python/examples/graph_nav_command_line">command line utility</a>.</li>
+<li>Download the map to your computer from the controller, or directly from the robot with the commend line utility.</li>
+<li>Upload the map to the robot (if rebooting or overwriting an existing map) with the <code class="docutils literal notranslate"><span class="pre">/spot/navigate_init</span></code> call, with the current waypoint name and a nearby AprilTag fiducial present. The name of the waypoint can be gotten from the <code class="docutils literal notranslate"><span class="pre">/spot/list_graph</span></code> ROS Service call.</li>
+<li>Start using the <code class="docutils literal notranslate"><span class="pre">/spot/navigate_to</span></code> or <code class="docutils literal notranslate"><span class="pre">/spot/navigate_route</span></code> ROS Actions to navigate the map.</li>
+</ol>
+</div>
+<div class="section" id="demonstration">
+<h2>Demonstration<a class="headerlink" href="#demonstration" title="Permalink to this headline">¶</a></h2>
+<p>In the demonstration below, the robot is initialized to the map with the waypoint “ss” and the AprilTag fiducial 350.
+The robot then navigates to each successive waypoint in the graph until it returns to the start point.
+The RViz visualization shows the robot’s current position and orientation, as well as the depth camera (colour points)
+and lidar (white points) data of the environment.</p>
+<img alt="_images/spot-graphnav.gif" src="_images/spot-graphnav.gif" />
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="eap_usage.html" class="btn btn-neutral float-left" title="Spot EAP Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cam_usage.html" class="btn btn-neutral float-right" title="Spot CAM" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Clearpath Robotics, 2023 Oxford Robotics Institute.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

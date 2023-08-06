@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spot EAP Usage &mdash; Spot ROS User Documentation 1.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="GraphNav Service" href="graphnav_usage.html" />
+    <link rel="prev" title="Arm Control" href="arm_usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Spot ROS User Documentation
+          </a>
+              <div class="version">
+                1.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Robot Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Computer Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Driver configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arm_usage.html">Arm Control</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Spot EAP Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#hardware-setup">Hardware Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#accessing-the-point-cloud-data">Accessing the Point Cloud data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#directly-accessing-the-raw-data">Directly accessing the raw data</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="graphnav_usage.html">GraphNav Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cam_usage.html">Spot CAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docker_deploy.html">Docker Deployment</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Spot ROS User Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Spot EAP Usage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/eap_usage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="spot-eap-usage">
+<h1>Spot EAP Usage<a class="headerlink" href="#spot-eap-usage" title="Permalink to this headline">¶</a></h1>
+<p>The <a class="reference external" href="https://support.bostondynamics.com/s/article/Spot-Enhanced-Autonomy-Package-EAP">Spot EAP package</a> is a payload that
+includes a Velodyne VLP-16 lidar. This allows it to generate point clouds of the surrounding environment. This ROS driver
+allows you to retrieve the lidar data from the Spot SDK and publish it to ROS in the
+<a class="reference external" href="http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/PointCloud2.html">PointCloud2</a> format.</p>
+<div class="section" id="hardware-setup">
+<h2>Hardware Setup<a class="headerlink" href="#hardware-setup" title="Permalink to this headline">¶</a></h2>
+<p>Follow <a class="reference external" href="https://dev.bostondynamics.com/docs/payload/readme">Boston Dynamics’ instructions</a> for installing the Spot EAP package.
+You will need to use one of the payload ports on the top of the robot (usually the rear one) to connect the lidar to the robot,
+and register the payload with the controller or from the admin console web interface of the robot at <code class="docutils literal notranslate"><span class="pre">192.168.80.3</span></code>.</p>
+</div>
+<div class="section" id="accessing-the-point-cloud-data">
+<h2>Accessing the Point Cloud data<a class="headerlink" href="#accessing-the-point-cloud-data" title="Permalink to this headline">¶</a></h2>
+<p>Once the spot_driver has been started, you can access the point cloud data by subscribing to the <code class="docutils literal notranslate"><span class="pre">/spot/lidar/points</span></code> topic.
+The point cloud data publishing rate can be configured using the <code class="docutils literal notranslate"><span class="pre">spot_ros.yaml</span></code> file in <code class="docutils literal notranslate"><span class="pre">spot_driver</span></code> package. The default
+publishing rate is 10 Hz. This can be verified by running the following command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rostopic <span class="nb">echo</span> /spot/lidar/points
+rostopic hz /spot/lidar/points
+</pre></div>
+</div>
+<p>The data can also be viewed in RViz. It is published in the <code class="docutils literal notranslate"><span class="pre">sensor_msgs/PointCloud2</span></code> format, in the <code class="docutils literal notranslate"><span class="pre">odom</span></code> frame of the robot.
+An example of it in RViz is shown below, where the white dots represent points output from the lidar.</p>
+<img alt="_images/lidar_on_spot.png" src="_images/lidar_on_spot.png" />
+<p>Note that this data has been filtered by the Spot SDK for localization usage, hence it is provided in the <code class="docutils literal notranslate"><span class="pre">odom</span></code> frame.
+However, if you are using the point cloud data for other purposes, you may want to use the <code class="docutils literal notranslate"><span class="pre">tf2</span></code> package to transform it
+into the <code class="docutils literal notranslate"><span class="pre">base_link</span></code> frame instead, using the <code class="docutils literal notranslate"><span class="pre">tf2_sensor_msgs.do_transform_cloud()</span></code> function.</p>
+</div>
+<div class="section" id="directly-accessing-the-raw-data">
+<h2>Directly accessing the raw data<a class="headerlink" href="#directly-accessing-the-raw-data" title="Permalink to this headline">¶</a></h2>
+<p>The data provided through the <code class="docutils literal notranslate"><span class="pre">/spot/lidar/points</span></code> topic is filtered by the Spot SDK for localization usage. If you want to
+access the raw data, you can use a separate ROS package such as <a class="reference external" href="http://wiki.ros.org/velodyne_driver">velodyne_driver</a> to
+access the data directly from the lidar.</p>
+<p>Note that Boston Dynamics has claimed that this may <a class="reference external" href="https://support.bostondynamics.com/s/article/Spot-Enhanced-Autonomy-Package-EAP">interfere</a>
+with the Autowalk feature of Spot. The officially listed limitations of the EAP are:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>- Changing networking settings or otherwise interfering with the ``velodyne_service`` program on the EAP&#39;s Core will cause GraphNav not to function.
+- Although point cloud data is published via the ``velodyne_service`` ``RemotePointCloud`` service, this data is heavily filtered for use with GraphNav.
+- Users are free to access the VLP-16 sensor directly using its communication protocols; however, this likely interferes with its function in the ``velodyne_service`` which breaks Autowalk.
+- The EAP is not intended for reality capture applications as it currently designed. We recommend working with laser scanner companies such as Trimble for laser scanning and/or digital twin applications.
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="arm_usage.html" class="btn btn-neutral float-left" title="Arm Control" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="graphnav_usage.html" class="btn btn-neutral float-right" title="GraphNav Service" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Clearpath Robotics, 2023 Oxford Robotics Institute.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

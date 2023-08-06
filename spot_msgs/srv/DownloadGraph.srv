@@ -1,0 +1,3 @@
+string download_filepath
+---
+string[] waypoint_ids

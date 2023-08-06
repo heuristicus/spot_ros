@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docker Deployment &mdash; Spot ROS User Documentation 1.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Spot CAM" href="cam_usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Spot ROS User Documentation
+          </a>
+              <div class="version">
+                1.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="robot_setup.html">Robot Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Computer Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Driver configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arm_usage.html">Arm Control</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eap_usage.html">Spot EAP Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="graphnav_usage.html">GraphNav Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cam_usage.html">Spot CAM</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Docker Deployment</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#deployment-steps">Deployment Steps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#portainer">Portainer</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Spot ROS User Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Docker Deployment</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/docker_deploy.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="docker-deployment">
+<h1>Docker Deployment<a class="headerlink" href="#docker-deployment" title="Permalink to this headline">¶</a></h1>
+<p>It is recommended to deploy the ROS driver in a Docker container to the Spot CORE, or any computer carried by Spot.
+The Spot CORE utilises Portainer to handle Docker containers, with a deployment guide <a class="reference external" href="https://dev.bostondynamics.com/docs/payload/spot_core_portainer">here</a>.</p>
+<p>The Dockerfile for the ROS driver is located in the <code class="docutils literal notranslate"><span class="pre">deploy</span></code> directory of the repository, building on the ROS
+Noetic image. You can modify this to build your own image, or use the pre-built image from Docker Hub.</p>
+<div class="section" id="deployment-steps">
+<h2>Deployment Steps<a class="headerlink" href="#deployment-steps" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">pull</span></code> the image from Docker Hub</li>
+<li><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">save</span></code> the image to a tar file</li>
+<li>Transfer the tar file to the Spot CORE, or any computer carried by Spot</li>
+<li>Create a container from the image, using the <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span></code> command or the Portainer interface</li>
+</ol>
+</div>
+<div class="section" id="portainer">
+<h2>Portainer<a class="headerlink" href="#portainer" title="Permalink to this headline">¶</a></h2>
+<p>Portainer is a web interface for managing Docker containers. It is installed on the Spot CORE by default, and can be accessed
+by navigating to <code class="docutils literal notranslate"><span class="pre">192.168.80.3:21900</span></code> in a web browser. Portainer has a <a class="reference external" href="https://docs.portainer.io/user/docker/dashboard">guide</a>
+on how to manage images and containers through its interface.</p>
+<img alt="_images/spot-core-portainer.png" src="_images/spot-core-portainer.png" />
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cam_usage.html" class="btn btn-neutral float-left" title="Spot CAM" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Clearpath Robotics, 2023 Oxford Robotics Institute.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

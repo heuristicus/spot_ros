@@ -6,14 +6,13 @@ rates:
   robot_state: 20.0
   metrics: 0.04
   lease: 1.0
-  front_image: 10.0
-  side_image: 10.0
-  rear_image: 10.0
+  camera_images: 10.0
   point_cloud: 10.0
   hand_image: 10.0
   feedback: 10.0
-  mobility_params: 10.0
+  mobility_params: 20.0
   check_subscribers: 10.0
+  world_objects: 10.0
 
 # If true, automatically claim the lease when the driver starts
 auto_claim: False
@@ -21,6 +20,11 @@ auto_claim: False
 auto_power_on: False
 # If true, automatically stand when the driver starts (requires auto_power_on)
 auto_stand: False
+
+# If true, requests depth images mapped in the vision frame for cameras on the Spot robot
+depth_in_visual: True
+# "vision" or "odom", picks the type of odometry passed from the Spot robot to the ROS package
+mode_parent_odom_tf: vision
 
 claim:
   # If true, forcefully take the lease, instead of acquiring it, which can fail if someone else has it

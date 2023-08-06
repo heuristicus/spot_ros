@@ -1,0 +1,79 @@
+name: spot_driver unit tests
+
+# Run on every push
+on: [push]
+
+# Environmental variables
+env:
+  SPOT_ARM: 1
+
+jobs:
+  spot_driver-unit-tests:
+    # All steps inside this job will run inside the ROS Noetic container
+    container: public.ecr.aws/docker/library/ros:noetic
+    runs-on: ubuntu-latest
+    # Let's ensure we use bash, and work within our catkin worksapce
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Create directory to check out the code to
+      - name: Create catkin_ws directory
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/catkin_ws/src
+
+      # Check out the Spot ROS code
+      - name: Checkout SpotROS
+        uses: actions/checkout@v3
+        with:
+          path: catkin_ws/src/spot_ros
+
+      - name: Checkout Spot Wrapper
+        uses: actions/checkout@v3
+        with:
+          repository: jeremysee2/spot_wrapper #TODO: Change to bdaiinstitute once merged
+          path: catkin_ws/src/spot_ros/spot_wrapper
+
+      # Install the required packages
+      - name: Install dependencies (minus qttools)
+        run: |
+          sudo apt-get update && \
+          sudo apt-get install -y \
+            python3-pip \
+            ros-noetic-tf2-bullet
+          pip install cython \
+            bosdyn-client \
+            bosdyn-mission \
+            bosdyn-api \
+            bosdyn-core \
+            empy
+        working-directory: catkin_ws/
+
+      # Install SpotWrapper
+      - name: Install SpotWrapper
+        run: |
+          cd $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
+          pip install -r spot_wrapper/requirements.txt
+          pip install -e spot_wrapper
+
+      - name: Check that code has been downloaded correctly
+        run: |
+          ls $GITHUB_WORKSPACE/catkin_ws/src
+          ls $GITHUB_WORKSPACE/catkin_ws/src/spot_ros
+
+      # Build our workspace
+      - name: Build workspace for spot_driver
+        run: |
+          source /opt/ros/noetic/setup.bash
+          rosdep update
+          rosdep install --from-paths src --ignore-src -y
+          ls $GITHUB_WORKSPACE/catkin_ws
+          catkin_make --only-pkg-with-deps spot_driver
+        working-directory: catkin_ws/
+
+      # Run our ROS test!
+      - name: Run tests
+        run: |
+          source devel/setup.bash &&
+          rostest spot_driver run_tests.test --text
+        working-directory: catkin_ws/

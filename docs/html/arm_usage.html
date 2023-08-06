@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Arm control &mdash; Spot ROS User Documentation 1.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <title>Arm Control &mdash; Spot ROS User Documentation 1.0.0 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
@@ -16,7 +16,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Spot CAM" href="cam_usage.html" />
+    <link rel="next" title="Spot EAP Usage" href="eap_usage.html" />
     <link rel="prev" title="Basic Driver Usage" href="ros_usage.html" /> 
 </head>
 
@@ -44,8 +44,15 @@
 <li class="toctree-l1"><a class="reference internal" href="ros_setup.html">Computer Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="driver_configuration.html">Driver configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ros_usage.html">Basic Driver Usage</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Arm control</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Arm Control</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#arm-carry-stow-unstow">Arm Carry, Stow, Unstow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pick-service-grasp-3d">Pick Service (Grasp 3D)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="eap_usage.html">Spot EAP Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="graphnav_usage.html">GraphNav Service</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cam_usage.html">Spot CAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docker_deploy.html">Docker Deployment</a></li>
 </ul>
 
         </div>
@@ -62,7 +69,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Arm control</li>
+      <li>Arm Control</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/arm_usage.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -73,13 +80,14 @@
            <div itemprop="articleBody">
              
   <div class="section" id="arm-control">
-<h1>Arm control<a class="headerlink" href="#arm-control" title="Permalink to this headline">¶</a></h1>
-<p>The driver can also send commands to the robot’s arm, if it has one. The following services allow control of various
-parts of the arm.</p>
+<h1>Arm Control<a class="headerlink" href="#arm-control" title="Permalink to this headline">¶</a></h1>
+<p>The driver can also send commands to the robot’s arm, if it has one. The following services
+allow control of various parts of the arm. Note that the arm does not have collision avoidance,
+so it is important to be careful when using these services.</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="50%" />
-<col width="50%" />
+<col width="9%" />
+<col width="91%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Service</th>
@@ -88,37 +96,60 @@ parts of the arm.</p>
 </thead>
 <tbody valign="top">
 <tr class="row-even"><td>/spot/arm_carry</td>
-<td>&#160;</td>
+<td>Move the arm into the <cite>carry</cite> position.</td>
 </tr>
 <tr class="row-odd"><td>/spot/arm_joint_move</td>
-<td>&#160;</td>
+<td>Move each joint into a position specified by a specific angle, corresponding to the <a class="reference external" href="https://dev.bostondynamics.com/python/bosdyn-client/src/bosdyn/client/robot_command#bosdyn.client.robot_command.RobotCommandBuilder.arm_joint_move_helper">6 degrees of freedom</a>.</td>
 </tr>
 <tr class="row-even"><td>/spot/arm_stow</td>
-<td>&#160;</td>
+<td>Move the arm into the <cite>stow</cite> position.</td>
 </tr>
 <tr class="row-odd"><td>/spot/arm_unstow</td>
-<td>&#160;</td>
+<td>Move the arm into the <cite>unstow</cite> position.</td>
 </tr>
 <tr class="row-even"><td>/spot/force_trajectory</td>
-<td>&#160;</td>
+<td>Move the arm by specifying forces in (x,y,z) linear forces and (rx,ry,rz) rotational forces, acting as a virtual wrench.</td>
 </tr>
 <tr class="row-odd"><td>/spot/grasp_3d</td>
-<td>&#160;</td>
+<td>Use the <cite>Pick</cite> autonomy feature of Spot to pick an object specified in Cartesian (x,y,z) coordinates in a chosen reference frame, usually <code class="docutils literal notranslate"><span class="pre">body</span></code>.</td>
 </tr>
 <tr class="row-even"><td>/spot/gripper_angle_open</td>
-<td>&#160;</td>
+<td>Open the gripper to a specific angle, between 0 and 90 degrees.</td>
 </tr>
 <tr class="row-odd"><td>/spot/gripper_close</td>
-<td>&#160;</td>
+<td>Close the gripper to 0 degrees.</td>
 </tr>
 <tr class="row-even"><td>/spot/gripper_open</td>
-<td>&#160;</td>
+<td>Open the gripper to 90 degrees.</td>
 </tr>
 <tr class="row-odd"><td>/spot/gripper_pose</td>
-<td>&#160;</td>
+<td>Move the gripper to a point specified in Cartesian (x,y,z) coordinates of the robot’s <code class="docutils literal notranslate"><span class="pre">body</span></code> frame.</td>
 </tr>
 </tbody>
 </table>
+<div class="section" id="arm-carry-stow-unstow">
+<h2>Arm Carry, Stow, Unstow<a class="headerlink" href="#arm-carry-stow-unstow" title="Permalink to this headline">¶</a></h2>
+<p>The arm can be moved into the predefined <cite>carry</cite>, <cite>stow</cite>, and <cite>unstow</cite> positions.</p>
+<p>Carry:</p>
+<img alt="_images/spot-arm-carry.gif" src="_images/spot-arm-carry.gif" />
+<p>Stow:</p>
+<img alt="_images/spot-arm-stow.gif" src="_images/spot-arm-stow.gif" />
+</div>
+<div class="section" id="pick-service-grasp-3d">
+<h2>Pick Service (Grasp 3D)<a class="headerlink" href="#pick-service-grasp-3d" title="Permalink to this headline">¶</a></h2>
+<p>Note that it is important to perform the Spot Check calibration before using the Pick service of the arm.
+If any cameras are in an error state, the Spot robot will refuse to execute any Autonomy features, including picking.
+The Picking process is shown below:</p>
+<ol class="arabic simple">
+<li>Walking to the object</li>
+<li>Unstowing the arm</li>
+<li>Surveying the object with the gripper camera</li>
+<li>Walking closer to the object</li>
+<li>Picking the object</li>
+<li>Closing the gripper</li>
+</ol>
+<img alt="_images/spot-grasp-3d.gif" src="_images/spot-grasp-3d.gif" />
+</div>
 </div>
 
 
@@ -126,7 +157,7 @@ parts of the arm.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="ros_usage.html" class="btn btn-neutral float-left" title="Basic Driver Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="cam_usage.html" class="btn btn-neutral float-right" title="Spot CAM" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="eap_usage.html" class="btn btn-neutral float-right" title="Spot EAP Usage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

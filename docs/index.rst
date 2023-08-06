@@ -10,4 +10,7 @@ Spot ROS User Documentation
     driver_configuration
     ros_usage
     arm_usage
+    eap_usage
+    graphnav_usage
     cam_usage
+    docker_deploy

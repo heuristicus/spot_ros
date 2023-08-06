@@ -1,0 +1,33 @@
+<launch>
+  <test test-name="spot_ros_tests" pkg="spot_driver" type="spot_ros_test.py" time-limit="1000.0"/>
+
+  <test test-name="spot_driver_helper_tests" pkg="spot_driver" type="run_tests.py" time-limit="1000.0"/>
+
+  <arg name="username" default="dummyusername" />
+  <arg name="password" default="dummypassword" />
+  <arg name="hostname" default="192.168.80.3" />
+  <arg name="estop_timeout" default="9.0"/>
+  <arg name="autonomy_enabled" default="true"/>
+  <arg name="max_linear_velocity_x" default="0"/>
+  <arg name="max_linear_velocity_y" default="0"/>
+  <arg name="max_angular_velocity_z" default="0"/>
+  <arg name="allow_motion" default="true"/>
+  <arg name="driver_config" default="$(find spot_driver)/config/spot_ros.yaml"/>
+
+  <node pkg="spot_driver" type="mock_spot_ros.py" name="mock_spot_ros"  ns="spot" output="screen">
+    <rosparam file="$(arg driver_config)" command="load" />
+    <param name="username" value="$(arg username)" />
+    <param name="password" value="$(arg password)" />
+    <param name="hostname" value="$(arg hostname)" />
+    <param name="estop_timeout" value="$(arg estop_timeout)"/>
+    <param name="autonomy_enabled" value="$(arg autonomy_enabled)"/>
+    <param name="estop_timeout" value="$(arg estop_timeout)"/>
+    <param name="max_linear_velocity_x" value="$(arg max_linear_velocity_x)"/>
+    <param name="max_linear_velocity_y" value="$(arg max_linear_velocity_y)"/>
+    <param name="max_angular_velocity_z" value="$(arg max_angular_velocity_z)"/>
+    <param name="allow_motion" value="$(arg allow_motion)"/>
+
+    <remap from="joint_states" to="/joint_states"/>
+    <remap from="tf" to="/tf"/>
+  </node>
+</launch>
