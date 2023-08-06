@@ -1,53 +1,46 @@
 import copy
-
 import typing
-import numpy as np
 
+import numpy as np
 import rospy
 import transforms3d
-
+from bosdyn.api import image_pb2, robot_state_pb2, point_cloud_pb2
+from bosdyn.api import world_object_pb2, geometry_pb2
+from bosdyn.api.docking import docking_pb2
+from bosdyn.client.frame_helpers import (
+    get_odom_tform_body,
+    get_vision_tform_body,
+    get_a_tform_b,
+)
+from bosdyn.client.math_helpers import SE3Pose
+from bosdyn.client.spot_check import spot_check_pb2
+from geometry_msgs.msg import Pose, Point, Quaternion, Polygon, Vector3, Point32
+from geometry_msgs.msg import PoseWithCovariance
+from geometry_msgs.msg import TransformStamped, Transform
+from geometry_msgs.msg import TwistWithCovarianceStamped
+from google.protobuf.timestamp_pb2 import Timestamp
+from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import PointCloud2, PointField
-from geometry_msgs.msg import PoseWithCovariance
-from geometry_msgs.msg import TwistWithCovarianceStamped
-from geometry_msgs.msg import TransformStamped, Transform
-from geometry_msgs.msg import Pose, Point, Quaternion, Polygon, Vector3, Point32
-from nav_msgs.msg import Odometry
-from tf2_msgs.msg import TFMessage
-
-from spot_msgs.msg import FootState, FootStateArray
-from spot_msgs.msg import EStopState, EStopStateArray
-from spot_msgs.msg import WiFiState
-from spot_msgs.msg import PowerState
-from spot_msgs.msg import BehaviorFault, BehaviorFaultState
-from spot_msgs.msg import SystemFault, SystemFaultState
 from spot_msgs.msg import BatteryState, BatteryStateArray
+from spot_msgs.msg import BehaviorFault, BehaviorFaultState
 from spot_msgs.msg import DockState
+from spot_msgs.msg import EStopState, EStopStateArray
+from spot_msgs.msg import FootState, FootStateArray
+from spot_msgs.msg import FrameTreeSnapshot, ParentEdge
+from spot_msgs.msg import PowerState
+from spot_msgs.msg import SystemFault, SystemFaultState
+from spot_msgs.msg import WiFiState
 from spot_msgs.msg import (
     WorldObject,
     WorldObjectArray,
     AprilTagProperties,
     ImageProperties,
 )
-from spot_msgs.msg import FrameTreeSnapshot, ParentEdge
 from spot_msgs.srv import SpotCheckResponse
-
-from bosdyn.api import image_pb2, robot_state_pb2, point_cloud_pb2
-from bosdyn.api import world_object_pb2, geometry_pb2
-from bosdyn.api.docking import docking_pb2
-from bosdyn.client.spot_check import spot_check_pb2
-from bosdyn.client.math_helpers import SE3Pose
-from bosdyn.client.frame_helpers import (
-    get_odom_tform_body,
-    get_vision_tform_body,
-    get_a_tform_b,
-)
-
-from google.protobuf.timestamp_pb2 import Timestamp
-
 from spot_wrapper.wrapper import SpotWrapper
-
+from tf2_msgs.msg import TFMessage
 
 friendly_joint_names = {}
 """Dictionary for mapping BD joint names to more friendly names"""

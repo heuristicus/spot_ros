@@ -1,55 +1,28 @@
-import copy
-
-import rospy
-import math
-import time
 import functools
 import logging
+import math
 import threading
-import typing
+import time
 
 import actionlib
-import rospy
-
-from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
-from std_msgs.msg import Bool
-from sensor_msgs.msg import Image, CameraInfo
-from sensor_msgs.msg import PointCloud2
-from sensor_msgs.msg import JointState
-from geometry_msgs.msg import TwistWithCovarianceStamped, Twist, Pose, PoseStamped
-from nav_msgs.msg import Odometry
-from tf2_msgs.msg import TFMessage
-
-from bosdyn.client import math_helpers
-from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
-from bosdyn.api import geometry_pb2, trajectory_pb2
-from bosdyn.api import robot_id_pb2, point_cloud_pb2
-from bosdyn.api.geometry_pb2 import Quaternion, SE2VelocityLimit
-from google.protobuf.wrappers_pb2 import DoubleValue
-
-import tf2_ros
 import tf2_geometry_msgs
-
-from spot_msgs.msg import Metrics
-from spot_msgs.msg import LeaseArray, LeaseResource
-from spot_msgs.msg import FootStateArray
-from spot_msgs.msg import EStopStateArray
-from spot_msgs.msg import WiFiState
-from spot_msgs.msg import PowerState
-from spot_msgs.msg import BehaviorFaultState
-from spot_msgs.msg import SystemFaultState
+import tf2_ros
+from bosdyn.api import robot_id_pb2
+from bosdyn.api import trajectory_pb2
+from bosdyn.api.geometry_pb2 import Quaternion, SE2VelocityLimit
+from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
+from bosdyn.client import math_helpers
+from geometry_msgs.msg import Twist, PoseStamped
+from google.protobuf.wrappers_pb2 import DoubleValue
 from spot_msgs.msg import BatteryState, BatteryStateArray
+from spot_msgs.msg import BehaviorFaultState
 from spot_msgs.msg import DockAction, DockGoal, DockResult
-from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
+from spot_msgs.msg import EStopStateArray
 from spot_msgs.msg import Feedback
+from spot_msgs.msg import FootStateArray
+from spot_msgs.msg import LeaseArray, LeaseResource
+from spot_msgs.msg import Metrics
 from spot_msgs.msg import MobilityParams
-from spot_msgs.msg import WorldObjectArray
-from spot_msgs.msg import (
-    NavigateToAction,
-    NavigateToResult,
-    NavigateToFeedback,
-    NavigateToGoal,
-)
 from spot_msgs.msg import (
     NavigateRouteAction,
     NavigateRouteResult,
@@ -57,44 +30,57 @@ from spot_msgs.msg import (
     NavigateRouteGoal,
 )
 from spot_msgs.msg import (
+    NavigateToAction,
+    NavigateToResult,
+    NavigateToFeedback,
+    NavigateToGoal,
+)
+from spot_msgs.msg import PoseBodyAction, PoseBodyGoal, PoseBodyResult
+from spot_msgs.msg import PowerState
+from spot_msgs.msg import SystemFaultState
+from spot_msgs.msg import (
     TrajectoryAction,
     TrajectoryResult,
     TrajectoryFeedback,
     TrajectoryGoal,
 )
-from spot_msgs.srv import ListGraph, ListGraphRequest, ListGraphResponse
+from spot_msgs.msg import WiFiState
+from spot_msgs.msg import WorldObjectArray
+from spot_msgs.srv import ArmForceTrajectory, ArmForceTrajectoryResponse
+from spot_msgs.srv import (
+    ArmJointMovement,
+    ArmJointMovementResponse,
+    ArmJointMovementRequest,
+)
+from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
+from spot_msgs.srv import Dock, DockResponse, GetDockState, GetDockStateResponse
 from spot_msgs.srv import DownloadGraph, DownloadGraphRequest, DownloadGraphResponse
 from spot_msgs.srv import (
     GraphCloseLoops,
     GraphCloseLoopsRequest,
     GraphCloseLoopsResponse,
 )
-from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
-from spot_msgs.srv import SetTerrainParams
-from spot_msgs.srv import SetObstacleParams
-from spot_msgs.srv import ClearBehaviorFault, ClearBehaviorFaultResponse
-from spot_msgs.srv import SetVelocity, SetVelocityResponse
-from spot_msgs.srv import Dock, DockResponse, GetDockState, GetDockStateResponse
-from spot_msgs.srv import PosedStand, PosedStandResponse, PosedStandRequest
-from spot_msgs.srv import SetSwingHeight, SetSwingHeightResponse
-from spot_msgs.srv import NavigateInit, NavigateInitRequest, NavigateInitResponse
-from spot_msgs.srv import (
-    ArmJointMovement,
-    ArmJointMovementResponse,
-    ArmJointMovementRequest,
-)
+from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
 from spot_msgs.srv import (
     GripperAngleMove,
     GripperAngleMoveResponse,
     GripperAngleMoveRequest,
 )
-from spot_msgs.srv import ArmForceTrajectory, ArmForceTrajectoryResponse
 from spot_msgs.srv import HandPose, HandPoseResponse, HandPoseRequest
+from spot_msgs.srv import ListGraph, ListGraphRequest, ListGraphResponse
+from spot_msgs.srv import NavigateInit, NavigateInitRequest, NavigateInitResponse
+from spot_msgs.srv import PosedStand, PosedStandResponse, PosedStandRequest
+from spot_msgs.srv import SetLocomotion, SetLocomotionResponse
+from spot_msgs.srv import SetObstacleParams
+from spot_msgs.srv import SetSwingHeight, SetSwingHeightResponse
+from spot_msgs.srv import SetTerrainParams
+from spot_msgs.srv import SetVelocity, SetVelocityResponse
 from spot_msgs.srv import SpotCheckRequest, SpotCheckResponse, SpotCheck
-from spot_msgs.srv import Grasp3d, Grasp3dRequest, Grasp3dResponse
+from spot_wrapper.wrapper import SpotWrapper
+from std_msgs.msg import Bool
+from std_srvs.srv import Trigger, TriggerResponse, SetBool, SetBoolResponse
 
 from spot_driver.ros_helpers import *
-from spot_wrapper.wrapper import SpotWrapper
 
 
 class RateLimitedCall:
