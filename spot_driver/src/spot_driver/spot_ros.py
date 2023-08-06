@@ -2106,6 +2106,5 @@ class SpotROS:
         mobility_thread = ThreadedFunctionLoop(rate_limited_mobility_params, rate)
         motion_thread = ThreadedFunctionLoop(rate_limited_motion_allowed, rate)
 
-
         rospy.loginfo("Driver started")
         rospy.spin()
