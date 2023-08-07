@@ -93,7 +93,7 @@ generate_messages(
 )
 
 catkin_package(
-  CATKIN_DEPENDS message_runtime actionlib
+  CATKIN_DEPENDS message_runtime actionlib std_msgs sensor_msgs geometry_msgs
 )
 
 include_directories(
