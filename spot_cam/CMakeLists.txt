@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   spot_driver
   geometry_msgs
   message_generation
+  sensor_msgs
 )
 
 catkin_python_setup()
@@ -56,6 +57,7 @@ generate_messages(
   std_msgs
   spot_msgs
   geometry_msgs
+  sensor_msgs
 )
 
 catkin_package(
