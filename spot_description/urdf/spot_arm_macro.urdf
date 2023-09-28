@@ -26,7 +26,7 @@
           izz="0.00778747846359954" />
       </inertial>
     </link>
-    <joint name="${tf_prefix}arm_joint1" type="revolute">
+    <joint name="${tf_prefix}arm_sh0" type="revolute">
       <origin xyz="0.292 0.0 0.188" rpy="0 0 0" />
       <axis xyz="0 0 1" />
       <parent link="${tf_prefix}body" />
@@ -59,7 +59,7 @@
           iyz="0.0" izz="0.00020384964230406682" />
       </inertial>
     </link>
-    <joint name="${tf_prefix}arm_joint2" type="revolute">
+    <joint name="${tf_prefix}arm_sh1" type="revolute">
       <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
       <axis xyz="0 1 0" />
       <parent link="${tf_prefix}arm_link_sh0" />
@@ -89,7 +89,7 @@
       <inertial>
         <origin rpy="-0.01179850657706405 0.0002834144901480151 -0.02372295500868482"
           xyz="0.17047011852264404 -0.0019251034827902913 4.483893280848861e-05" />
-        <mass value="1e-03" />
+        <mass value="1e-06" />
         <inertia ixx="6.312631747339145e-10" ixy="0.0" ixz="0.0" iyy="1.1487063558949979e-08"
           iyz="0.0" izz="1.161105128440526e-08" />
       </inertial>
@@ -126,7 +126,7 @@
           iyz="0.0" izz="0.0019722797759789395" />
       </inertial>
     </link>
-    <joint name="${tf_prefix}arm_joint3" type="revolute">
+    <joint name="${tf_prefix}arm_el0" type="revolute">
       <origin xyz="0.3385 0 0" rpy="0 0 0" />
       <axis xyz="0 1 0" />
       <parent link="${tf_prefix}arm_link_hr0" />
@@ -158,7 +158,7 @@
           iyz="0.0" izz="0.004515915146038191" />
       </inertial>
     </link>
-    <joint name="${tf_prefix}arm_joint4" type="revolute">
+    <joint name="${tf_prefix}arm_el1" type="revolute">
       <origin xyz="0.40330 0.0 0.0750" rpy="0 0 0" />
       <axis xyz="1 0 0" />
       <parent link="${tf_prefix}arm_link_el0" />
@@ -191,7 +191,7 @@
           iyz="0.0" izz="0.0012354892751854467" />
       </inertial>
     </link>
-    <joint name="${tf_prefix}arm_joint5" type="revolute">
+    <joint name="${tf_prefix}arm_wr0" type="revolute">
       <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
       <axis xyz="0 1 0" />
       <parent link="${tf_prefix}arm_link_el1" />
@@ -224,7 +224,7 @@
           izz="0.0016818105865345951" />
       </inertial>
     </link>
-    <joint name="${tf_prefix}arm_joint6" type="revolute">
+    <joint name="${tf_prefix}arm_wr1" type="revolute">
       <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
       <axis xyz="1 0 0" />
       <parent link="${tf_prefix}arm_link_wr0" />
@@ -257,7 +257,7 @@
           iyz="0.0" izz="0.0003912783268020657" />
       </inertial>
     </link>
-    <joint name="${tf_prefix}arm_gripper" type="revolute">
+    <joint name="${tf_prefix}arm_f1x" type="revolute">
       <origin xyz="0.11745 0 0.014820" rpy="0 0 0" />
       <axis xyz="0.0 1.0 0.0" />
       <parent link="${tf_prefix}arm_link_wr1" />
