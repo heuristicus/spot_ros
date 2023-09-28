@@ -58,13 +58,13 @@ friendly_joint_names["hr.hy"] = "rear_right_hip_y"
 friendly_joint_names["hr.kn"] = "rear_right_knee"
 
 # arm joints
-friendly_joint_names["arm0.sh0"] = "arm_joint1"
-friendly_joint_names["arm0.sh1"] = "arm_joint2"
-friendly_joint_names["arm0.el0"] = "arm_joint3"
-friendly_joint_names["arm0.el1"] = "arm_joint4"
-friendly_joint_names["arm0.wr0"] = "arm_joint5"
-friendly_joint_names["arm0.wr1"] = "arm_joint6"
-friendly_joint_names["arm0.f1x"] = "arm_gripper"
+friendly_joint_names["arm0.sh0"] = "arm_sh0"
+friendly_joint_names["arm0.sh1"] = "arm_sh1"
+friendly_joint_names["arm0.el0"] = "arm_el0"
+friendly_joint_names["arm0.el1"] = "arm_el1"
+friendly_joint_names["arm0.wr0"] = "arm_wr1"
+friendly_joint_names["arm0.wr1"] = "arm_wr1"
+friendly_joint_names["arm0.f1x"] = "arm_f1x"
 
 
 class DefaultCameraInfo(CameraInfo):
