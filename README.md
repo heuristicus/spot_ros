@@ -2,6 +2,8 @@
 
 ![CP Spot](cp_spot.jpg)
 
+If you prefer ROS2, a [ROS2 version](https://github.com/bdaiinstitute/spot_ros2/) of this driver is also available.
+
 ## Prerequisites
 
 You should be using ROS noetic. ROS melodic can also be used but may require modifications to build correctly.
