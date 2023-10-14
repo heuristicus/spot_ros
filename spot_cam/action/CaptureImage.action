@@ -1,0 +1,26 @@
+# Capture an image from the camera
+
+# Select which screen should be captured. See /spot/cam/screens for valid options. If empty, captures the current screen
+string screen
+
+# Directory to which the image(s) should be saved
+string save_dir
+
+# Base filename for the image capture. This will be suffixed with the screen used for the capture, as well as the date
+# and time of the capture. It will look something like filename_mech_2023-06-15-16-52-03.png. If not provided, the
+# default filename is spot_cam_stream_capture. If you provide an extension with the base filename, output files will be saved
+# with that extension rather than the default of png. For example, providing my_capture.jpg will generate jpg output
+# See https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56 for valid extensions
+string filename
+
+# Duration in seconds for which the images should be captured. Each image received on the stream will be saved to a
+# separate file. This takes precedence over capture_count
+int32 capture_duration
+
+# Specify the number of images which should be captured from the image stream. Not used if capture_duration is nonzero
+int32 capture_count
+-----
+bool success
+string message
+---
+string feedback

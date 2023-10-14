@@ -8,6 +8,8 @@ float32 image_width
 float32 zoom_level
 # If true, the camera will track this point as the robot moves
 bool track
+# If true, the service will not return until the camera is pointing approximately at the requested point
+bool blocking
 ------
 bool success
 string message

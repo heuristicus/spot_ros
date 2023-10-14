@@ -1,0 +1,26 @@
+# Capture a high quality image from the camera using MediaLog functionality.
+
+# Select which camera should be captured. Valid options are pano, ir, ptz, c0, c1, c2, c3, c4
+string camera
+
+# Directory to which the image(s) should be saved
+string save_dir
+
+# Base filename for the image capture. This will be suffixed with the screen used for the capture, as well as the date
+# and time of the capture. It will look something like filename_ptz_YYYY-mm-ddTHH-MM-SS.MS. If not provided, the
+# default filename is spot_cam_capture. The extension for the file depends on the selected screen and options below.
+string filename
+
+# Determines the frequency at which images should be saved
+float32 capture_frequency
+
+# Duration in seconds for which images should be captured.
+int32 capture_duration
+
+# Specify the number of images which should be captured.
+int32 capture_count
+-----
+bool success
+string message
+---
+string feedback

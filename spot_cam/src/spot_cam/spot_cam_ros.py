@@ -1,12 +1,17 @@
+import datetime
+import functools
 import logging
+import os
+import pathlib
 import threading
 import typing
 import wave
-import functools
-import actionlib
+import cv2
 
+import actionlib
 import numpy as np
 import rospy
+import spot_wrapper.cam_wrapper
 import tf
 import tf2_ros
 from bosdyn.client.exceptions import (
@@ -14,9 +19,11 @@ from bosdyn.client.exceptions import (
     InternalServerError,
     RetryableUnavailableError,
 )
+from visualization_msgs.msg import MarkerArray, Marker
 from cv_bridge import CvBridge
 from geometry_msgs.msg import TransformStamped, PointStamped
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 from spot_cam.msg import (
     BITStatus,
     Degradation,
@@ -33,6 +40,12 @@ from spot_cam.msg import (
     LookAtPointAction,
     LookAtPointGoal,
     LookAtPointResult,
+    CaptureImageAction,
+    CaptureImageGoal,
+    CaptureImageResult,
+    CaptureImageHighQualityAction,
+    CaptureImageHighQualityGoal,
+    CaptureImageHighQualityResult,
 )
 from spot_cam.srv import (
     LoadSound,
@@ -46,11 +59,11 @@ from spot_cam.srv import (
     SetStreamParams,
     SetString,
 )
-from spot_wrapper.cam_wrapper import SpotCamWrapper
 from std_msgs.msg import Float32MultiArray, Float32
 from std_srvs.srv import Trigger
 
 from spot_driver.ros_helpers import getSystemFaults
+from spot_wrapper.cam_wrapper import SpotCamWrapper, SpotCamCamera
 
 
 class ROSHandler:
@@ -218,6 +231,9 @@ class CompositorHandlerROS(ROSHandler):
         self.set_screen_service = rospy.Service(
             "/spot/cam/set_screen", SetString, self.handle_set_screen
         )
+        self.current_screen_pub = rospy.Publisher(
+            "/spot/cam/current_screen", String, queue_size=1, latch=True
+        )
         self.set_ir_meter_overlay_service = rospy.Service(
             "/spot/cam/set_ir_meter_overlay",
             SetIRMeterOverlay,
@@ -232,6 +248,9 @@ class CompositorHandlerROS(ROSHandler):
         )
         self.logger.info("Initialised compositor handler")
 
+        current_screen_thread = threading.Thread(target=self._current_screen_loop)
+        current_screen_thread.start()
+
     def handle_set_screen(self, req: SetString):
         """
         Handle a request to set the screen displayed by webrtc
@@ -244,7 +263,7 @@ class CompositorHandlerROS(ROSHandler):
             self.logger.error(message)
             return False, message
 
-    def set_screen(self, screen):
+    def set_screen(self, screen: str):
         """
         Choose which screen to display. This is how it is possible to view the streams from different cameras
 
@@ -252,6 +271,27 @@ class CompositorHandlerROS(ROSHandler):
             screen: Screen to display
         """
         self.client.set_screen(screen)
+
+    def get_screen(self) -> str:
+        """
+        Get the currently displayed screen
+
+        Returns:
+            Name of the currently displayed screen
+        """
+        return self.client.get_screen()
+
+    def _current_screen_loop(self):
+        """
+        Loop for publishing the current screen
+        """
+        loop_rate = rospy.Rate(1)
+        last_screen = self.get_screen()
+        while not rospy.is_shutdown():
+            if self.get_screen() != last_screen:
+                self.current_screen_pub.publish(self.get_screen())
+            last_screen = self.get_screen()
+            loop_rate.sleep()
 
     def handle_set_ir_meter_overlay(self, req: SetIRMeterOverlay):
         """
@@ -809,6 +849,9 @@ class PTZHandlerROS(ROSHandler):
             execute_cb=self.handle_look_at_point_action,
             auto_start=False,
         )
+        self.cam_marker_pub = rospy.Publisher(
+            "/spot/cam/markers", MarkerArray, queue_size=10, latch=True
+        )
         self.look_at_point_as.start()
 
         self.publish_ptz_list()
@@ -945,7 +988,7 @@ class PTZHandlerROS(ROSHandler):
             f"Successfully set ptz {req.command.ptz.name} to requested velocity",
         )
 
-    def set_ptz_position(self, ptz_name, pan, tilt, zoom):
+    def set_ptz_position(self, ptz_name, pan, tilt, zoom, blocking=False):
         """
         Set the position of the specified ptz
 
@@ -954,8 +997,9 @@ class PTZHandlerROS(ROSHandler):
             pan: Pan in degrees
             tilt: Tilt in degrees
             zoom: Zoom in zoom levels
+            blocking: Block until the ptz reaches the requested position
         """
-        self.client.set_ptz_position(ptz_name, pan, tilt, zoom)
+        self.client.set_ptz_position(ptz_name, pan, tilt, zoom, blocking=blocking)
 
     def _publish_ptz_positions(self):
         rate = rospy.Rate(20)
@@ -999,6 +1043,7 @@ class PTZHandlerROS(ROSHandler):
             zoom_level=action.zoom_level,
             image_diagonal=action.image_width,
             track=action.track,
+            blocking=action.blocking,
         )
         result = LookAtPointResult(success, message)
 
@@ -1017,6 +1062,7 @@ class PTZHandlerROS(ROSHandler):
             zoom_level=req.zoom_level,
             image_diagonal=req.image_width,
             track=req.track,
+            blocking=req.blocking,
         )
 
     def look_at_point(
@@ -1025,6 +1071,7 @@ class PTZHandlerROS(ROSHandler):
         zoom_level: float,
         image_diagonal: float,
         track: bool,
+        blocking: bool,
     ):
         if self._track_timer:
             self._track_timer.shutdown()
@@ -1039,7 +1086,10 @@ class PTZHandlerROS(ROSHandler):
                 Helper function for the timer callback
                 """
                 res = self._look_at_point(
-                    target_, zoom_level=zoom_level_, image_diagonal=image_diagonal_
+                    target_,
+                    zoom_level=zoom_level_,
+                    image_diagonal=image_diagonal_,
+                    blocking=blocking,
                 )
                 if not res:
                     self.logger.error(res[1])
@@ -1048,13 +1098,20 @@ class PTZHandlerROS(ROSHandler):
             self._track_timer = rospy.Timer(
                 realign_interval,
                 callback=functools.partial(
-                    look_at_point_timer_cb, target, zoom_level, image_diagonal
+                    look_at_point_timer_cb,
+                    target,
+                    zoom_level,
+                    image_diagonal,
+                    blocking=blocking,
                 ),
             )
             return True, "Tracking point"
         else:
             return self._look_at_point(
-                target, zoom_level=zoom_level, image_diagonal=image_diagonal
+                target,
+                zoom_level=zoom_level,
+                image_diagonal=image_diagonal,
+                blocking=blocking,
             )
 
     def _look_at_point(
@@ -1063,6 +1120,7 @@ class PTZHandlerROS(ROSHandler):
         *,
         zoom_level: float = 1,
         image_diagonal: float = 0,
+        blocking: bool = True,
     ) -> typing.Tuple[bool, str]:
         """
         Point the ptz camera at a point in an arbitrary frame.
@@ -1073,24 +1131,22 @@ class PTZHandlerROS(ROSHandler):
             target: The target point and frame id that the Spot cam should be aimed at
             zoom_level: The zoom level that the Spot cam should be set to
             image_diagonal: The diagonal of the image frame in meters, overrides the zoom_level
+            blocking: Does not return until the approximate target pan tilt and zoom have been reached
         """
-
+        rospy.loginfo(
+            f"Looking at point {target.point.x}, {target.point.y}, {target.point.z}"
+        )
         # Look-up transform from ptz to given frame_id
-        tf_buffer = tf2_ros.Buffer()
-        tf_listener = tf2_ros.TransformListener(tf_buffer)
         frame_id = target.header.frame_id
         timeout = rospy.Duration(1)
         try:
-            ptz_to_target_frame = tf_buffer.lookup_transform(
+            ptz_to_target_frame = self.tf_buffer.lookup_transform(
                 "ptz_zero", frame_id, rospy.Time(), timeout
             )
-        except tf2_ros.LookupException:
-            return (
-                False,
-                "Can't lookup transform between 'ptz_zero' and '" + frame_id + "'!",
-            )
         except Exception as e:
-            return False, f"Failure while looking up transform: {e}"
+            message = f"Failure while looking up transform between 'ptz_zero' and {frame_id}: {e}"
+            rospy.logerr(message)
+            return False, message
 
         # Apply transform from frame to point
         rot = ptz_to_target_frame.transform.rotation
@@ -1152,7 +1208,26 @@ class PTZHandlerROS(ROSHandler):
             f"Setting ptz to pan: {pan_angle}, tilt: {tilt_angle}, zoom: {zoom_factor}"
         )
         try:
-            self.set_ptz_position("mech", pan_angle, tilt_angle, zoom_factor)
+            self.set_ptz_position(
+                "mech", pan_angle, tilt_angle, zoom_factor, blocking=blocking
+            )
+            point_marker = Marker()
+            point_marker.action = Marker.ADD
+            point_marker.ns = "/cam/target_point"
+            point_marker.type = Marker.SPHERE
+            point_marker.pose.position.x = target.point.x
+            point_marker.pose.position.y = target.point.y
+            point_marker.pose.position.z = target.point.z
+            point_marker.scale.x = 0.2
+            point_marker.scale.y = 0.2
+            point_marker.scale.z = 0.2
+            point_marker.color.r = 1
+            point_marker.color.b = 1
+            point_marker.color.a = 1
+            point_marker.header.frame_id = target.header.frame_id
+            arr = MarkerArray()
+            arr.markers = [point_marker]
+            self.cam_marker_pub.publish(arr)
             return True, "Set ptz to look at point"
         except Exception as e:
             return False, f"Failed to look at point: {e}"
@@ -1170,11 +1245,46 @@ class ImageStreamHandlerROS(ROSHandler):
         # Need the compositor to get information about what camera is currently on screen so we can correctly set the
         # frame id of the image
         self.compositor_client = wrapper.compositor
+        self.medialog_client = wrapper.media_log
         self.cv_bridge = CvBridge()
         self.image_pub = rospy.Publisher("/spot/cam/image", Image, queue_size=1)
+        self.image_capture_as = actionlib.SimpleActionServer(
+            "/spot/cam/capture_image_low_quality",
+            CaptureImageAction,
+            self._handle_capture_image_low_quality,
+        )
+        self.image_capture_high_quality_as = actionlib.SimpleActionServer(
+            "/spot/cam/capture_image",
+            CaptureImageHighQualityAction,
+            self._handle_capture_image_high_quality,
+        )
         self.loop_thread = threading.Thread(target=self._publish_images_loop)
         self.loop_thread.start()
         self.logger.info("Initialised image stream handler")
+
+    def _get_image_from_client(self) -> Image:
+        """
+        Get the latest image from the image client
+
+        Returns:
+            Image
+        """
+        image = self.cv_bridge.cv2_to_imgmsg(self.image_client.last_image)
+        image.header.stamp = rospy.Time.from_sec(
+            self.image_client.last_image_time.timestamp()
+        )
+        try:
+            visible_cameras = self.compositor_client.get_visible_cameras()
+            if len(visible_cameras) == 1:
+                # Can't set the frame id unless there is only a single camera displayed. There is no frame for a
+                # combined image
+                # The camera name here is in the form name:window, we just want the camera name
+                # https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#getvisiblecamerasresponse-stream
+                image.header.frame_id = visible_cameras[0].camera.name.split(":")[0]
+        except RetryableUnavailableError as e:
+            self.logger.warning(f"Failed to get visible cameras: {e}")
+
+        return image
 
     def _publish_images_loop(self):
         """
@@ -1184,30 +1294,250 @@ class ImageStreamHandlerROS(ROSHandler):
         last_image_time = self.image_client.last_image_time
         while not rospy.is_shutdown():
             if last_image_time != self.image_client.last_image_time:
-                image = self.cv_bridge.cv2_to_imgmsg(
-                    self.image_client.last_image, "bgr8"
-                )
-                image.header.stamp = (
-                    rospy.Time.now()
-                )  # Not strictly correct... but close enough?
-                try:
-                    visible_cameras = self.compositor_client.get_visible_cameras()
-                    if len(visible_cameras) == 1:
-                        # Can't set the frame id unless there is only a single camera displayed. There is no frame for a
-                        # combined image
-                        # The camera name here is in the form name:window, we just want the camera name
-                        # https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#getvisiblecamerasresponse-stream
-                        image.header.frame_id = visible_cameras[0].camera.name.split(
-                            ":"
-                        )[0]
-                except RetryableUnavailableError as e:
-                    self.logger.warning(f"Failed to get visible cameras: {e}")
-
-                # TODO: This has to do frame switching in the published message headers depending on the compositor view
+                image = self._get_image_from_client()
                 self.image_pub.publish(image)
                 last_image_time = self.image_client.last_image_time
 
             loop_rate.sleep()
+
+    def _handle_capture_image_low_quality(self, goal: CaptureImageGoal) -> None:
+        """
+        Handle a request to capture a low quality image from the webrtc stream
+
+        Args:
+            goal: CaptureImageGoal
+
+        Returns:
+            CaptureImageResponse
+        """
+        success, message = self.capture_image_low_quality(
+            goal.screen,
+            goal.save_dir,
+            goal.filename,
+            goal.capture_duration,
+            goal.capture_count,
+        )
+        if not success:
+            self.image_capture_as.set_aborted(
+                CaptureImageResult(success=success, message=message)
+            )
+        else:
+            self.image_capture_as.set_succeeded(
+                CaptureImageResult(success=success, message=message)
+            )
+
+    def capture_image_low_quality(
+        self,
+        screen: str,
+        save_dir: str,
+        filename: str = "spot_cam_stream_capture",
+        capture_duration: float = 0,
+        capture_count: int = 1,
+    ) -> typing.Tuple[bool, str]:
+        """
+
+        Args:
+            screen: Screen which should be captured. If empty, captures the current screen.
+            save_dir: Directory to which images should be saved
+            filename: Base name of the file which will be generated for each image. It will have the screen and the
+                      date and time of capture in the filename. Default is spot_cam_capture. If this includes an
+                      extension, output files will be saved with that extension rather than the default of .png.
+                      See https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
+                      for valid extensions
+            capture_duration: If provided, all images received on the topic for this duration (in seconds) will be captured.
+                              Overrides capture_count. Ignored if 0.
+            capture_count: If provided, capture this many images from the topic before exiting. Overridden by
+                           capture_duration.
+
+        Returns:
+            Bool indicating success, string with a message.
+        """
+        if screen != "":
+            # If there is a screen specified, switch to it. Otherwise just capture the current screen
+            switching_screen = self.compositor_client.get_screen() != screen
+            self.compositor_client.set_screen(screen)
+
+            if switching_screen:
+                # Need to have some time for the compositor to actually switch the screen, if we need to switch
+                rospy.sleep(2)
+
+        # Check that if the save path exists it's a directory
+        full_path = os.path.abspath(os.path.expanduser(save_dir))
+        if os.path.exists(full_path) and not os.path.isdir(full_path):
+            return (
+                False,
+                f"Requested save directory {full_path} exists and is not a directory.",
+            )
+        # Create the path
+        pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+        # If the base filename has an extension, we will try to use that extension when saving the files. Default is png
+        extension = ".png"
+        split = os.path.splitext(filename)
+        # Splitext returns empty string if there is no file extension
+        if split[1] != "":
+            filename = split[0]
+            extension = split[1]
+
+        loop_rate = rospy.Rate(50)
+        last_image_time = self.image_client.last_image_time
+
+        if capture_duration:
+            if capture_duration <= 0:
+                return (
+                    False,
+                    f"Requested capture duration {capture_duration} was less than 0",
+                )
+            capture_start_time = rospy.Time.now()
+            total_capture_time = rospy.Duration.from_sec(capture_duration)
+
+        if capture_count < 1:
+            capture_count = 1
+        captured_images = 0
+
+        while not rospy.is_shutdown():
+            if (
+                capture_duration > 0
+                and rospy.Time.now() - capture_start_time >= total_capture_time
+            ):
+                # If the capture duration is set, we loop until the total capture time meets or exceeds that duration.
+                break
+            elif not capture_duration and captured_images >= capture_count:
+                # Otherwise, we capture images until we capture the requested number
+                break
+
+            if last_image_time != self.image_client.last_image_time:
+                full_filename = f"{filename}_{screen}_{self.image_client.last_image_time.strftime('%Y-%m-%d-%H-%M-%S')}{extension}"
+                file_path = os.path.join(save_dir, full_filename)
+                cv2.imwrite(file_path, self.image_client.last_image)
+                last_image_time = self.image_client.last_image_time
+                captured_images += 1
+
+            loop_rate.sleep()
+
+        return True, f"Saved {captured_images} image(s) to {save_dir}"
+
+    def _handle_capture_image_high_quality(
+        self, goal: CaptureImageHighQualityGoal
+    ) -> None:
+        """
+        Handle a request to capture a high quality image. This uses the medialog functionality to store logpoints and
+        retrieve the high quality images from those rather than saving from the webrtc stream.
+
+        Args:
+            goal: CaptureImageHighQualityGoal
+        """
+        success, message = self.capture_image_high_quality(
+            goal.camera,
+            goal.save_dir,
+            goal.filename,
+            goal.capture_frequency,
+            goal.capture_duration,
+            goal.capture_count,
+        )
+        if not success:
+            self.image_capture_high_quality_as.set_aborted(
+                CaptureImageHighQualityResult(success=success, message=message)
+            )
+        else:
+            self.image_capture_high_quality_as.set_succeeded(
+                CaptureImageHighQualityResult(success=success, message=message)
+            )
+
+    def capture_image_high_quality(
+        self,
+        camera: str,
+        save_dir: str,
+        filename: str = "spot_cam_capture",
+        capture_frequency: float = 1,
+        capture_duration: float = 0,
+        capture_count: int = 1,
+    ) -> typing.Tuple[bool, str]:
+        """
+        Use the medialog functionality to capture high quality images.
+
+        Args:
+            camera: Screen which should be captured. If empty, captures the current screen.
+            save_dir: Directory to which images should be saved
+            filename: Base name of the file which will be generated for each image. It will have the screen and the
+                      date and time of capture in the filename. Default is spot_cam_capture.
+            capture_frequency: Frequency at which images should be captured. Must be set if capture_duration is set.
+            capture_duration: If provided, capture images at capture_frequency for the duration. Overrides capture_count. Ignored if 0.
+            capture_count: If provided, capture this many images. Ignored if capture_duration is also provided.
+
+        Returns:
+            Bool indicating success, string with a message.
+        """
+
+        try:
+            cam_camera = SpotCamCamera(camera)
+        except ValueError as e:
+            return (
+                False,
+                f"Camera {camera} is not a valid option. Choose from ptz, pano, ir, c0, c1, c2, c3, c4",
+            )
+
+        # Check that if the save path exists it's a directory
+        full_path = os.path.abspath(os.path.expanduser(save_dir))
+        if os.path.exists(full_path) and not os.path.isdir(full_path):
+            return (
+                False,
+                f"Requested save directory {full_path} exists and is not a directory.",
+            )
+        # Create the path
+        pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+        # Special case of the simplest capture of just a single image.
+        if capture_duration == 0 and capture_count == 1:
+            output_file = self.medialog_client.store_and_save_image(
+                cam_camera, full_path, filename
+            )
+            if not output_file:
+                return False, "Failed to save image"
+            return True, f"Saved 1 image to {output_file}"
+
+        # Otherwise things are a bit more complicated and we need to loop
+        if capture_frequency <= 0:
+            rospy.logwarn("Received capture frequency of <= 0, will be set to 1.")
+            capture_frequency = 1
+        rate = rospy.Rate(capture_frequency)
+        capture_start_time = rospy.Time.now()
+        total_capture_duration = rospy.Duration(capture_duration)
+        # Loop until the duration elapses
+        captured_images = 0
+        saving_threads = []
+        while not rospy.is_shutdown():
+            if (
+                capture_duration > 0
+                and rospy.Time.now() - capture_start_time > total_capture_duration
+            ):
+                # If the capture duration is set, we loop until the total capture time meets or exceeds that duration.
+                break
+            elif not capture_duration and captured_images >= capture_count:
+                # Otherwise, we capture images until we capture the requested number
+                break
+
+            # Spawn a thread to store and save the image. This should be the most efficient and simple way to do this.
+            save_thread = threading.Thread(
+                target=functools.partial(
+                    self.medialog_client.store_and_save_image,
+                    cam_camera,
+                    full_path,
+                    filename,
+                )
+            )
+            save_thread.start()
+            saving_threads.append(save_thread)
+
+            captured_images += 1
+
+            rate.sleep()
+
+        # Once we've exited the loop, wait for the threads to finish their jobs
+        for thread in saving_threads:
+            thread.join()
+
+        return True, f"Saved {captured_images} images to {full_path}"
 
 
 class SpotCamROS:
