@@ -50,7 +50,7 @@ from spot_wrapper.cam_wrapper import SpotCamWrapper
 from std_msgs.msg import Float32MultiArray, Float32
 from std_srvs.srv import Trigger
 
-from spot_driver.ros_helpers import getSystemFaults
+from spot_driver.ros_helpers import GetSystemFaults
 
 
 class ROSHandler:
@@ -325,7 +325,7 @@ class HealthHandlerROS(ROSHandler):
         """
         events, degradations = self.client.get_bit_status()
         status = BITStatus()
-        status.events = getSystemFaults(events, self.robot)
+        status.events = GetSystemFaults(events, self.robot)
 
         for degradation in degradations:
             status.degradations.append(
