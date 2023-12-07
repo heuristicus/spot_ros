@@ -79,6 +79,7 @@
   </xacro:if>
 
   <xacro:if value="$(optenv SPOT_ARM 0)">
-    <xacro:include filename="$(find spot_description)/urdf/spot_arm.xacro" />
+    <xacro:include filename="$(find spot_description)/urdf/spot_arm_macro.urdf" />
+    <xacro:load_arm tf_prefix=""/>
   </xacro:if>
 </robot>
