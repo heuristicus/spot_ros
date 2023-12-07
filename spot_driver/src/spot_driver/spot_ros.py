@@ -323,7 +323,7 @@ class SpotROS:
         self.right_depth_in_visual_info_pub.publish(right_camera_info)
         self.back_depth_in_visual_info_pub.publish(back_camera_info)
 
-    def publish_depth_images_callback(self):
+    def publish_depth_standard_images_callback(self):
         image_bundle = self.spot_wrapper.spot_images.get_depth_images()
         (
             frontleft_image_msg,
@@ -405,7 +405,7 @@ class SpotROS:
         if self.depth_in_visual:
             self.publish_depth_in_visual_images_callback()
         else:
-            self.publish_depth_images_callback()
+            self.publish_depth_standard_images_callback()
 
     def HandImageCB(self, results):
         """Callback for when the Spot Wrapper gets new hand image data.
