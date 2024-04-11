@@ -795,6 +795,6 @@ namespace spot_viz
     }
 } // end namespace spot_viz
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(spot_viz::ControlPanel, rviz::Panel)
 // END_TUTORIAL
