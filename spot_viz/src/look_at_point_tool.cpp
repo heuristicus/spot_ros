@@ -91,5 +91,5 @@ int LookAtPointTool::processMouseEvent(rviz::ViewportMouseEvent &event) {
 
 } // namespace spot_viz
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(spot_viz::LookAtPointTool, rviz::Tool)
