@@ -977,6 +977,7 @@ class SpotROS:
         )
 
         def timeout_cb(trajectory_server, _):
+            self.spot_wrapper.stop()
             trajectory_server.publish_feedback(
                 TrajectoryFeedback("Failed to reach goal, timed out")
             )
