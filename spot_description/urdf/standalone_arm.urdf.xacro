@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<robot name="standalone_arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find spot_description)/urdf/spot_arm_macro.urdf" />
+
+  <!-- Root link -->
+  <link name="body"/>
+
+  <!-- Parameters -->
+  <xacro:arg name="tf_prefix" default="" />
+
+  <!-- Load arm -->
+  <xacro:load_arm
+    tf_prefix="$(arg tf_prefix)" />
+
+</robot>

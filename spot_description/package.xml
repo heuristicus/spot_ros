@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
-<package format="2">
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
   <name>spot_description</name>
-  <version>1.1.0</version>
-  <description>The spot_description package</description>
+  <version>0.0.0</version>
+  <description>This package contains the URDF files for Spot</description>
+  <maintainer email="engineering@theaiinstitute.com">AI Institute</maintainer>
+  <license>MIT</license>
 
-  <maintainer email="michal@robots.ox.ac.uk">Michal Staniaszek</maintainer>
-
-  <license>BSD</license>
-
+  <!-- Rest of file has been modified per ROS 1 Noetic version -->
   <buildtool_depend>catkin</buildtool_depend>
 
   <exec_depend>robot_state_publisher</exec_depend>

@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="load_feet" params="tf_prefix">
+
+    <!-- This is the distance from foot to knee in m -->
+    <xacro:property name="foot_to_knee" value="0.35"/>
+
+    <link name="${tf_prefix}front_left_foot"/>
+    <joint name="${tf_prefix}front_left_ankle" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 ${-foot_to_knee}"/>
+      <axis xyz="0 0 0"/>
+      <parent link="${tf_prefix}front_left_lower_leg"/>
+      <child link="${tf_prefix}front_left_foot"/>
+    </joint>
+
+    <link name="${tf_prefix}front_right_foot"/>
+    <joint name="${tf_prefix}front_right_ankle" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 ${-foot_to_knee}"/>
+      <axis xyz="0 0 0"/>
+      <parent link="${tf_prefix}front_right_lower_leg"/>
+      <child link="${tf_prefix}front_right_foot"/>
+    </joint>
+
+    <link name="${tf_prefix}rear_left_foot"/>
+    <joint name="${tf_prefix}rear_left_ankle" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 ${-foot_to_knee}"/>
+      <axis xyz="0 0 0"/>
+      <parent link="${tf_prefix}rear_left_lower_leg"/>
+      <child link="${tf_prefix}rear_left_foot"/>
+    </joint>
+
+    <link name="${tf_prefix}rear_right_foot"/>
+    <joint name="${tf_prefix}rear_right_ankle" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 ${-foot_to_knee}"/>
+      <axis xyz="0 0 0"/>
+      <parent link="${tf_prefix}rear_right_lower_leg"/>
+      <child link="${tf_prefix}rear_right_foot"/>
+    </joint>
+
+  </xacro:macro>
+
+</robot>
