@@ -1,39 +1,57 @@
+
+<!-- Launch the Spot driver and auxiliary nodes to control/visualize Spot -->
 <launch>
+  <!-- Username, password, and IP used to connect to the Spot (pass via commandline) -->
   <arg name="username" default="dummyusername" />
   <arg name="password" default="dummypassword" />
   <arg name="hostname" default="192.168.50.3" />
-  <arg name="estop_timeout" default="9.0"/>
-  <arg name="autonomy_enabled" default="true"/>
-  <!-- In m/s.  -->
-  <arg name="max_linear_velocity_x" default="0.5"/>
-  <arg name="max_linear_velocity_y" default="0.5"/>
-  <arg name="max_angular_velocity_z" default="0.5"/>
-  <arg name="allow_motion" default="true"/>
-  <arg name="driver_config" default="$(find spot_driver)/config/spot_ros.yaml"/>
 
+  <!-- Duration (seconds) after which the SDK will E-stop if there's no communication -->
+  <arg name="estop_timeout" default="9.0" />
+  <arg name="autonomy_enabled" default="true" />
+
+  <!-- Velocity limits in m/s -->
+  <arg name="max_linear_velocity_x_mps" default="0.5" />
+  <arg name="max_linear_velocity_y_mps" default="0.5" />
+  <arg name="max_angular_velocity_z_mps" default="0.5" />
+
+  <!-- Is Spot allowed to move? Default: Yes -->
+  <arg name="allow_motion" default="true" />
+
+  <!-- Configuration file for the Spot driver. Allows us to change the publication rate
+    of data from Spot, auto-claim the lease, auto-power on, and auto-stand -->
+  <arg name="driver_config" default="$(find spot_driver)/config/spot_ros.yaml" />
+
+  <!-- Load Spot's robot description as a ROS parameter and launch the robot state publisher -->
   <include file="$(find spot_description)/launch/description.launch" />
+
+  <!-- Launch nodes to enable joystick control of Spot through ROS -->
   <include file="$(find spot_driver)/launch/control.launch" />
+
+  <!-- If the right arguments are set, launch nodes to support the Velodyne LIDAR -->
   <include file="$(find spot_driver)/launch/accessories.launch" />
 
-  <node pkg="spot_driver" type="spot_ros" name="spot_ros"  ns="spot" output="screen">
+  <!-- See the source code: -->
+  <node pkg="spot_driver" type="spot_ros" name="spot_ros" ns="spot" output="screen">
     <rosparam file="$(arg driver_config)" command="load" />
     <param name="username" value="$(arg username)" />
     <param name="password" value="$(arg password)" />
     <param name="hostname" value="$(arg hostname)" />
-    <param name="estop_timeout" value="$(arg estop_timeout)"/>
-    <param name="autonomy_enabled" value="$(arg autonomy_enabled)"/>
-    <param name="estop_timeout" value="$(arg estop_timeout)"/>
-    <param name="max_linear_velocity_x" value="$(arg max_linear_velocity_x)"/>
-    <param name="max_linear_velocity_y" value="$(arg max_linear_velocity_y)"/>
-    <param name="max_angular_velocity_z" value="$(arg max_angular_velocity_z)"/>
-    <param name="allow_motion" value="$(arg allow_motion)"/>
-    <remap from="joint_states" to="/joint_states"/>
-    <remap from="tf" to="/tf"/>
+    <param name="estop_timeout" value="$(arg estop_timeout)" />
+    <param name="autonomy_enabled" value="$(arg autonomy_enabled)" />
+    <param name="estop_timeout" value="$(arg estop_timeout)" />
+    <param name="max_linear_velocity_x" value="$(arg max_linear_velocity_x_mps)" />
+    <param name="max_linear_velocity_y" value="$(arg max_linear_velocity_y_mps)" />
+    <param name="max_angular_velocity_z" value="$(arg max_angular_velocity_z_mps)" />
+    <param name="allow_motion" value="$(arg allow_motion)" />
+    <remap from="joint_states" to="/joint_states" />
+    <remap from="tf" to="/tf" />
   </node>
 
-  <node pkg="twist_mux" type="twist_mux" name="twist_mux" >
+  <!-- Launch a multiplexer to prioritize the various sources of command velocity messages -->
+  <node pkg="twist_mux" type="twist_mux" name="twist_mux">
     <rosparam command="load" file="$(find spot_driver)/config/twist_mux.yaml" />
-    <remap from="cmd_vel_out" to="spot/cmd_vel"/>
+    <remap from="cmd_vel_out" to="spot/cmd_vel" />
   </node>
 
 </launch>
