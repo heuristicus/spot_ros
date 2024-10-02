@@ -290,26 +290,42 @@ def GetJointStatesFromState(
     state: robot_state_pb2.RobotState,
     spot_wrapper: SpotWrapper,
 ):
-    """Maps joint state data from robot state proto to ROS JointState message
+    """Map joint state data from robot state Protobuf to ROS JointState message.
 
-    Args:
-        data: Robot State proto
-        spot_wrapper: A SpotWrapper object
-    Returns:
-        JointState ROS message
+    :param      state           Robot State proto
+    :param      spot_wrapper    A SpotWrapper object
 
+    :returns    JointState ROS message
     """
     joint_state = JointState()
     local_time = spot_wrapper.robotToLocalTime(
         state.kinematic_state.acquisition_timestamp,
     )
     joint_state.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
+
     for joint in state.kinematic_state.joint_states:
-        # there is a joint with name arm0.hr0 in the robot state, however this
-        # joint has no data and should not be there, this is why we ignore it
+        # Ignore the joint named arm0.hr0, which has no data, if present
         if joint.name == "arm0.hr0":
             continue
-        joint_state.name.append(friendly_joint_names.get(joint.name, "ERROR"))
+
+        joint_name = friendly_joint_names.get(joint.name, "ERROR")
+
+        # Rename all joints in Spot's arm to their names in the corrected URDF
+        map_arm_joint_names = {
+            "arm_joint1": "arm_sh0",
+            "arm_joint2": "arm_sh1",
+            "arm_joint3": "arm_el0",
+            "arm_joint4": "arm_el1",
+            "arm_joint5": "arm_wr0",
+            "arm_joint6": "arm_wr1",
+            "arm_gripper": "arm_f1x",
+        }
+
+        mapped_joint_name = map_arm_joint_names.get(joint_name)
+        if mapped_joint_name is not None:
+            joint_name = mapped_joint_name
+
+        joint_state.name.append(joint_name)
         joint_state.position.append(joint.position.value)
         joint_state.velocity.append(joint.velocity.value)
         joint_state.effort.append(joint.load.value)
