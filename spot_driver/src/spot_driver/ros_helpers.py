@@ -4,39 +4,56 @@ import typing
 import numpy as np
 import rospy
 import transforms3d
-from bosdyn.api import image_pb2, robot_state_pb2, point_cloud_pb2
-from bosdyn.api import world_object_pb2, geometry_pb2
+from bosdyn.api import (
+    geometry_pb2,
+    image_pb2,
+    point_cloud_pb2,
+    robot_state_pb2,
+    world_object_pb2,
+)
 from bosdyn.api.docking import docking_pb2
 from bosdyn.client.frame_helpers import (
+    get_a_tform_b,
     get_odom_tform_body,
     get_vision_tform_body,
-    get_a_tform_b,
 )
 from bosdyn.client.math_helpers import SE3Pose
 from bosdyn.client.spot_check import spot_check_pb2
-from geometry_msgs.msg import Pose, Point, Quaternion, Polygon, Vector3, Point32
-from geometry_msgs.msg import PoseWithCovariance
-from geometry_msgs.msg import TransformStamped, Transform
-from geometry_msgs.msg import TwistWithCovarianceStamped
+from geometry_msgs.msg import (
+    Point,
+    Point32,
+    Polygon,
+    Pose,
+    PoseWithCovariance,
+    Quaternion,
+    Transform,
+    TransformStamped,
+    TwistWithCovarianceStamped,
+    Vector3,
+)
 from google.protobuf.timestamp_pb2 import Timestamp
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import Image, CameraInfo
-from sensor_msgs.msg import JointState
-from sensor_msgs.msg import PointCloud2, PointField
-from spot_msgs.msg import BatteryState, BatteryStateArray
-from spot_msgs.msg import BehaviorFault, BehaviorFaultState
-from spot_msgs.msg import DockState
-from spot_msgs.msg import EStopState, EStopStateArray
-from spot_msgs.msg import FootState, FootStateArray
-from spot_msgs.msg import FrameTreeSnapshot, ParentEdge
-from spot_msgs.msg import PowerState
-from spot_msgs.msg import SystemFault, SystemFaultState
-from spot_msgs.msg import WiFiState
+from sensor_msgs.msg import CameraInfo, Image, JointState, PointCloud2, PointField
 from spot_msgs.msg import (
+    AprilTagProperties,
+    BatteryState,
+    BatteryStateArray,
+    BehaviorFault,
+    BehaviorFaultState,
+    DockState,
+    EStopState,
+    EStopStateArray,
+    FootState,
+    FootStateArray,
+    FrameTreeSnapshot,
+    ImageProperties,
+    ParentEdge,
+    PowerState,
+    SystemFault,
+    SystemFaultState,
+    WiFiState,
     WorldObject,
     WorldObjectArray,
-    AprilTagProperties,
-    ImageProperties,
 )
 from spot_msgs.srv import SpotCheckResponse
 from spot_wrapper.wrapper import SpotWrapper
@@ -122,6 +139,7 @@ def populateTransformStamped(
         y,z,w) members
     Returns:
         TransformStamped ROS message. Empty if transform does not have position or translation attribute
+
     """
     if hasattr(transform, "position"):
         position = transform.position
@@ -130,7 +148,7 @@ def populateTransformStamped(
     else:
         rospy.logerr(
             "Trying to generate StampedTransform but input transform has neither position nor translation "
-            "attributes"
+            "attributes",
         )
         return TransformStamped()
 
@@ -150,7 +168,8 @@ def populateTransformStamped(
 
 
 def GetImageMsg(
-    data: image_pb2.ImageResponse, spot_wrapper: SpotWrapper
+    data: image_pb2.ImageResponse,
+    spot_wrapper: SpotWrapper,
 ) -> typing.Tuple[Image, CameraInfo]:
     """Takes the image and camera data and populates the necessary ROS messages
 
@@ -161,6 +180,7 @@ def GetImageMsg(
         (tuple):
             * Image: message of the image captured
             * CameraInfo: message to define the state and config of the camera that took the image
+
     """
     image_msg = Image()
     local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
@@ -228,7 +248,8 @@ def GetImageMsg(
 
 
 def GetPointCloudMsg(
-    data: point_cloud_pb2.PointCloudResponse, spot_wrapper: SpotWrapper
+    data: point_cloud_pb2.PointCloudResponse,
+    spot_wrapper: SpotWrapper,
 ) -> PointCloud2:
     """Takes the imag and  camera data and populates the necessary ROS messages
 
@@ -237,6 +258,7 @@ def GetPointCloudMsg(
         spot_wrapper: A SpotWrapper object
     Returns:
         PointCloud: ROS message of the point cloud (PointCloud2)
+
     """
     point_cloud_msg = PointCloud2()
     local_time = spot_wrapper.robotToLocalTime(data.point_cloud.source.acquisition_time)
@@ -265,7 +287,8 @@ def GetPointCloudMsg(
 
 
 def GetJointStatesFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ):
     """Maps joint state data from robot state proto to ROS JointState message
 
@@ -274,10 +297,11 @@ def GetJointStatesFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         JointState ROS message
+
     """
     joint_state = JointState()
     local_time = spot_wrapper.robotToLocalTime(
-        state.kinematic_state.acquisition_timestamp
+        state.kinematic_state.acquisition_timestamp,
     )
     joint_state.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     for joint in state.kinematic_state.joint_states:
@@ -294,7 +318,8 @@ def GetJointStatesFromState(
 
 
 def GetEStopStateFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ) -> EStopStateArray:
     """Maps eStop state data from robot state proto to ROS EStopArray message
 
@@ -303,6 +328,7 @@ def GetEStopStateFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         EStopArray ROS message
+
     """
     estop_array_msg = EStopStateArray()
     for estop in state.estop_states:
@@ -319,7 +345,8 @@ def GetEStopStateFromState(
 
 
 def GetFeetFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ) -> FootStateArray:
     """Maps foot position state data from robot state proto to ROS FootStateArray message
 
@@ -328,6 +355,7 @@ def GetFeetFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         FootStateArray ROS message
+
     """
     foot_array_msg = FootStateArray()
     for foot in state.foot_state:
@@ -363,7 +391,8 @@ def GetFeetFromState(
 
 
 def GetOdomTwistFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ) -> TwistWithCovarianceStamped:
     """Maps odometry data from robot state proto to ROS TwistWithCovarianceStamped message
 
@@ -372,10 +401,11 @@ def GetOdomTwistFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         TwistWithCovarianceStamped ROS message
+
     """
     twist_odom_msg = TwistWithCovarianceStamped()
     local_time = spot_wrapper.robotToLocalTime(
-        state.kinematic_state.acquisition_timestamp
+        state.kinematic_state.acquisition_timestamp,
     )
     twist_odom_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     twist_odom_msg.twist.twist.linear.x = (
@@ -400,8 +430,7 @@ def GetOdomTwistFromState(
 
 
 def get_corrected_odom(base_odometry: Odometry):
-    """
-    Get odometry from state but correct the twist portion of the message to be in the child frame id rather than the
+    """Get odometry from state but correct the twist portion of the message to be in the child frame id rather than the
     odom/vision frame. https://dev.bostondynamics.com/protos/bosdyn/api/proto_reference#kinematicstate indicates the
     twist in the state is in the odom frame and not the body frame, as is expected by many ROS components.
 
@@ -413,6 +442,7 @@ def get_corrected_odom(base_odometry: Odometry):
 
     Returns:
         Odometry with twist in the body frame
+
     """
     # Note: transforms3d has quaternions in wxyz, not xyzw like ros.
     # Get the transform from body to odom/vision so we have the inverse transform, which we will use to correct the
@@ -424,8 +454,8 @@ def get_corrected_odom(base_odometry: Odometry):
                 base_odometry.pose.pose.orientation.x,
                 base_odometry.pose.pose.orientation.y,
                 base_odometry.pose.pose.orientation.z,
-            ]
-        )
+            ],
+        ),
     )
 
     # transform the linear twist by rotating the vector according to the rotation from body to odom
@@ -434,7 +464,7 @@ def get_corrected_odom(base_odometry: Odometry):
             [base_odometry.twist.twist.linear.x],
             [base_odometry.twist.twist.linear.y],
             [base_odometry.twist.twist.linear.z],
-        ]
+        ],
     )
 
     corrected_linear = inverse_rotation.dot(linear_twist)
@@ -445,7 +475,7 @@ def get_corrected_odom(base_odometry: Odometry):
             [base_odometry.twist.twist.angular.x],
             [base_odometry.twist.twist.angular.y],
             [base_odometry.twist.twist.angular.z],
-        ]
+        ],
     )
 
     corrected_angular = inverse_rotation.dot(angular_twist)
@@ -462,7 +492,9 @@ def get_corrected_odom(base_odometry: Odometry):
 
 
 def GetOdomFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper, use_vision=True
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
+    use_vision=True,
 ):
     """Maps odometry data from robot state proto to ROS Odometry message
 
@@ -475,10 +507,11 @@ def GetOdomFromState(
         use_vision: If true, the odometry frame will be vision rather than odom
     Returns:
         Odometry ROS message
+
     """
     odom_msg = Odometry()
     local_time = spot_wrapper.robotToLocalTime(
-        state.kinematic_state.acquisition_timestamp
+        state.kinematic_state.acquisition_timestamp,
     )
     odom_msg.header.stamp = rospy.Time(local_time.seconds, local_time.nanos)
     if use_vision == True:
@@ -504,7 +537,8 @@ def GetOdomFromState(
 
 
 def GetWifiFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ) -> WiFiState:
     """Maps wireless state data from robot state proto to ROS WiFiState message
 
@@ -513,6 +547,7 @@ def GetWifiFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         WiFiState ROS message
+
     """
     wifi_msg = WiFiState()
     for comm_state in state.comms_states:
@@ -524,10 +559,10 @@ def GetWifiFromState(
 
 
 def GenerateFeetTF(
-    foot_states_msg: FootStateArray, time_now: typing.Optional[rospy.Time] = None
+    foot_states_msg: FootStateArray,
+    time_now: typing.Optional[rospy.Time] = None,
 ) -> TFMessage:
-    """
-    Generate a tf message containing information about foot states
+    """Generate a tf message containing information about foot states
 
     Args:
         foot_states_msg: FootStateArray message containing the foot states from the robot state
@@ -549,8 +584,11 @@ def GenerateFeetTF(
 
         foot_tfs.transforms.append(
             populateTransformStamped(
-                time_now, "body", foot_ordering[idx] + "_foot", foot_transform
-            )
+                time_now,
+                "body",
+                foot_ordering[idx] + "_foot",
+                foot_transform,
+            ),
         )
 
     return foot_tfs
@@ -567,8 +605,10 @@ def GetTFFromState(
         data: Robot State proto
         spot_wrapper: A SpotWrapper object
         inverse_target_frame: A frame name to be inversed to a parent frame.
+
     Returns:
         TFMessage ROS message
+
     """
     tf_msg = TFMessage()
 
@@ -576,19 +616,19 @@ def GetTFFromState(
         frame_name
     ) in state.kinematic_state.transforms_snapshot.child_to_parent_edge_map:
         if state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(
-            frame_name
+            frame_name,
         ).parent_frame_name:
             try:
                 transform = state.kinematic_state.transforms_snapshot.child_to_parent_edge_map.get(
-                    frame_name
+                    frame_name,
                 )
                 local_time = spot_wrapper.robotToLocalTime(
-                    state.kinematic_state.acquisition_timestamp
+                    state.kinematic_state.acquisition_timestamp,
                 )
                 tf_time = rospy.Time(local_time.seconds, local_time.nanos)
                 if inverse_target_frame == frame_name:
                     geo_tform_inversed = SE3Pose.from_obj(
-                        transform.parent_tform_child
+                        transform.parent_tform_child,
                     ).inverse()
                     new_tf = populateTransformStamped(
                         tf_time,
@@ -605,13 +645,14 @@ def GetTFFromState(
                     )
                 tf_msg.transforms.append(new_tf)
             except Exception as e:
-                spot_wrapper.logger.error("Error: {}".format(e))
+                spot_wrapper.logger.error(f"Error: {e}")
 
     return tf_msg
 
 
 def GetBatteryStatesFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ) -> BatteryStateArray:
     """Maps battery state data from robot state proto to ROS BatteryStateArray message
 
@@ -620,6 +661,7 @@ def GetBatteryStatesFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         BatteryStateArray ROS message
+
     """
     battery_states_array_msg = BatteryStateArray()
     for battery in state.battery_states:
@@ -630,7 +672,8 @@ def GetBatteryStatesFromState(
         battery_msg.identifier = battery.identifier
         battery_msg.charge_percentage = battery.charge_percentage.value
         battery_msg.estimated_runtime = rospy.Time(
-            battery.estimated_runtime.seconds, battery.estimated_runtime.nanos
+            battery.estimated_runtime.seconds,
+            battery.estimated_runtime.nanos,
         )
         battery_msg.current = battery.current.value
         battery_msg.voltage = battery.voltage.value
@@ -643,7 +686,8 @@ def GetBatteryStatesFromState(
 
 
 def GetPowerStatesFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ) -> PowerState:
     """Maps power state data from robot state proto to ROS PowerState message
 
@@ -652,6 +696,7 @@ def GetPowerStatesFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         PowerState ROS message
+
     """
     power_state_msg = PowerState()
     local_time = spot_wrapper.robotToLocalTime(state.power_state.timestamp)
@@ -675,6 +720,7 @@ def GetDockStatesFromState(state: docking_pb2.DockState) -> DockState:
         state: Robot State proto
     Returns:
         DockState ROS message
+
     """
     dock_state_msg = DockState()
     dock_state_msg.status = state.status
@@ -695,6 +741,7 @@ def GetBehaviorFaults(
         spot_wrapper: A SpotWrapper object
     Returns:
         List of BehaviorFault ROS messages
+
     """
     faults = []
 
@@ -711,7 +758,8 @@ def GetBehaviorFaults(
 
 
 def GetBehaviorFaultsFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ) -> BehaviorFaultState:
     """Maps behavior fault data from robot state proto to ROS BehaviorFaultState message
 
@@ -720,16 +768,19 @@ def GetBehaviorFaultsFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         BehaviorFaultState ROS message
+
     """
     behavior_fault_state_msg = BehaviorFaultState()
     behavior_fault_state_msg.faults = GetBehaviorFaults(
-        state.behavior_fault_state.faults, spot_wrapper
+        state.behavior_fault_state.faults,
+        spot_wrapper,
     )
     return behavior_fault_state_msg
 
 
 def GetSystemFaults(
-    system_faults: typing.List[robot_state_pb2.SystemFault], spot_wrapper: SpotWrapper
+    system_faults: typing.List[robot_state_pb2.SystemFault],
+    spot_wrapper: SpotWrapper,
 ) -> typing.List[SystemFault]:
     """Helper function to strip out system faults into a list
 
@@ -738,6 +789,7 @@ def GetSystemFaults(
         spot_wrapper: A SpotWrapper object
     Returns:
         List of SystemFault ROS messages
+
     """
     faults = []
 
@@ -761,7 +813,8 @@ def GetSystemFaults(
 
 
 def GetSystemFaultsFromState(
-    state: robot_state_pb2.RobotState, spot_wrapper: SpotWrapper
+    state: robot_state_pb2.RobotState,
+    spot_wrapper: SpotWrapper,
 ) -> SystemFaultState:
     """Maps system fault data from robot state proto to ROS SystemFaultState message
 
@@ -770,19 +823,23 @@ def GetSystemFaultsFromState(
         spot_wrapper: A SpotWrapper object
     Returns:
         SystemFaultState ROS message
+
     """
     system_fault_state_msg = SystemFaultState()
     system_fault_state_msg.faults = GetSystemFaults(
-        state.system_fault_state.faults, spot_wrapper
+        state.system_fault_state.faults,
+        spot_wrapper,
     )
     system_fault_state_msg.historical_faults = GetSystemFaults(
-        state.system_fault_state.historical_faults, spot_wrapper
+        state.system_fault_state.historical_faults,
+        spot_wrapper,
     )
     return system_fault_state_msg
 
 
 def GetSpotCheckResultsMsg(
-    data: spot_check_pb2.SpotCheckFeedbackResponse, resp: typing.Tuple[bool, str]
+    data: spot_check_pb2.SpotCheckFeedbackResponse,
+    resp: typing.Tuple[bool, str],
 ) -> SpotCheckResponse:
     """Build the SpotCheckReponse message from the SpotCheckFeedbackResponse
 
@@ -792,6 +849,7 @@ def GetSpotCheckResultsMsg(
 
     Returns:
         SpotCheckResponse ROS message
+
     """
     ros_resp = SpotCheckResponse()
     ros_resp.success = resp[0]
@@ -806,7 +864,7 @@ def GetSpotCheckResultsMsg(
     ros_resp.payload_result = data.payload_result
     ros_resp.leg_names = list(data.hip_range_of_motion_results.keys())
     ros_resp.hip_range_of_motion_results = list(
-        data.hip_range_of_motion_results.values()
+        data.hip_range_of_motion_results.values(),
     )
     ros_resp.progress = data.progress
     ros_resp.last_cal_timestamp.secs = data.last_cal_timestamp.seconds
@@ -823,10 +881,12 @@ def GetFrameTreeSnapshotMsg(data: geometry_pb2.FrameTreeSnapshot) -> FrameTreeSn
 
     Returns:
         FrameTreeSnapshot ROS message
+
     """
     frame_tree_snapshot_msg = FrameTreeSnapshot()
     child_parent_map: typing.Dict[
-        str, geometry_pb2.SE3Pose
+        str,
+        geometry_pb2.SE3Pose,
     ] = data.child_to_parent_edge_map
 
     children, parents = [], []
@@ -865,6 +925,7 @@ def GetAprilTagPropertiesMsg(
 
     Returns:
         AprilTagProperties ROS message
+
     """
     april_tag_properties_msg = AprilTagProperties()
     april_tag_properties_msg.tag_id = data.tag_id
@@ -882,7 +943,7 @@ def GetAprilTagPropertiesMsg(
     april_tag_properties_msg.detection_covariance = PoseWithCovariance()
     april_tag_properties_msg.detection_covariance.pose = Pose()
     april_tag_properties_msg.detection_covariance.covariance = list(
-        data.detection_covariance.matrix.values
+        data.detection_covariance.matrix.values,
     )
     april_tag_properties_msg.detection_covariance_reference_frame = (
         data.detection_covariance_reference_frame
@@ -892,7 +953,8 @@ def GetAprilTagPropertiesMsg(
 
 
 def GetImagePropertiesMsg(
-    data: world_object_pb2.ImageProperties, spot_wrapper: "SpotWrapper"
+    data: world_object_pb2.ImageProperties,
+    spot_wrapper: "SpotWrapper",
 ) -> ImageProperties:
     """Build the ImageProperties message from the ImageProperties proto
 
@@ -902,15 +964,16 @@ def GetImagePropertiesMsg(
 
     Returns:
         ImageProperties ROS message
+
     """
     image_properties_msg = ImageProperties()
     image_properties_msg.camera_source = data.camera_source
     if data.coordinates:
-        data_polygon_coordinates: typing.List[
-            geometry_pb2.Vec2
-        ] = data.coordinates.vertexes
+        data_polygon_coordinates: typing.List[geometry_pb2.Vec2] = (
+            data.coordinates.vertexes
+        )
         image_properties_msg.image_data_coordinates = Polygon(
-            [Point32(vec.x, vec.y, 0) for vec in data_polygon_coordinates]
+            [Point32(vec.x, vec.y, 0) for vec in data_polygon_coordinates],
         )
     elif data.keypoints:
         image_properties_msg.image_data_keypoint_type = data.keypoints.type
@@ -956,10 +1019,10 @@ def GetImagePropertiesMsg(
 
     image_properties_msg.image_source.image_type = data.image_source.image_type
     image_properties_msg.image_source.pixel_formats = list(
-        data.image_source.pixel_formats
+        data.image_source.pixel_formats,
     )
     image_properties_msg.image_source.image_formats = list(
-        data.image_source.image_formats
+        data.image_source.image_formats,
     )
 
     local_time = spot_wrapper.robotToLocalTime(data.image_capture.acquisition_time)
@@ -968,7 +1031,7 @@ def GetImagePropertiesMsg(
     image_properties_msg.image_capture.acquisition_time.nsecs = local_time.nanos
 
     image_properties_msg.image_capture.transforms_snapshot = GetFrameTreeSnapshotMsg(
-        data.image_capture.transforms_snapshot
+        data.image_capture.transforms_snapshot,
     )
     image_properties_msg.image_capture.frame_name_image_sensor = (
         data.image_capture.frame_name_image_sensor
@@ -1006,6 +1069,7 @@ def GetWorldObjectsMsg(
 
     Returns:
         WorldObjectArray ROS message
+
     """
     world_object_msg = WorldObjectArray()
 
@@ -1037,13 +1101,14 @@ def GetWorldObjectsMsg(
         new_world_object.acquisition_time.secs = acquisition_time.seconds
         new_world_object.acquisition_time.nsecs = acquisition_time.nanos
         new_world_object.frame_tree_snapshot = GetFrameTreeSnapshotMsg(
-            frame_tree_snapshot
+            frame_tree_snapshot,
         )
         new_world_object.apriltag_properties = GetAprilTagPropertiesMsg(
-            apriltag_properties
+            apriltag_properties,
         )
         new_world_object.image_properties = GetImagePropertiesMsg(
-            image_properties, spot_wrapper
+            image_properties,
+            spot_wrapper,
         )
 
         # Dock properties
@@ -1089,6 +1154,7 @@ def GetFrameNamesAssociatedWithObject(
 
     Returns:
         list of possible frame names to search for in the FrameTreeSnapshot later
+
     """
     possible_frame_names = [
         world_object.apriltag_properties.frame_name_fiducial,
@@ -1117,6 +1183,7 @@ def GetTFFromWorldObjects(
 
     returns:
         TFMessage ROS message, describing position of World Objects relative to parent_frame
+
     """
     tf_msg = TFMessage()
     for world_object in world_objects:
@@ -1125,25 +1192,31 @@ def GetTFFromWorldObjects(
             try:
                 spot_parent_frame = parent_frame[parent_frame.rfind("/") + 1 :]
                 transform = get_a_tform_b(
-                    world_object.transforms_snapshot, spot_parent_frame, frame
+                    world_object.transforms_snapshot,
+                    spot_parent_frame,
+                    frame,
                 )
                 local_time = spot_wrapper.robotToLocalTime(
-                    world_object.acquisition_time
+                    world_object.acquisition_time,
                 )
                 tf_time = rospy.Time(secs=local_time.seconds, nsecs=local_time.nanos)
                 if transform:
                     new_tf = populateTransformStamped(
-                        tf_time, parent_frame, frame, transform
+                        tf_time,
+                        parent_frame,
+                        frame,
+                        transform,
                     )
                     tf_msg.transforms.append(new_tf)
 
             except Exception as e:
-                spot_wrapper.logger.error("Error: {}".format(e))
+                spot_wrapper.logger.error(f"Error: {e}")
     return tf_msg
 
 
 def bosdyn_data_to_image_and_camera_info_msgs(
-    data: image_pb2.ImageResponse, spot_wrapper: SpotWrapper
+    data: image_pb2.ImageResponse,
+    spot_wrapper: SpotWrapper,
 ) -> typing.Tuple[Image, CameraInfo]:
     """Takes the image and camera data and populates the necessary ROS messages
     Args:
@@ -1235,7 +1308,8 @@ def bosdyn_data_to_image_and_camera_info_msgs(
     camera_info_msg.P[11] = 0
     local_time = spot_wrapper.robotToLocalTime(data.shot.acquisition_time)
     camera_info_msg.header.stamp = rospy.Time(
-        secs=local_time.seconds, nsecs=local_time.nanos
+        secs=local_time.seconds,
+        nsecs=local_time.nanos,
     )
     camera_info_msg.header.frame_id = data.shot.frame_name_image_sensor
     camera_info_msg.height = data.shot.image.rows
