@@ -22,11 +22,17 @@
     of data from Spot, auto-claim the lease, auto-power on, and auto-stand -->
   <arg name="driver_config" default="$(find spot_driver)/config/spot_ros.yaml" />
 
+  <!-- Should we launch nodes to enable joystick control of Spot? Default: No -->
+  <arg name="joystick_control" default="false" />
+
+  <!-- Should we load Spot's URDF description? Default: Yes, unless told otherwise -->
+  <arg name="load_robot_description" default="true" />
+
   <!-- Load Spot's robot description as a ROS parameter and launch the robot state publisher -->
-  <include file="$(find spot_description)/launch/description.launch" />
+  <include file="$(find spot_description)/launch/description.launch" if="$(arg load_robot_description)"/>
 
   <!-- Launch nodes to enable joystick control of Spot through ROS -->
-  <include file="$(find spot_driver)/launch/control.launch" />
+  <include file="$(find spot_driver)/launch/control.launch" if="$(arg joystick_control)" />
 
   <!-- If the right arguments are set, launch nodes to support the Velodyne LIDAR -->
   <include file="$(find spot_driver)/launch/accessories.launch" />
