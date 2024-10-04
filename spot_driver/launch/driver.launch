@@ -1,10 +1,9 @@
-
 <!-- Launch the Spot driver and auxiliary nodes to control/visualize Spot -->
 <launch>
-  <!-- Username, password, and IP used to connect to the Spot (pass via commandline) -->
-  <arg name="username" default="dummyusername" />
-  <arg name="password" default="dummypassword" />
-  <arg name="hostname" default="192.168.50.3" />
+
+  <!-- Required argument: Path to the YAML containing Spot's login information -->
+  <!--   Provides the username, password, and IP used to connect to Spot -->
+  <arg name="spot_secrets_yaml" />
 
   <!-- Duration (seconds) after which the SDK will E-stop if there's no communication -->
   <arg name="estop_timeout" default="9.0" />
@@ -40,9 +39,8 @@
   <!-- See the source code: -->
   <node pkg="spot_driver" type="spot_ros" name="spot_ros" ns="spot" output="screen">
     <rosparam file="$(arg driver_config)" command="load" />
-    <param name="username" value="$(arg username)" />
-    <param name="password" value="$(arg password)" />
-    <param name="hostname" value="$(arg hostname)" />
+    <rosparam file="$(arg spot_secrets_yaml)" command="load" />
+    
     <param name="estop_timeout" value="$(arg estop_timeout)" />
     <param name="autonomy_enabled" value="$(arg autonomy_enabled)" />
     <param name="estop_timeout" value="$(arg estop_timeout)" />
