@@ -970,7 +970,7 @@ def GetAprilTagPropertiesMsg(
 
 def GetImagePropertiesMsg(
     data: world_object_pb2.ImageProperties,
-    spot_wrapper: "SpotWrapper",
+    spot_wrapper: SpotWrapper,
 ) -> ImageProperties:
     """Build the ImageProperties message from the ImageProperties proto
 
@@ -1163,7 +1163,7 @@ def GetWorldObjectsMsg(
 def GetFrameNamesAssociatedWithObject(
     world_object: world_object_pb2.WorldObject,
 ) -> typing.List[str]:
-    """Extract the possible frame names associated with World Objects
+    """Extract the possible frame names associated with World Objects.
 
     Args:
         world_object: WorldObject proto containing World Object data
@@ -1190,7 +1190,9 @@ def GetTFFromWorldObjects(
     spot_wrapper: SpotWrapper,
     parent_frame: str,
 ) -> TFMessage:
-    """Extract transforms from detected world objects and returns TFMessage to be published to /tf
+    """Extract transforms from detected world objects into a TFMessage.
+
+    The TFMessage is to be published to /tf.
 
     Args:
         world_objects: list of WorldObject protos, describing detected World Objects
@@ -1202,10 +1204,11 @@ def GetTFFromWorldObjects(
 
     """
     tf_msg = TFMessage()
-    for world_object in world_objects:
-        frames = GetFrameNamesAssociatedWithObject(world_object)
-        for frame in frames:
-            try:
+
+    try:
+        for world_object in world_objects:
+            frames = GetFrameNamesAssociatedWithObject(world_object)
+            for frame in frames:
                 spot_parent_frame = parent_frame[parent_frame.rfind("/") + 1 :]
                 transform = get_a_tform_b(
                     world_object.transforms_snapshot,
@@ -1225,8 +1228,9 @@ def GetTFFromWorldObjects(
                     )
                     tf_msg.transforms.append(new_tf)
 
-            except Exception as e:
-                spot_wrapper.logger.error(f"Error: {e}")
+    except Exception as e:
+        spot_wrapper.logger.error(f"Error: {e}")
+
     return tf_msg
 
 
@@ -1342,3 +1346,29 @@ def bosdyn_data_to_image_and_camera_info_msgs(
     camera_info_msg.P[6] = data.source.pinhole.intrinsics.principal_point.y
 
     return image_msg, camera_info_msg
+
+
+def DeduplicateTF(tf_msg: TFMessage, last_tf_msg: TFMessage) -> TFMessage:
+    """Remove all transforms in the current TF message that appeared in the previous.
+
+    Args:
+        tf_msg: Current transform message
+        last_tf_msg: Last transform message published by the Spot driver
+
+    Returns:
+        Current transform message with all duplicate transforms removed
+
+    """
+    to_remove = [tf for tf in tf_msg.transforms if tf in last_tf_msg.transforms]
+
+    if not to_remove:
+        return tf_msg
+
+    # Create a copy, rather than modifying the original message, so that the next
+    #   iteration can use the full current message to check for duplicates.
+    deduplicated_tf = copy.deepcopy(tf_msg)
+
+    for repeat_tf in to_remove:
+        deduplicated_tf.transforms.remove(repeat_tf)
+
+    return deduplicated_tf

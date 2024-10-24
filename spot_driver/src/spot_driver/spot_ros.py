@@ -147,7 +147,8 @@ class SpotROS:
 
     def __init__(self):
         self.spot_wrapper = None
-        self.last_tf_msg = TFMessage()
+        self.last_state_tf_msg = TFMessage()
+        self.last_world_objects_tf_msg = TFMessage()
 
         self.callbacks = {}
         self.spot_wrapper = None
@@ -160,7 +161,7 @@ class SpotROS:
         self.callbacks["world_objects"] = self.WorldObjectsCB
 
     def RobotStateCB(self, results):
-        """Callback for when the Spot Wrapper gets new robot state data.
+        """Extract and publish data when the Spot Wrapper gets new robot state data.
 
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
@@ -174,25 +175,10 @@ class SpotROS:
 
             ## TF ##
             tf_msg = GetTFFromState(state, self.spot_wrapper, self.mode_parent_odom_tf)
-            to_remove = []
-            if len(tf_msg.transforms) > 0:
-                for transform in tf_msg.transforms:
-                    for last_tf in self.last_tf_msg.transforms:
-                        if transform == last_tf:
-                            to_remove.append(transform)
+            publish_tf = DeduplicateTF(tf_msg, self.last_state_tf_msg)
 
-                if to_remove:
-                    # Do it this way to preserve the original tf message received. If we store the message we have
-                    # destroyed then if there are two duplicates in a row we will not remove the second set.
-                    deduplicated_tf = copy.deepcopy(tf_msg)
-                    for repeat_tf in to_remove:
-                        deduplicated_tf.transforms.remove(repeat_tf)
-                    publish_tf = deduplicated_tf
-                else:
-                    publish_tf = tf_msg
-
-                self.tf_pub.publish(publish_tf)
-            self.last_tf_msg = tf_msg
+            self.tf_pub.publish(publish_tf)
+            self.last_state_tf_msg = tf_msg
 
             # Odom Twist #
             twist_odom_msg = GetOdomTwistFromState(state, self.spot_wrapper)
@@ -501,8 +487,12 @@ class SpotROS:
             self.spot_wrapper,
             self.mode_parent_odom_tf,
         )
-        if len(tf_msg.transforms) > 0:
-            self.tf_pub.publish(tf_msg)
+        publish_tf = DeduplicateTF(tf_msg, self.last_world_objects_tf_msg)
+
+        if len(publish_tf.transforms) > 0:
+            self.tf_pub.publish(publish_tf)
+
+        self.last_world_objects_tf_msg = tf_msg
 
     def handle_claim(self, req) -> TriggerResponse:
         """ROS service handler for the claim service"""
