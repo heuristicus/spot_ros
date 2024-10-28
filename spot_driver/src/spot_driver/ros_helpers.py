@@ -578,12 +578,13 @@ def GenerateFeetTF(
     foot_states_msg: FootStateArray,
     time_now: typing.Optional[rospy.Time] = None,
 ) -> TFMessage:
-    """Generate a tf message containing information about foot states
+    """Generate a tf message containing information about foot states.
 
     Args:
         foot_states_msg: FootStateArray message containing the foot states from the robot state
 
-    Returns: tf ROS message with foot states
+    Returns:
+        tf ROS message with foot states
 
     """
     foot_ordering = ["front_left", "front_right", "rear_left", "rear_right"]

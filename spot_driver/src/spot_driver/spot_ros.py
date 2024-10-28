@@ -149,6 +149,10 @@ class SpotROS:
         self.spot_wrapper = None
         self.last_state_tf_msg = TFMessage()
         self.last_world_objects_tf_msg = TFMessage()
+        self.last_feet_tf_msg = TFMessage()
+
+        # Map each TF child frame to the latest time at which we have its transform
+        self.latest_tf_seq: dict[str, int] = {}
 
         self.callbacks = {}
         self.spot_wrapper = None
@@ -159,6 +163,29 @@ class SpotROS:
         self.callbacks["hand_image"] = self.HandImageCB
         self.callbacks["lidar_points"] = self.PointCloudCB
         self.callbacks["world_objects"] = self.WorldObjectsCB
+
+    def filter_tfs(self, tf_msg: TFMessage) -> TFMessage:
+        """Filter out transforms in the given TF message that repeat timestamps.
+
+        For each transform, we map the child frame's name to the latest sequence ID for
+            which we've published a transform for that child frame. Unless this new
+            transform is later than what's been published, we filter it out.
+
+        :param      tf_msg      Message containing transforms of coordinate frames
+
+        :returns    Filtered message with only unseen or newer-than-seen transforms
+        """
+        keep_tfs = []
+
+        for tf in tf_msg.transforms:
+            last_seq = self.latest_tf_seq.get(tf.child_frame_id, None)
+
+            # Keep TFs for new frames, or those with later-than-seen sequence IDs
+            if last_seq is None or last_seq < tf.header.seq:
+                self.latest_tf_seq[tf.child_frame_id] = tf.header.seq
+                keep_tfs.append(tf)
+
+        return TFMessage(keep_tfs)
 
     def RobotStateCB(self, results):
         """Extract and publish data when the Spot Wrapper gets new robot state data.
@@ -175,9 +202,10 @@ class SpotROS:
 
             ## TF ##
             tf_msg = GetTFFromState(state, self.spot_wrapper, self.mode_parent_odom_tf)
-            publish_tf = DeduplicateTF(tf_msg, self.last_state_tf_msg)
+            deduplicated_tf = DeduplicateTF(tf_msg, self.last_state_tf_msg)
+            filtered_tf = self.filter_tfs(deduplicated_tf)
 
-            self.tf_pub.publish(publish_tf)
+            self.tf_pub.publish(filtered_tf)
             self.last_state_tf_msg = tf_msg
 
             # Odom Twist #
@@ -198,7 +226,11 @@ class SpotROS:
 
             # Feet #
             foot_array_msg = GetFeetFromState(state, self.spot_wrapper)
-            self.tf_pub.publish(GenerateFeetTF(foot_array_msg))
+            feet_tf_msg = GenerateFeetTF(foot_array_msg)
+            deduplicated_tf_feet = DeduplicateTF(feet_tf_msg, self.last_feet_tf_msg)
+            filtered_tf_feet = self.filter_tfs(deduplicated_tf_feet)
+
+            self.tf_pub.publish(filtered_tf_feet)
             self.feet_pub.publish(foot_array_msg)
 
             # EStop #
@@ -487,10 +519,11 @@ class SpotROS:
             self.spot_wrapper,
             self.mode_parent_odom_tf,
         )
-        publish_tf = DeduplicateTF(tf_msg, self.last_world_objects_tf_msg)
+        deduplicated_tf = DeduplicateTF(tf_msg, self.last_world_objects_tf_msg)
+        filtered_tf = self.filter_tfs(deduplicated_tf)
 
-        if len(publish_tf.transforms) > 0:
-            self.tf_pub.publish(publish_tf)
+        if len(filtered_tf.transforms) > 0:
+            self.tf_pub.publish(filtered_tf)
 
         self.last_world_objects_tf_msg = tf_msg
 

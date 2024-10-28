@@ -6,8 +6,9 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /Pose1
       Splitter Ratio: 0.5
-    Tree Height: 802
+    Tree Height: 808
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -64,6 +65,123 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        arm_link_el0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        arm_link_el1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        arm_link_fngr:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        arm_link_hr0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        arm_link_sh0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        arm_link_sh1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        arm_link_wr0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        arm_link_wr1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        body:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_hip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_lower_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_upper_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_rail:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_right_hip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_lower_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_upper_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_left_hip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_left_lower_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_left_upper_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_rail:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rear_right_hip:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_right_lower_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_right_upper_leg:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -72,42 +190,104 @@ Visualization Manager:
       Visual Enabled: true
     - Class: rviz/TF
       Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        arm0.link_wr1:
+          Value: true
+        arm_link_el0:
+          Value: true
+        arm_link_el1:
+          Value: true
+        arm_link_fngr:
+          Value: true
+        arm_link_hr0:
+          Value: true
+        arm_link_sh0:
+          Value: true
+        arm_link_sh1:
+          Value: true
+        arm_link_wr0:
+          Value: true
+        arm_link_wr1:
+          Value: true
+        back:
+          Value: true
+        back_fisheye:
+          Value: true
+        base_link:
+          Value: true
         body:
           Value: true
-        c0:
+        feet_center:
           Value: true
-        c1:
+        flat_body:
           Value: true
-        c2:
+        front_left_foot:
           Value: true
-        c3:
+        front_left_hip:
           Value: true
-        c4:
+        front_left_lower_leg:
           Value: true
-        ir:
+        front_left_upper_leg:
           Value: true
-        pano:
+        front_rail:
           Value: true
-        projected-ring:
+        front_right_foot:
           Value: true
-        ptz:
+        front_right_hip:
           Value: true
-        ptz-ir:
+        front_right_lower_leg:
           Value: true
-        ptz-ir-color:
+        front_right_upper_leg:
           Value: true
-        ptz-ir-overlay:
+        frontleft:
           Value: true
-        ptz_zero:
+        frontleft_fisheye:
           Value: true
-        spot_cam_payload_frame:
+        frontright:
           Value: true
-        stream:
+        frontright_fisheye:
           Value: true
-        tiled-ring:
+        gpe:
+          Value: true
+        hand:
+          Value: true
+        head:
+          Value: true
+        left:
+          Value: true
+        left_fisheye:
+          Value: true
+        link_wr1:
+          Value: true
+        odom:
+          Value: true
+        rear_left_foot:
+          Value: true
+        rear_left_hip:
+          Value: true
+        rear_left_lower_leg:
+          Value: true
+        rear_left_upper_leg:
+          Value: true
+        rear_rail:
+          Value: true
+        rear_right_foot:
+          Value: true
+        rear_right_hip:
+          Value: true
+        rear_right_lower_leg:
+          Value: true
+        rear_right_upper_leg:
+          Value: true
+        right:
+          Value: true
+        right_fisheye:
+          Value: true
+        vision:
           Value: true
       Marker Alpha: 1
       Marker Scale: 0.25
@@ -116,38 +296,76 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        body:
-          spot_cam_payload_frame:
-            c0:
+        vision:
+          body:
+            arm0.link_wr1:
               {}
-            c1:
+            arm_link_sh0:
+              arm_link_sh1:
+                arm_link_hr0:
+                  arm_link_el0:
+                    arm_link_el1:
+                      arm_link_wr0:
+                        arm_link_wr1:
+                          arm_link_fngr:
+                            {}
+            base_link:
               {}
-            c2:
+            feet_center:
               {}
-            c3:
+            flat_body:
               {}
-            c4:
+            front_left_foot:
               {}
-            ir:
+            front_left_hip:
+              front_left_upper_leg:
+                front_left_lower_leg:
+                  {}
+            front_rail:
               {}
-            pano:
+            front_right_foot:
               {}
-            projected-ring:
+            front_right_hip:
+              front_right_upper_leg:
+                front_right_lower_leg:
+                  {}
+            hand:
               {}
-            ptz:
+            head:
+              back:
+                back_fisheye:
+                  {}
+              frontleft:
+                frontleft_fisheye:
+                  {}
+              frontright:
+                frontright_fisheye:
+                  {}
+              left:
+                left_fisheye:
+                  {}
+              right:
+                right_fisheye:
+                  {}
+            link_wr1:
               {}
-            ptz-ir:
+            odom:
+              gpe:
+                {}
+            rear_left_foot:
               {}
-            ptz-ir-color:
+            rear_left_hip:
+              rear_left_upper_leg:
+                rear_left_lower_leg:
+                  {}
+            rear_rail:
               {}
-            ptz-ir-overlay:
+            rear_right_foot:
               {}
-            ptz_zero:
-              {}
-            stream:
-              {}
-            tiled-ring:
-              {}
+            rear_right_hip:
+              rear_right_upper_leg:
+                rear_right_lower_leg:
+                  {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -346,6 +564,22 @@ Visualization Manager:
       Transport Hint: compressed
       Unreliable: false
       Value: false
+    - Alpha: 1
+      Axes Length: 0.15000000596046448
+      Axes Radius: 0.02500000037252903
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: Pose
+      Queue Size: 10
+      Shaft Length: 1
+      Shaft Radius: 0.05000000074505806
+      Shape: Axes
+      Topic: /end_effector_target_pose
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -371,8 +605,8 @@ Visualization Manager:
       Single click: true
       Topic: /clicked_point
     - Class: spot_viz/CamLookAtPointTool
-      Hold: false
       Image width: 0
+      Track: false
       Zoom level: 1
   Value: true
   Views:
@@ -404,7 +638,7 @@ Window Geometry:
   Height: 1016
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000001680000035ffc0200000012fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000035f000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000002300000018e0000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000000a0049006d00610067006501000002f4000000ca0000000000000000fb0000000a0049006d00610067006501000002f4000000ca0000000000000000fb0000000a0049006d006100670065000000013f000000660000000000000000fb0000000a0049006d0061006700650000000164000000940000000000000000fb0000000a0049006d00610067006500000001a3000000e80000000000000000fc00000227000001970000000000fffffffa000000000100000002fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb0000000a0049006d0061006700650000000000000002ad0000000000000000fb0000001c00530070006f0074002000430041004d00200069006d00610067006500000002d4000000c80000001600ffffff00000001000001b80000035ffc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fc0000003d0000035f000002d60100001cfa000000000100000002fb0000002000530070006f00740043006f006e00740072006f006c00500061006e0065006c0100000000ffffffff000001b800fffffffb0000000a0056006900650077007301000005c8000001b80000010000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000078000000039fc0100000002fb0000000800540069006d0065010000000000000780000003bc00fffffffb0000000800540069006d00650100000000000004500000000000000000000004540000035f00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000016800000363fc0200000012fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000002a000000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b00000363000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000002300000018e0000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000000a0049006d00610067006501000002f4000000ca0000000000000000fb0000000a0049006d00610067006501000002f4000000ca0000000000000000fb0000000a0049006d006100670065000000013f000000660000000000000000fb0000000a0049006d0061006700650000000164000000940000000000000000fb0000000a0049006d00610067006500000001a3000000e80000000000000000fc00000227000001970000000000fffffffa000000000100000002fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb0000000a0049006d0061006700650000000000000002ad0000000000000000fb0000001c00530070006f0074002000430041004d00200069006d00610067006500000002d4000000c80000001600ffffff00000001000001b800000363fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fc0000003b00000363000002c30100001afa000000000100000002fb0000002000530070006f00740043006f006e00740072006f006c00500061006e0065006c0100000000ffffffff000001b600fffffffb0000000a0056006900650077007301000005c8000001b80000010000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000078000000039fc0100000002fb0000000800540069006d00650100000000000007800000030700fffffffb0000000800540069006d00650100000000000004500000000000000000000004540000036300000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Spot CAM image:
@@ -418,5 +652,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1920
-  X: 0
-  Y: 27
+  X: 1366
+  Y: 0
