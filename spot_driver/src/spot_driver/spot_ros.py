@@ -1,18 +1,29 @@
+from __future__ import annotations
+
 import functools
 import logging
 import math
 import threading
 import time
+from typing import Callable
 
 import actionlib
+import rospy
 import tf2_geometry_msgs
 import tf2_ros
-from bosdyn.api import robot_id_pb2, trajectory_pb2
+from bosdyn.api import geometry_pb2, point_cloud_pb2, robot_id_pb2, trajectory_pb2
 from bosdyn.api.geometry_pb2 import Quaternion, SE2VelocityLimit
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.client import math_helpers
-from geometry_msgs.msg import PoseStamped, Twist
+from geometry_msgs.msg import (
+    Pose,
+    PoseStamped,
+    Twist,
+    TwistWithCovarianceStamped,
+)
 from google.protobuf.wrappers_pb2 import DoubleValue
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import CameraInfo, Image, JointState, PointCloud2
 from spot_msgs.msg import (
     BatteryState,
     BatteryStateArray,
@@ -98,17 +109,43 @@ from spot_msgs.srv import (
 from spot_wrapper.wrapper import SpotWrapper
 from std_msgs.msg import Bool
 from std_srvs.srv import SetBool, SetBoolResponse, Trigger, TriggerResponse
+from tf2_msgs.msg import TFMessage
 
-from spot_driver.ros_helpers import *
+from spot_driver.ros_helpers import (
+    DeduplicateTF,
+    GenerateFeetTF,
+    GetBatteryStatesFromState,
+    GetBehaviorFaultsFromState,
+    GetDockStatesFromState,
+    GetEStopStateFromState,
+    GetFeetFromState,
+    GetImageMsg,
+    GetJointStatesFromState,
+    GetOdomFromState,
+    GetOdomTwistFromState,
+    GetPointCloudMsg,
+    GetPowerStatesFromState,
+    GetSpotCheckResultsMsg,
+    GetSystemFaultsFromState,
+    GetTFFromState,
+    GetTFFromWorldObjects,
+    GetWifiFromState,
+    GetWorldObjectsMsg,
+    bosdyn_data_to_image_and_camera_info_msgs,
+    get_corrected_odom,
+    populateTransformStamped,
+)
 
 
 class RateLimitedCall:
-    """Wrap a function with this class to limit how frequently it can be called within a loop"""
+    """Wrap a function with this class to limit how frequently it can be called within a loop."""
 
-    def __init__(self, fn: typing.Callable, rate_limit: float):
-        """Args:
-        fn: Function to call
-        rate_limit: The function will not be called faster than this rate
+    def __init__(self, fn: Callable, rate_limit: float):
+        """Initialize the rate-limited call with its function and rate limit.
+
+        Args:
+            fn: Function to call
+            rate_limit: The function will not be called faster than this rate
 
         """
         self.fn = fn
@@ -123,12 +160,14 @@ class RateLimitedCall:
 
 
 class ThreadedFunctionLoop:
-    """Holds a thread which calls a function in a loop at the specified rate"""
+    """Hold a thread which calls a function in a loop at the specified rate."""
 
-    def __init__(self, function: typing.Callable, rate: rospy.Rate) -> None:
-        """Args:
-        function: Function which should be called at the specified rate
-        rate: Rate at which the function should be called
+    def __init__(self, function: Callable, rate: rospy.Rate) -> None:
+        """Initialize the function loop with its function and a rate.
+
+        Args:
+            function: Function which should be called at the specified rate
+            rate: Rate at which the function should be called
 
         """
         self.function = function
@@ -136,14 +175,14 @@ class ThreadedFunctionLoop:
         self.thread = threading.Thread(target=self.run)
         self.thread.start()
 
-    def run(self):
+    def run(self) -> None:
         while not rospy.is_shutdown():
             self.function()
             self.rate.sleep()
 
 
 class SpotROS:
-    """Parent class for using the wrapper.  Defines all callbacks and keeps the wrapper alive"""
+    """Parent class defining all callbacks to use the wrapper, and keep the wrapper alive."""
 
     def __init__(self):
         self.spot_wrapper = None
@@ -268,7 +307,7 @@ class SpotROS:
             self.behavior_faults_pub.publish(behavior_fault_state_msg)
 
     def MetricsCB(self, results):
-        """Callback for when the Spot Wrapper gets new metrics data.
+        """Process new metrics data received by the Spot Wrapper as a callback.
 
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
@@ -300,7 +339,7 @@ class SpotROS:
             self.metrics_pub.publish(metrics_msg)
 
     def LeaseCB(self, results):
-        """Callback for when the Spot Wrapper gets new lease data.
+        """Process new lease data received by the Spot Wrapper as a callback.
 
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
@@ -488,7 +527,7 @@ class SpotROS:
             self.populate_camera_static_transforms(data[3])
 
     def PointCloudCB(self, results):
-        """Callback for when the Spot Wrapper gets new point cloud data.
+        """Process new point cloud data received by the Spot Wrapper (callback).
 
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
@@ -502,7 +541,7 @@ class SpotROS:
             self.populate_lidar_static_transforms(data[0])
 
     def WorldObjectsCB(self, results):
-        """Callback for when the Spot Wrapper gets new world objects data.
+        """Process new world objects data received by the Spot Wrapper (callback).
 
         Args:
             results: FutureWrapper object of AsyncPeriodicQuery callback
@@ -528,24 +567,25 @@ class SpotROS:
         self.last_world_objects_tf_msg = tf_msg
 
     def handle_claim(self, req) -> TriggerResponse:
-        """ROS service handler for the claim service"""
+        """ROS service handler for the claim service."""
         resp = self.spot_wrapper.claim()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_release(self, req) -> TriggerResponse:
-        """ROS service handler for the release service"""
+        """ROS service handler for the release service."""
         resp = self.spot_wrapper.release()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_locked_stop(self, req) -> TriggerResponse:
-        """Stop the current motion of the robot and disallow any further motion until the allow motion service is
-        called
-        """
+        """Stop the current motion of the robot and disallow any further motion until the allow motion service is called."""
         self.allow_motion = False
         return self.handle_stop(req)
 
     def handle_stop(self, req) -> TriggerResponse:
-        """ROS service handler for the stop service. Interrupts the currently active motion"""
+        """ROS service handler for the stop service.
+
+        Interrupts the currently active motion.
+        """
         resp = self.spot_wrapper.stop()
         message = "Spot stop service was called"
         if self.navigate_as.is_active():
@@ -567,7 +607,7 @@ class SpotROS:
         return TriggerResponse(resp[0], resp[1])
 
     def handle_self_right(self, req) -> TriggerResponse:
-        """ROS service handler for the self-right service"""
+        """ROS service handler for the self-right service."""
         if not self.robot_allowed_to_move(autonomous_command=False):
             return TriggerResponse(False, "Robot motion is not allowed")
 
@@ -575,7 +615,7 @@ class SpotROS:
         return TriggerResponse(resp[0], resp[1])
 
     def handle_sit(self, req) -> TriggerResponse:
-        """ROS service handler for the sit service"""
+        """ROS service handler for the sit service."""
         if not self.robot_allowed_to_move(autonomous_command=False):
             return TriggerResponse(False, "Robot motion is not allowed")
 
@@ -583,14 +623,14 @@ class SpotROS:
         return TriggerResponse(resp[0], resp[1])
 
     def handle_stand(self, req) -> TriggerResponse:
-        """ROS service handler for the stand service"""
+        """ROS service handler for the stand service."""
         if not self.robot_allowed_to_move(autonomous_command=False):
             return TriggerResponse(False, "Robot motion is not allowed")
         resp = self.spot_wrapper.stand()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_posed_stand(self, req: PosedStandRequest) -> PosedStandResponse:
-        """Handle a service call for the posed stand
+        """Handle a service call for the posed stand.
 
         Args:
             req: PosedStandRequest
@@ -607,7 +647,7 @@ class SpotROS:
         return PosedStandResponse(success, message)
 
     def handle_posed_stand_action(self, action: PoseBodyGoal):
-        """Handle a call to the posed stand actionserver
+        """Handle a call to the posed stand actionserver.
 
         If no value is provided, this is equivalent to the basic stand commmand
 
@@ -634,12 +674,13 @@ class SpotROS:
         yaw: float,
         pitch: float,
         roll: float,
-    ) -> typing.Tuple[bool, str]:
-        """Make the robot do a posed stand with specified body height and orientation
+    ) -> tuple[bool, str]:
+        """Make the robot do a posed stand with specified body height and orientation.
 
-        By empirical observation, the limit on body height is [-0.16, 0.11], and RPY are probably limited to 30
-        degrees. Roll values are likely affected by the payload configuration as well. If the payload is
-        misconfigured a high roll value could cause it to hit the legs
+        By empirical observation, the limit on body height is [-0.16, 0.11], and RPY
+        are probably limited to 30 degrees. Roll values are likely affected by the
+        payload configuration as well. If the payload is misconfigured a high roll
+        value could cause it to hit the legs.
 
         Args:
             body_height: Height of the body relative to the default height
@@ -663,23 +704,27 @@ class SpotROS:
         return resp[0], resp[1]
 
     def handle_power_on(self, req) -> TriggerResponse:
-        """ROS service handler for the power-on service"""
+        """ROS service handler for the power-on service."""
         resp = self.spot_wrapper.power_on()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_safe_power_off(self, req) -> TriggerResponse:
-        """ROS service handler for the safe-power-off service"""
+        """ROS service handler for the safe-power-off service."""
         resp = self.spot_wrapper.safe_power_off()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_estop_hard(self, req) -> TriggerResponse:
-        """ROS service handler to hard-eStop the robot.  The robot will immediately cut power to the motors"""
+        """ROS service handler to hard-eStop the robot.
+
+        The robot will immediately cut power to the motors.
+        """
         resp = self.spot_wrapper.assertEStop(True)
         return TriggerResponse(resp[0], resp[1])
 
     def handle_estop_gentle(self, req) -> TriggerResponse:
-        """ROS service handler to soft-eStop the robot.  The robot will try to settle on the ground before cutting
-        power to the motors
+        """ROS service handler to soft-eStop the robot.
+
+        The robot will try to settle on the ground before cutting power to the motors.
         """
         resp = self.spot_wrapper.assertEStop(False)
         return TriggerResponse(resp[0], resp[1])
@@ -690,7 +735,7 @@ class SpotROS:
         return TriggerResponse(resp[0], resp[1])
 
     def handle_clear_behavior_fault(self, req) -> ClearBehaviorFaultResponse:
-        """ROS service handler for clearing behavior faults"""
+        """ROS service handler for clearing behavior faults."""
         resp = self.spot_wrapper.clear_behavior_fault(req.id)
         return ClearBehaviorFaultResponse(resp[0], resp[1])
 
@@ -708,7 +753,7 @@ class SpotROS:
             return SetBoolResponse(False, f"Error:{e}")
 
     def handle_locomotion_mode(self, req) -> SetLocomotionResponse:
-        """ROS service handler to set locomotion mode"""
+        """ROS service handler to set locomotion mode."""
         if req.locomotion_mode in [0, 9] or req.locomotion_mode > 10:
             msg = f"Attempted to set locomotion mode to {req.locomotion_mode}, which is an invalid value."
             rospy.logerr(msg)
@@ -725,7 +770,7 @@ class SpotROS:
             return SetLocomotionResponse(False, f"Error:{e}")
 
     def handle_swing_height(self, req) -> SetSwingHeightResponse:
-        """ROS service handler to set the step swing height"""
+        """ROS service handler to set the step swing height."""
         if req.swing_height == 0 or req.swing_height > 3:
             msg = f"Attempted to set step swing height to {req.swing_height}, which is an invalid value."
             rospy.logerr(msg)
@@ -762,9 +807,10 @@ class SpotROS:
         max_linear_x: float,
         max_linear_y: float,
         max_angular_z: float,
-    ) -> typing.Tuple[bool, str]:
-        """Modify the mobility params to have a limit on the robot's velocity during trajectory commands.
-        Velocities sent to cmd_vel ignore these values
+    ) -> tuple[bool, str]:
+        """Modify the mobility params to limit the robot's velocity during trajectories.
+
+        Velocities sent to cmd_vel ignore these values.
 
         Passing 0 to any of the values will use spot's internal limits
 
@@ -809,15 +855,15 @@ class SpotROS:
             return False, f"Error:{e}"
 
     def _transform_pose_to_body_frame(self, pose: PoseStamped) -> PoseStamped:
-        """Transform a pose to the body frame
+        """Transform a pose to the body frame.
 
         Args:
             pose: PoseStamped to transform
 
         Raises: tf2_ros.LookupException if the transform lookup fails
 
-        Returns: Transformed pose in body frame if given pose is not in the body frame, or the original pose if it is
-        in the body frame
+        Returns: Transformed pose in body frame if given pose is not in the body frame,
+            or the original pose if it is in the body frame.
 
         """
         if pose.header.frame_id == "body":
@@ -835,9 +881,11 @@ class SpotROS:
         return pose_in_body
 
     def robot_allowed_to_move(self, autonomous_command: bool = True) -> bool:
-        """Check if the robot is allowed to move. This means checking both that autonomy is enabled, which can only be
-        set when the driver is started, and also that motion is allowed, the state of which can change while the
-        driver is running
+        """Check if the robot is allowed to move.
+
+        This means checking both that autonomy is enabled, which can only be set when
+        the driver is started, and also that motion is allowed, the state of which can
+        change while the driver is running.
 
         Args:
             autonomous_command: If true, indicates that this function should also check if autonomy is enabled
@@ -867,11 +915,11 @@ class SpotROS:
 
         return self.allow_motion and autonomy_ok
 
-    def handle_allow_motion(self, req: SetBool) -> typing.Tuple[bool, str]:
-        """Handle a call to set whether motion is allowed or not
+    def handle_allow_motion(self, req: SetBool) -> tuple[bool, str]:
+        """Handle a call to set whether motion is allowed or not.
 
-        When motion is not allowed, any service call or topic which can move the robot will return without doing
-        anything
+        When motion is not allowed, any service call or topic which can move the robot
+            will return without doing anything.
 
         Returns: (bool, str) True if successful, along with a message
 
@@ -888,7 +936,7 @@ class SpotROS:
 
         return True, "Spot motion was {}".format("enabled" if req.data else "disabled")
 
-    def handle_obstacle_params(self, req: MobilityParams) -> typing.Tuple[bool, str]:
+    def handle_obstacle_params(self, req: MobilityParams) -> tuple[bool, str]:
         """Handle a call to set the obstacle params part of mobility params. The previous values are always overwritten.
 
         Args:
@@ -936,8 +984,10 @@ class SpotROS:
         self.spot_wrapper.set_mobility_params(mobility_params)
         return True, "Successfully set obstacle params" + disable_notallowed
 
-    def handle_terrain_params(self, req: MobilityParams) -> typing.Tuple[bool, str]:
-        """Handle a call to set the terrain params part of mobility params. The previous values are always overwritten
+    def handle_terrain_params(self, req: MobilityParams) -> tuple[bool, str]:
+        """Handle a call to set the terrain params part of mobility params.
+
+        The previous values are always overwritten.
 
         Args:
             req:
@@ -975,15 +1025,13 @@ class SpotROS:
         self.spot_wrapper.set_mobility_params(mobility_params)
         return True, "Successfully set terrain params"
 
-    def trajectory_callback(self, msg: PoseStamped):
-        """Handle a callback from the trajectory topic requesting to go to a location
+    def trajectory_callback(self, msg: PoseStamped) -> None:
+        """Handle a callback from the trajectory topic requesting to go to a location.
 
         The trajectory will time out after 5 seconds
 
         Args:
             msg: PoseStamped containing desired pose
-
-        Returns:
 
         """
         if not self.robot_allowed_to_move():
@@ -1001,7 +1049,7 @@ class SpotROS:
             rospy.logerr(str(e))
 
     def handle_trajectory(self, req: TrajectoryGoal):
-        """ROS actionserver execution handler to handle receiving a request to move to a location"""
+        """ROS actionserver execution handler to handle receiving a request to move to a location."""
         if not self.robot_allowed_to_move():
             rospy.logerr(
                 "Trajectory service was called but robot is not allowed to move",
@@ -1136,24 +1184,24 @@ class SpotROS:
                 )
 
     def handle_roll_over_right(self, req) -> TriggerResponse:
-        """Robot sit down and roll on to it its side for easier battery access"""
+        """Robot sit down and roll on to it its side for easier battery access."""
         del req
         resp = self.spot_wrapper.battery_change_pose(1)
         return TriggerResponse(resp[0], resp[1])
 
     def handle_roll_over_left(self, req) -> TriggerResponse:
-        """Robot sit down and roll on to it its side for easier battery access"""
+        """Robot sit down and roll on to it its side for easier battery access."""
         del req
         resp = self.spot_wrapper.battery_change_pose(2)
         return TriggerResponse(resp[0], resp[1])
 
     def handle_dock(self, req) -> DockResponse:
-        """Dock the robot"""
+        """Dock the robot."""
         resp = self.spot_wrapper.spot_docking.dock(req.dock_id)
         return DockResponse(resp[0], resp[1])
 
     def handle_undock(self, req) -> TriggerResponse:
-        """Undock the robot"""
+        """Undock the robot."""
         resp = self.spot_wrapper.spot_docking.undock()
         return TriggerResponse(resp[0], resp[1])
 
@@ -1169,12 +1217,12 @@ class SpotROS:
             self.dock_as.set_aborted(DockResult(resp[0], resp[1]))
 
     def handle_get_docking_state(self, req) -> GetDockStateResponse:
-        """Get docking state of robot"""
+        """Get docking state of robot."""
         resp = self.spot_wrapper.spot_docking.get_docking_state()
         return GetDockStateResponse(GetDockStatesFromState(resp))
 
     def _send_trajectory_command(self, pose, duration, precise=True):
-        """Send a trajectory command to the robot
+        """Send a trajectory command to the robot.
 
         Args:
             pose: Pose the robot should go to. Must be in the body frame
@@ -1207,7 +1255,7 @@ class SpotROS:
         )
 
     def cmd_vel_callback(self, data):
-        """Callback for cmd_vel command"""
+        """Callback for cmd_vel command."""
         if not self.robot_allowed_to_move():
             rospy.logerr("cmd_vel received a message but motion is not allowed.")
             return
@@ -1215,7 +1263,7 @@ class SpotROS:
         self.spot_wrapper.velocity_cmd(data.linear.x, data.linear.y, data.angular.z)
 
     def in_motion_or_idle_pose_cb(self, data):
-        """Callback for pose to be used while in motion or idling
+        """Callback for pose to be used while in motion or idling.
 
         This sets the body control field in the mobility params. This means that the pose will be used while a motion
         command is executed. Only the pitch is maintained while moving. The roll and yaw will be applied by the idle
@@ -1228,7 +1276,7 @@ class SpotROS:
         self._set_in_motion_or_idle_body_pose(data)
 
     def handle_in_motion_or_idle_body_pose(self, goal: PoseBodyGoal):
-        """Handle a goal received from the pose body actionserver
+        """Handle a goal received from the pose body actionserver.
 
         Args:
             goal: PoseBodyGoal containing a pose to apply to the body
@@ -1281,7 +1329,7 @@ class SpotROS:
         )
 
     def _set_in_motion_or_idle_body_pose(self, pose):
-        """Set the pose of the body which should be applied while in motion or idle
+        """Set the pose of the body which should be applied while in motion or idle.
 
         Args:
             pose: Pose to be applied to the body. Only the body height is taken from the position component
@@ -1305,12 +1353,12 @@ class SpotROS:
         self.spot_wrapper.set_mobility_params(mobility_params)
 
     def handle_list_graph(self, req: ListGraphRequest) -> ListGraphResponse:
-        """ROS service handler for listing graph_nav waypoint_ids"""
+        """ROS service handler for listing graph_nav waypoint_ids."""
         resp = self.spot_wrapper.spot_graph_nav.list_graph()
         return ListGraphResponse(resp)
 
     def handle_download_graph(self, req: DownloadGraphRequest) -> DownloadGraphResponse:
-        """ROS service handler for downloading graph_nav waypoint_ids"""
+        """ROS service handler for downloading graph_nav waypoint_ids."""
         resp = self.spot_wrapper.spot_graph_nav.download_navigation_graph(
             req.download_filepath,
         )
@@ -1320,7 +1368,7 @@ class SpotROS:
         self,
         req: GraphCloseLoopsRequest,
     ) -> GraphCloseLoopsResponse:
-        """ROS service handler for closing loops in GraphNav map"""
+        """ROS service handler for closing loops in GraphNav map."""
         resp = self.spot_wrapper.spot_graph_nav.navigation_close_loops(
             req.close_fiducial_loops,
             req.close_odometry_loops,
@@ -1328,12 +1376,12 @@ class SpotROS:
         return GraphCloseLoopsResponse(resp[0], resp[1])
 
     def handle_graph_optimize_anchoring(self, req) -> TriggerResponse:
-        """ROS service handler for triggering graph anchoring optimization"""
+        """ROS service handler for triggering graph anchoring optimization."""
         resp = self.spot_wrapper.spot_graph_nav.optmize_anchoring()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_navigate_init(self, req: NavigateInitRequest) -> NavigateInitResponse:
-        """ROS service handler for initializing GraphNav localization"""
+        """ROS service handler for initializing GraphNav localization."""
         if not self.robot_allowed_to_move():
             rospy.logerr(
                 "navigate_init was requested but robot is not allowed to move.",
@@ -1353,7 +1401,7 @@ class SpotROS:
         return NavigateInitResponse(resp[0], resp[1])
 
     def handle_navigate_to_feedback(self):
-        """Thread function to send navigate_to feedback"""
+        """Thread function to send navigate_to feedback."""
         while not rospy.is_shutdown() and self.run_navigate_to:
             localization_state = (
                 self.spot_wrapper._graph_nav_client.get_localization_state()
@@ -1394,7 +1442,7 @@ class SpotROS:
             self.navigate_as.set_aborted(NavigateToResult(resp[0], resp[1]))
 
     def handle_navigate_route_feedback(self):
-        """Thread function to send navigate_route feedback"""
+        """Thread function to send navigate_route feedback."""
         while not rospy.is_shutdown() and self.run_navigate_route:
             localization_state = (
                 self.spot_wrapper._graph_nav_client.get_localization_state()
@@ -1437,18 +1485,20 @@ class SpotROS:
             self.navigate_route_as.set_aborted(NavigateRouteResult(resp[0], resp[1]))
 
     def populate_camera_static_transforms(self, image_data):
-        """Check data received from one of the image tasks and use the transform snapshot to extract the camera frame
-        transforms. This is the transforms from body->frontleft->frontleft_fisheye, for example. These transforms
-        never change, but they may be calibrated slightly differently for each robot so we need to generate the
-        transforms at runtime.
+        """Extract the camera frame transforms from a snapshot for an image task.
+
+        These are the transforms from body->frontleft->frontleft_fisheye, for example.
+        These transforms never change, but they may be calibrated slightly differently
+        for each robot so we need to generate the transforms at runtime.
 
         Args:
-        image_data: Image protobuf data from the wrapper
+            image_data: Image protobuf data from the wrapper
 
         """
-        # We exclude the odometry frames from static transforms since they are not static. We can ignore the body
-        # frame because it is a child of odom or vision depending on the mode_parent_odom_tf, and will be published
-        # by the non-static transform publishing that is done by the state callback
+        # We exclude the odometry frames from static transforms since they are not
+        # static. We can ignore the body frame because it is a child of odom or vision
+        # depending on the mode_parent_odom_tf, and will be published by the non-static
+        # transform publishing that is done by the state callback.
         excluded_frames = [
             self.tf_name_vision_odom,
             self.tf_name_kinematic_odom,
@@ -1494,18 +1544,21 @@ class SpotROS:
         self,
         point_cloud_data: point_cloud_pb2.PointCloud,
     ):
-        """Check data received from one of the point cloud tasks and use the transform snapshot to extract the lidar frame
-        transforms. This is the transforms from body->sensor, for example. These transforms
-        never change, but they may be calibrated slightly differently for each robot so we need to generate the
-        transforms at runtime.
+        """Check data received from a point cloud task and extract the LIDAR frame tranforms.
+
+        The transform snapshots are used to extract the lidar frame transforms. This is
+        the transforms from body->sensor, for example. These transforms never change,
+        but they may be calibrated slightly differently for each robot so we need to
+        generate the transforms at runtime.
 
         Args:
         point_cloud_data: PointCloud protobuf data from the wrapper
 
         """
-        # We exclude the odometry frames from static transforms since they are not static. We can ignore the body
-        # frame because it is a child of odom or vision depending on the mode_parent_odom_tf, and will be published
-        # by the non-static transform publishing that is done by the state callback
+        # We exclude the odometry frames from static transforms since they are not
+        # static. We can ignore the body frame because it is a child of odom or vision,
+        # depending on the mode_parent_odom_tf, and will be published by the non-static
+        # transform publishing that is done by the state callback.
         excluded_frames = [
             self.tf_name_vision_odom,
             self.tf_name_kinematic_odom,
@@ -1544,7 +1597,7 @@ class SpotROS:
             )
 
     def handle_spot_check(self, req: SpotCheckRequest) -> SpotCheckResponse:
-        """ROS service handler for spot_check"""
+        """ROS service handler for spot_check."""
         if req.revert_calibration:
             resp = self.spot_wrapper.spot_check.revert_calibration()
         elif req.start and req.blocking:
@@ -1565,12 +1618,12 @@ class SpotROS:
 
     # Arm functions ##################################################
     def handle_arm_stow(self, srv_data) -> TriggerResponse:
-        """ROS service handler to command the arm to stow, home position"""
+        """ROS service handler to command the arm to stow, home position."""
         resp = self.spot_wrapper.spot_arm.arm_stow()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_arm_unstow(self, srv_data) -> TriggerResponse:
-        """ROS service handler to command the arm to unstow, joints are all zeros"""
+        """ROS service handler to command the arm to unstow, joints are all zeros."""
         resp = self.spot_wrapper.spot_arm.arm_unstow()
         return TriggerResponse(resp[0], resp[1])
 
@@ -1578,24 +1631,24 @@ class SpotROS:
         self,
         srv_data: ArmJointMovementRequest,
     ) -> ArmJointMovementResponse:
-        """ROS service handler to send joint movement to the arm to execute"""
+        """ROS service handler to send joint movement to the arm to execute."""
         resp = self.spot_wrapper.spot_arm.arm_joint_move(
             joint_targets=srv_data.joint_target,
         )
         return ArmJointMovementResponse(resp[0], resp[1])
 
     def handle_force_trajectory(self, srv_data) -> ArmForceTrajectoryResponse:
-        """ROS service handler to send a force trajectory up or down a vertical force"""
+        """ROS service handler to send a force trajectory up or down a vertical force."""
         resp = self.spot_wrapper.spot_arm.force_trajectory(data=srv_data)
         return ArmForceTrajectoryResponse(resp[0], resp[1])
 
     def handle_gripper_open(self, srv_data) -> TriggerResponse:
-        """ROS service handler to open the gripper"""
+        """ROS service handler to open the gripper."""
         resp = self.spot_wrapper.spot_arm.gripper_open()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_gripper_close(self, srv_data) -> TriggerResponse:
-        """ROS service handler to close the gripper"""
+        """ROS service handler to close the gripper."""
         resp = self.spot_wrapper.spot_arm.gripper_close()
         return TriggerResponse(resp[0], resp[1])
 
@@ -1603,24 +1656,24 @@ class SpotROS:
         self,
         srv_data: GripperAngleMoveRequest,
     ) -> GripperAngleMoveResponse:
-        """ROS service handler to open the gripper at an angle"""
+        """ROS service handler to open the gripper at an angle."""
         resp = self.spot_wrapper.spot_arm.gripper_angle_open(
             gripper_ang=srv_data.gripper_angle,
         )
         return GripperAngleMoveResponse(resp[0], resp[1])
 
     def handle_arm_carry(self, srv_data) -> TriggerResponse:
-        """ROS service handler to put arm in carry mode"""
+        """ROS service handler to put arm in carry mode."""
         resp = self.spot_wrapper.spot_arm.arm_carry()
         return TriggerResponse(resp[0], resp[1])
 
     def handle_gripper_pose(self, srv_data: HandPoseRequest) -> HandPoseResponse:
-        """ROS service to give a position to the gripper"""
+        """ROS service to give a position to the gripper."""
         resp = self.spot_wrapper.spot_arm.hand_pose(data=srv_data)
         return HandPoseResponse(resp[0], resp[1])
 
     def handle_grasp_3d(self, srv_data: Grasp3dRequest) -> Grasp3dResponse:
-        """ROS service to grasp an object by x,y,z coordinates in given frame"""
+        """ROS service to grasp an object by x,y,z coordinates in given frame."""
         resp = self.spot_wrapper.spot_arm.grasp_3d(
             frame=srv_data.frame_name,
             object_rt_frame=srv_data.object_rt_frame,
@@ -1740,15 +1793,17 @@ class SpotROS:
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
         self.sensors_static_transform_broadcaster = tf2_ros.StaticTransformBroadcaster()
-        # Static transform broadcaster is super simple and just a latched publisher. Every time we add a new static
-        # transform we must republish all static transforms from this source, otherwise the tree will be incomplete.
-        # We keep a list of all the static transforms we already have so they can be republished, and so we can check
-        # which ones we already have
+        # Static transform broadcaster is super simple and just a latched publisher.
+        # Every time we add a new static transform we must republish all static
+        # transforms from this source, otherwise the tree will be incomplete. We keep
+        # a list of all the static transforms we already have so they can be
+        # republished, and so we can check which ones we already have.
         self.sensors_static_transforms = []
 
         # Spot has 2 types of odometries: 'odom' and 'vision'
-        # The former one is kinematic odometry and the second one is a combined odometry of vision and kinematics
-        # These params enables to change which odometry frame is a parent of body frame and to change tf names of each odometry frames.
+        # The former one is kinematic odometry and the second one is a combined odometry
+        # of vision and kinematics. These params enables to change which odometry frame
+        # is a parent of body frame and to change tf names of each odometry frames.
         self.mode_parent_odom_tf = rospy.get_param(
             "~mode_parent_odom_tf",
             "odom",
@@ -1757,9 +1812,9 @@ class SpotROS:
         self.tf_name_raw_kinematic = "odom"
         self.tf_name_vision_odom = rospy.get_param("~tf_name_vision_odom", "vision")
         self.tf_name_raw_vision = "vision"
-        if (
-            self.mode_parent_odom_tf != self.tf_name_raw_kinematic
-            and self.mode_parent_odom_tf != self.tf_name_raw_vision
+        if self.mode_parent_odom_tf not in set(
+            self.tf_name_raw_kinematic,
+            self.tf_name_raw_vision,
         ):
             rospy.logerr(
                 "rosparam '~mode_parent_odom_tf' should be 'odom' or 'vision'.",
@@ -2157,9 +2212,7 @@ class SpotROS:
         self.dock_as.start()
 
     def main(self):
-        """Main function for the SpotROS class. Gets config from ROS and initializes the wrapper. Holds lease from
-        wrapper and updates all async tasks at the ROS rate
-        """
+        """Get config from ROS, initialize the wrapper, hold lease for wrapper, and update async tasks at the ROS rate."""
         rospy.init_node("spot_ros", anonymous=True)
 
         self.rates = rospy.get_param("~rates", {})
@@ -2171,8 +2224,8 @@ class SpotROS:
         for param, rate in self.rates.items():
             if rate > loop_rate:
                 rospy.logwarn(
-                    f"{param} has a rate of {rate} specified, which is higher than the loop rate of {loop_rate}. It will not "
-                    "be published at the expected frequency",
+                    f"{param} has a rate of {rate} specified, which is higher than the "
+                    f"loop rate of {loop_rate}. It will not be published at the expected frequency.",
                 )
 
         rate = rospy.Rate(loop_rate)
@@ -2253,8 +2306,8 @@ class SpotROS:
             max(0.0, self.rates.get("camera_images", 10)),
         )
 
-        # Retrieval and publication of images can take some time, so break it out into its own thread. It's likely this
-        # could be sped up further by breaking it out into separate nodes.
+        # Retrieval and publication of images can take some time, so break it out into
+        # its own thread. This could probably be sped up further by breaking it out into separate nodes.
         camera_publish_thread = ThreadedFunctionLoop(rate_publish_camera_images, rate)
         depth_publish_thread = ThreadedFunctionLoop(rate_publish_depth_images, rate)
         update_tasks_thread = ThreadedFunctionLoop(self.spot_wrapper.updateTasks, rate)
