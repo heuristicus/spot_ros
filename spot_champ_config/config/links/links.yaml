@@ -1,0 +1,24 @@
+base: body
+left_front:
+  - front_left_hip
+  - front_left_upper_leg
+  - front_left_lower_leg
+  - front_left_ee
+
+right_front:
+  - front_right_hip
+  - front_right_upper_leg
+  - front_right_lower_leg
+  - front_right_ee
+
+left_hind:
+  - rear_left_hip
+  - rear_left_upper_leg
+  - rear_left_lower_leg
+  - rear_left_ee
+
+right_hind:
+  - rear_right_hip
+  - rear_right_upper_leg
+  - rear_right_lower_leg
+  - rear_right_ee

@@ -1,17 +1,14 @@
 <?xml version="1.0" ?>
-<robot name="spot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot name="spot"
+  xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:include filename="$(find spot_description)/urdf/spot_macro.xacro" />
 
   <!-- Parameters -->
   <xacro:arg name="arm" default="false" />
-  <xacro:arg name="feet" default="false" />
   <xacro:arg name="tf_prefix" default="" />
 
   <!-- Load Spot -->
-  <xacro:load_spot
-    arm="$(arg arm)"
-    feet="$(arg feet)"
-    tf_prefix="$(arg tf_prefix)" />
+  <xacro:load_spot arm="$(arg arm)" tf_prefix="$(arg tf_prefix)" />
 
 </robot>

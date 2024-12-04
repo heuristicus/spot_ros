@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>spot_champ_config</name>
+  <version>0.1.0</version>
+  <description>spot Champ Config Package</description>
+
+  <maintainer email="jimenojmm@gmail.com">Juan Miguel Jimeno</maintainer>
+  <author>Juan Miguel Jimeno</author>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>roslaunch</exec_depend>
+  <exec_depend>rviz</exec_depend>
+  <exec_depend>champ_base</exec_depend>
+
+</package>

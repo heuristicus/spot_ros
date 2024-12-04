@@ -1,0 +1,81 @@
+<launch>
+    <!-- Change this for namespacing. -->
+    <arg name="robot_name" default="/"/>
+
+    <!-- Link name of floating base. Do not touch this. -->
+    <arg name="base_frame" default="body"/>
+
+    <!--Path to list of joint names. Do not touch this. -->
+    <arg name="joints_map_file" default="$(find spot_champ_config)/config/joints/joints.yaml"/>
+
+    <!-- Path to list of link names. Do not touch this. -->
+    <arg name="links_map_file" default="$(find spot_champ_config)/config/links/links.yaml"/>
+
+    <!-- Path to gait parameters. Do not touch this. -->
+    <arg name="gait_config_file" default="$(find spot_champ_config)/config/gait/gait.yaml"/>
+
+    <!-- Path to URDF file. Do not touch this. -->
+    <arg name="description_file" default="$(find spot_description)/urdf/spot.urdf"/>
+
+    <!-- Set to true during simulation. This is auto-set to true from gazebo.launch. -->
+    <arg name="gazebo" default="false" />
+
+    <!-- Set to true to run rviz in parallel. -->
+    <arg name="rviz" default="false"/>
+
+    <!-- Default RVIZ reference frame. -->
+    <arg name="rviz_ref_frame" default="odom"/>
+
+    <!-- Set to true if you want to visualize robot but there's no IMU. Only useful for microcontrollers. -->
+    <arg name="has_imu" default="true" />
+
+    <!-- Set to true if you're using CHAMP lite version. Only useful for microcontrollers. -->
+    <arg name="lite" default="false" />
+
+    <!-- Set to true if you want to calculate odometry using close loop. This is auto-set to true from gazebo.launch. -->
+    <arg name="close_loop_odom" default="false" />
+
+    <!-- Set to true if you want the controller to publish the foot contact states. This is auto-set to false from gazebo.launch. -->
+    <arg name="publish_foot_contacts" default="true" />
+
+    <!-- Set to true if you want the controller to publish the joint_states topic. This is auto-set to false from gazebo.launch. -->
+    <arg name="publish_joint_control" default="true" />
+
+    <!-- Set to the 2D LIDAR you're using. See https://github.com/chvmp/champ/tree/master/champ_bringup/launch/include/laser .-->
+    <arg name="laser" default="sim"/>
+
+    <!-- Change to remap command topic for actuator controller (ROS control).  -->
+    <arg name="joint_controller_topic" default="joint_group_position_controller/command" />
+
+    <!-- Flag useful to launch hardware connected launch files. This auto disables publishing joint_states. -->
+    <arg name="hardware_connected" default="false" />
+
+    <arg if="$(eval arg('robot_name') == '/')" name="frame_prefix" value="" />
+    <arg unless="$(eval arg('robot_name') == '/')" name="frame_prefix" value="$(arg robot_name)/" />
+
+    <include file="$(find champ_bringup)/launch/bringup.launch">
+        <arg name="robot_name" value="$(arg robot_name)"/>
+        <arg name="base_frame" value="$(arg base_frame)"/>
+        <arg name="joints_map_file" value="$(arg joints_map_file)"/>
+        <arg name="links_map_file" value="$(arg links_map_file)"/>
+        <arg name="gait_config_file" value="$(arg gait_config_file)"/>
+        <arg name="description_file" value="$(arg description_file)"/>
+        <arg name="has_imu" value="$(arg has_imu)"/>
+        <arg name="gazebo" value="$(arg gazebo)"/>
+        <arg name="lite" value="$(arg lite)"/>
+        <arg name="laser" value="$(arg laser)"/>
+        <arg name="rviz" value="$(arg rviz)"/>
+        <arg name="rviz_ref_frame" value="$(arg frame_prefix)$(arg rviz_ref_frame)"/>
+        <arg name="joint_controller_topic" value="$(arg joint_controller_topic)" />
+        <arg name="hardware_connected" value="$(arg hardware_connected)" />
+        <arg name="publish_foot_contacts" value="$(arg publish_foot_contacts)" />
+        <arg name="publish_joint_control" value="$(arg publish_joint_control)" />
+        <arg name="close_loop_odom" value="$(arg close_loop_odom)" />
+    </include>
+
+    <group if="$(arg hardware_connected)">
+        <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_laser" args="0 0 0 0 0 0 $(arg frame_prefix)body $(arg frame_prefix)laser" />
+        <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_imu" args="0 0 0 0 0 0 $(arg frame_prefix)body $(arg frame_prefix)imu_link" />
+        <!-- include your hardware launch file here -->
+    </group>
+</launch>
